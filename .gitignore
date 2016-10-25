@@ -9,6 +9,7 @@ INSTALLED_FILES
 .project
 .pydevproject
 .settings
+.idea
 modules/*
 
 # Logs and databases #
