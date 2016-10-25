@@ -1,5 +1,5 @@
-Alignak External commands Module
-================================
+Alignak Web services Module
+===========================
 
 *Alignak Web services module*
 
