@@ -91,13 +91,16 @@ class TestModules(AlignakTest):
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws'
+            'python_name': 'alignak_module_ws',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
         })
 
         # Create the modules manager for a daemon type
         self.modulemanager = ModulesManager('receiver', None)
 
-        # Load an initialize the modules:
+        # Load and initialize the modules:
         #  - load python module
         #  - get module properties and instances
         self.modulemanager.load_and_init([mod])

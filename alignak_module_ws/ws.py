@@ -115,6 +115,9 @@ class AlignakWebServices(BaseModule):
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
         self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
         logger.info("configuration, Alignak Arbiter: %s:%d", self.alignak_host, self.alignak_port)
+        if not self.alignak_host:
+            logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
+                           'disabled and some information will not be available.')
 
         # Alignak polling
         self.alignak_is_alive = False
@@ -238,6 +241,10 @@ class AlignakWebServices(BaseModule):
         # Endless loop...
         while not self.interrupted:
             now = time.time()
+
+            if not self.alignak_host:
+                time.sleep(0.5)
+                continue
 
             if ping_alignak_next_time < now:
                 ping_alignak_next_time = now + self.alignak_polling_period

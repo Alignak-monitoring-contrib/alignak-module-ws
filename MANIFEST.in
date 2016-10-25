@@ -2,4 +2,4 @@ include version.py
 include README.rst
 include LICENSE
 include requirements.txt
-recursive-include alignak_module_external_commands *
+recursive-include alignak_module_ws *
