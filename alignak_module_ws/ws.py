@@ -33,6 +33,7 @@ import threading
 import requests
 import cherrypy
 
+from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
 from alignak.http.daemon import HTTPDaemon
 from alignak.http.arbiter_interface import ArbiterInterface
@@ -132,7 +133,7 @@ class AlignakWebServices(BaseModule):
             getattr(mod_conf, 'use_ssl', '0') == '1'
 
         self.ca_cert = os.path.abspath(
-            getattr(mod_conf,'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
+            getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
         )
         if self.use_ssl and not os.path.exists(self.ca_cert):
             logger.error('Error : the CA certificate %s is missing (ca_cert).'
@@ -174,6 +175,7 @@ class AlignakWebServices(BaseModule):
         self.daemon_thread_pool_size = 8
 
         self.http_daemon = None
+        self.http_thread = None
 
         # Our Alignak daemons map
         self.daemons_map = {}
@@ -182,8 +184,7 @@ class AlignakWebServices(BaseModule):
         self.daemon_properties = ['address', 'port', 'spare', 'is_sent',
                                   'realm', 'manage_sub_realms', 'manage_arbiters',
                                   'alive', 'passive', 'reachable', 'last_check',
-                                  'check_interval', 'polling_interval', 'max_check_attempts'
-                                  ]
+                                  'check_interval', 'polling_interval', 'max_check_attempts']
 
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
@@ -231,7 +232,7 @@ class AlignakWebServices(BaseModule):
         logger.info("HTTP daemon thread started")
 
         # Polling period (-100 to get sure to poll on the first loop iteration)
-        ping_alignak_next_time = time.time() -100
+        ping_alignak_next_time = time.time() - 100
         get_daemons_next_time = time.time() - 100
 
         # Endless loop...
@@ -248,7 +249,6 @@ class AlignakWebServices(BaseModule):
                     if response.json() == 'pong':
                         self.alignak_is_alive = True
                     else:
-                        print("*** arbiter ping/pong failed!")
                         logger.error("arbiter ping/pong failed!")
                 time.sleep(0.1)
 
@@ -259,19 +259,21 @@ class AlignakWebServices(BaseModule):
                 # Get Arbiter all states
                 response = requests.get("http://%s:%s/get_all_states" %
                                         (self.alignak_host, self.alignak_port))
-                if response.status_code == 200:
-                    response_dict = response.json()
-                    for daemon_type in response_dict:
-                        if daemon_type not in self.daemons_map:
-                            self.daemons_map[daemon_type] = {}
+                if response.status_code != 200:
+                    continue
 
-                        for daemon in response_dict[daemon_type]:
-                            daemon_name = daemon[daemon_type+'_name']
-                            if daemon_name not in self.daemons_map:
-                                self.daemons_map[daemon_type][daemon_name] = {}
+                response_dict = response.json()
+                for daemon_type in response_dict:
+                    if daemon_type not in self.daemons_map:
+                        self.daemons_map[daemon_type] = {}
 
-                            for prop in self.daemon_properties:
-                                self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                    for daemon in response_dict[daemon_type]:
+                        daemon_name = daemon[daemon_type + '_name']
+                        if daemon_name not in self.daemons_map:
+                            self.daemons_map[daemon_type][daemon_name] = {}
+
+                        for prop in self.daemon_properties:
+                            self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
                 time.sleep(0.1)
 
         logger.info("stopping...")
@@ -288,15 +290,13 @@ class AlignakWebServices(BaseModule):
             if self.http_thread.is_alive():
                 logger.warning("http_thread failed to terminate. Calling _Thread__stop")
                 try:
-                    self.http_thread._Thread__stop()  # pylint: disable=E1101
-                except Exception:  # pylint: disable=W0703
+                    self.http_thread._Thread__stop()  # pylint: disable=protected-access
+                except Exception:
                     pass
 
         logger.info("stopped")
 
 if __name__ == '__main__':
-    from alignak.objects.module import Module
-
     # Create an Alignak module
     mod = Module({
         'module_alias': 'external-commands',
@@ -306,4 +306,3 @@ if __name__ == '__main__':
     })
     instance = get_instance(mod)
     instance.main()
-
