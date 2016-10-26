@@ -34,6 +34,7 @@ from alignak.basemodule import BaseModule
 
 import alignak_module_ws
 
+
 class TestModules(AlignakTest):
     """
     This class contains the tests for the module
@@ -324,7 +325,7 @@ class TestModules(AlignakTest):
 
     def test_module_zzz_run(self):
         """
-        Test the module external commands file creation
+        Test the module API
         :return:
         """
         self.print_header()
@@ -343,6 +344,9 @@ class TestModules(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
         })
 
         # Create the modules manager for a daemon type
@@ -379,10 +383,73 @@ class TestModules(AlignakTest):
         for endpoint in api_list:
             print("Trying %s" % (endpoint))
             response = requests.get('http://127.0.0.1:8888/' + endpoint)
-            print("Got %s, status code: %d" % (endpoint, response.status_code))
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
                 print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
 
         time.sleep(1)
+
+        # Do not allow GET request on /command
+        response = requests.get('http://127.0.0.1:8888/command')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ko')
+        self.assertEqual(result['_result'], 'You must only POST on this endpoint.')
+
+        self.assertEqual(my_module.received_commands, 0)
+
+        # You must have parameters when POSTing on /command
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ko')
+        self.assertEqual(result['_result'], 'You must POST parameters on this endpoint.')
+
+        self.assertEqual(my_module.received_commands, 0)
+
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "Command",
+            "element": "test_host",
+            "parameters": [
+                "abc", 1
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ok')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_result'], 'COMMAND;test_host;abc;1')
+
+        # Not during unit tests ... because module queues are not functional!
+        # time.sleep(1)
+        # self.assertEqual(my_module.received_commands, 1)
+
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "element": "test_host;test_service",
+            "parameters": [
+                1, "abc", 2
+            ]
+        }
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ok')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Not during unit tests ... because module queues are not functional!
+        # self.assertEqual(my_module.received_commands, 2)
 
         self.modulemanager.stop_all()

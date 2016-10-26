@@ -25,18 +25,20 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 
 import os
 import time
-
 import logging
-
+import inspect
 import threading
-
+import Queue
 import requests
 import cherrypy
 
+# Used for the main function to run module independently
 from alignak.objects.module import Module
+from alignak.modulesmanager import ModulesManager
+
 from alignak.basemodule import BaseModule
 from alignak.http.daemon import HTTPDaemon
-from alignak.http.arbiter_interface import ArbiterInterface
+from alignak.external_command import ExternalCommand
 
 logger = logging.getLogger('alignak.module')  # pylint: disable=C0103
 
@@ -61,11 +63,62 @@ def get_instance(mod_conf):
     return AlignakWebServices(mod_conf)
 
 
-class WSInterface(ArbiterInterface):  # pragma: no cover, not with unit tests
+class WSInterface(object):
     """Interface for Alignak Web Services.
 
-    The WS interface is based on the Arbiter interface and completed with some more methods.
     """
+    def __init__(self, app):
+        self.app = app
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def index(self):
+        """Wrapper to call api from /
+
+        :return: function list
+        """
+        return self.api()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def api(self):
+        """List the methods available on the interface
+
+        :return: a list of methods available
+        :rtype: list
+        """
+        return [x[0]for x in inspect.getmembers(self, predicate=inspect.ismethod)
+                if not x[0].startswith('__')]
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def api_full(self):
+        """List the api methods and their parameters
+
+        :return: a list of methods and parameters
+        :rtype: dict
+        """
+        full_api = {}
+        for fun in self.api():
+            full_api[fun] = {}
+            full_api[fun][u"doc"] = getattr(self, fun).__doc__
+            full_api[fun][u"args"] = {}
+
+            spec = inspect.getargspec(getattr(self, fun))
+            args = [a for a in spec.args if a != 'self']
+            if spec.defaults:
+                a_dict = dict(zip(args, spec.defaults))
+            else:
+                a_dict = dict(zip(args, (u"No default value",) * len(args)))
+
+            full_api[fun][u"args"] = a_dict
+
+        full_api[u"side_note"] = u"When posting data you have to serialize value. Example : " \
+                                 u"POST /set_log_level " \
+                                 u"{'loglevel' : serialize('INFO')}"
+
+        return full_api
+
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def are_you_alive(self):
@@ -85,6 +138,39 @@ class WSInterface(ArbiterInterface):  # pragma: no cover, not with unit tests
         :rtype: dict
         """
         return self.app.daemons_map
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def command(self):
+        """ Request to execute an external command
+        :return:
+        """
+        if cherrypy.request.method != "POST":
+            return {'_status': 'ko', '_result': 'You must only POST on this endpoint.'}
+
+        if cherrypy.request and not cherrypy.request.json:
+            return {'_status': 'ko', '_result': 'You must POST parameters on this endpoint.'}
+
+        command = cherrypy.request.json.get('command', None)
+        element = cherrypy.request.json.get('element', None)
+        parameters = cherrypy.request.json.get('parameters', None)
+
+        if not command:
+            return {'_status': 'ko', '_result': 'Missing command parameter'}
+
+        command_line = command.upper()
+        if element:
+            command_line = '%s;%s' % (command_line, element)
+        if parameters:
+            for parameter in parameters:
+                command_line = '%s;%s' % (command_line, parameter)
+
+        # Add a command to get managed
+        self.app.to_q.put(ExternalCommand(command_line))
+
+        return {'_status': 'ok', '_result': command_line}
+    command.method = 'post'
 
 
 class AlignakWebServices(BaseModule):
@@ -189,6 +275,9 @@ class AlignakWebServices(BaseModule):
                                   'alive', 'passive', 'reachable', 'last_check',
                                   'check_interval', 'polling_interval', 'max_check_attempts']
 
+        # Count received commands
+        self.received_commands = 0
+
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
 
@@ -229,7 +318,7 @@ class AlignakWebServices(BaseModule):
                                       self.use_ssl, self.ca_cert, self.server_key,
                                       self.server_cert, self.daemon_thread_pool_size)
 
-        self.http_thread = threading.Thread(None, self.http_daemon_thread, 'http_thread')
+        self.http_thread = threading.Thread(target=self.http_daemon_thread, name='http_thread')
         self.http_thread.daemon = True
         self.http_thread.start()
         logger.info("HTTP daemon thread started")
@@ -240,14 +329,30 @@ class AlignakWebServices(BaseModule):
 
         # Endless loop...
         while not self.interrupted:
-            now = time.time()
+            start = time.time()
+
+            if self.to_q:
+                # Get messages in the queue
+                try:
+                    message = self.to_q.get_nowait()
+                    if isinstance(message, ExternalCommand):
+                        # print("Got an external command: %s", message.cmd_line)
+                        logger.info("Got an external command: %s", message.cmd_line)
+                        # Send external command to my Alignak daemon...
+                        self.from_q.put(message)
+                        self.received_commands += 1
+                    else:
+                        logger.warning("Got a message that is not an external command: %s", message)
+                        # print("Got a message that is not an external command: %s", message)
+                except Queue.Empty:
+                    logger.debug("No message in the module queue")
 
             if not self.alignak_host:
                 time.sleep(0.5)
                 continue
 
-            if ping_alignak_next_time < now:
-                ping_alignak_next_time = now + self.alignak_polling_period
+            if ping_alignak_next_time < start:
+                ping_alignak_next_time = start + self.alignak_polling_period
 
                 # Ping Alignak Arbiter
                 response = requests.get("http://%s:%s/ping" %
@@ -260,8 +365,8 @@ class AlignakWebServices(BaseModule):
                 time.sleep(0.1)
 
             # Get daemons map / status only if Alignak is alive
-            if self.alignak_is_alive and get_daemons_next_time < now:
-                get_daemons_next_time = now + self.alignak_daemons_polling_period
+            if self.alignak_is_alive and get_daemons_next_time < start:
+                get_daemons_next_time = start + self.alignak_daemons_polling_period
 
                 # Get Arbiter all states
                 response = requests.get("http://%s:%s/get_all_states" %
@@ -282,6 +387,8 @@ class AlignakWebServices(BaseModule):
                         for prop in self.daemon_properties:
                             self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
                 time.sleep(0.1)
+
+            logger.debug("time to manage broks and Alignak state: %d seconds", time.time() - start)
 
         logger.info("stopping...")
 
@@ -306,10 +413,17 @@ class AlignakWebServices(BaseModule):
 if __name__ == '__main__':
     # Create an Alignak module
     mod = Module({
-        'module_alias': 'external-commands',
-        'module_types': 'external-commands',
-        'python_name': 'alignak_module_external_commands',
-        'file_path': '/tmp/my_external_commands_file'
+        'module_alias': 'web-services',
+        'module_types': 'web-services',
+        'python_name': 'alignak_module_ws',
+        # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+        'alignak_host': '',
+        'alignak_port': 7770,
     })
-    instance = get_instance(mod)
-    instance.main()
+    # Create the modules manager for a daemon type
+    modulemanager = ModulesManager('receiver', None)
+    # Load and initialize the module
+    modulemanager.load_and_init([mod])
+    my_module = modulemanager.instances[0]
+    # Start external modules
+    modulemanager.start_external_instances()
