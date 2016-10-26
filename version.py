@@ -12,7 +12,7 @@ __pkg_name__ = u"alignak_module_ws"
 __module_types__ = u"web-services"
 
 # Application manifest
-__version__ = u"0.2.1"
+__version__ = u"0.2.2"
 __author__ = u"Alignak team"
 __author_email__ = u"frederic.mohier@gmail.com"
 __copyright__ = u"(c) 2015-2016 - %s" % __author__
