@@ -245,6 +245,14 @@ class AlignakWebServices(BaseModule):
                          'Please fix it in your configuration', self.server_key)
             self.use_ssl = False
 
+        self.server_dh = os.path.abspath(
+            getattr(mod_conf, 'server_dh', '/usr/local/etc/alignak/certs/server.pem')
+        )
+        if self.use_ssl and not os.path.exists(self.server_dh):
+            logger.error('Error : the SSL DH %s is missing (server_dh).'
+                         'Please fix it in your configuration', self.server_dh)
+            self.use_ssl = False
+
         self.hard_ssl_name_check = getattr(mod_conf, 'hard_ssl_name_check', '0') == '0'
 
         # SSL information log
@@ -316,7 +324,8 @@ class AlignakWebServices(BaseModule):
         logger.info("starting http_daemon thread..")
         self.http_daemon = HTTPDaemon(self.host, self.port, self.http_interface,
                                       self.use_ssl, self.ca_cert, self.server_key,
-                                      self.server_cert, self.daemon_thread_pool_size)
+                                      self.server_cert, self.server_dh,
+                                      self.daemon_thread_pool_size)
 
         self.http_thread = threading.Thread(target=self.http_daemon_thread, name='http_thread')
         self.http_thread.daemon = True
