@@ -281,7 +281,7 @@ class AlignakWebServices(BaseModule):
 
         # Daemon properties that we are interested in
         self.daemon_properties = ['address', 'port', 'spare', 'is_sent',
-                                  'realm', 'manage_sub_realms', 'manage_arbiters',
+                                  'realm_name', 'manage_sub_realms', 'manage_arbiters',
                                   'alive', 'passive', 'reachable', 'last_check',
                                   'check_interval', 'polling_interval', 'max_check_attempts']
 
@@ -424,7 +424,10 @@ class AlignakWebServices(BaseModule):
                             self.daemons_map[daemon_type][daemon_name] = {}
 
                         for prop in self.daemon_properties:
-                            self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                            try:
+                                self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                            except ValueError:
+                                self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
                 time.sleep(0.1)
 
             logger.debug("time to manage broks and Alignak state: %d seconds", time.time() - start)
