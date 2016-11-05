@@ -23,6 +23,7 @@
 This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
+from __future__ import print_function
 import os
 import sys
 import time
