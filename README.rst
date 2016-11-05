@@ -8,6 +8,11 @@ Build status (stable release)
 
 .. image:: https://travis-ci.org/Alignak-monitoring-contrib/alignak-module-ws.svg?branch=master
     :target: https://travis-ci.org/Alignak-monitoring-contrib/alignak-module-ws
+    :alt: Unit tests
+
+.. image:: https://coveralls.io/repos/Alignak-monitoring-contrib/alignak-module-ws/badge.svg?branch=master&service=github
+    :target: https://coveralls.io/github/Alignak-monitoring-contrib/alignak-module-ws?branch=master
+    :alt: Code coverage
 
 
 Build status (development release)
@@ -15,6 +20,17 @@ Build status (development release)
 
 .. image:: https://travis-ci.org/Alignak-monitoring-contrib/alignak-module-ws.svg?branch=develop
     :target: https://travis-ci.org/Alignak-monitoring-contrib/alignak-module-ws
+    :alt: Unit tests
+
+.. image:: https://coveralls.io/repos/Alignak-monitoring-contrib/alignak-module-ws/badge.svg?branch=develop&service=github
+    :target: https://coveralls.io/github/Alignak-monitoring-contrib/alignak-module-ws?branch=master
+    :alt: Code coverage
+
+Most recent release
+-------------------
+
+.. image:: https://badge.fury.io/py/alignak_module_ws.svg
+    :target: https://badge.fury.io/py/alignak_module_ws
 
 
 Short description
@@ -61,6 +77,7 @@ To configure an Alignak daemon to use this module:
     - edit your daemon configuration file
     - add your module alias value (`web-services`) to the `modules` parameter of the daemon
 
+**Note** that currently the SSL part of this module as not yet been tested!
 
 Bugs, issues and contributing
 -----------------------------

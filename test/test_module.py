@@ -22,6 +22,7 @@
 Test the module
 """
 
+import os
 import re
 import time
 
@@ -31,6 +32,9 @@ from alignak_test import AlignakTest, time_hacker
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+
+# Set environment variable to ask code Coverage collection
+os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
 
@@ -453,3 +457,4 @@ class TestModules(AlignakTest):
         # self.assertEqual(my_module.received_commands, 2)
 
         self.modulemanager.stop_all()
+

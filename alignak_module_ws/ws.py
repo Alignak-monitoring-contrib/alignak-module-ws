@@ -24,6 +24,7 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
 import os
+import sys
 import time
 import logging
 import inspect
@@ -286,6 +287,19 @@ class AlignakWebServices(BaseModule):
         # Count received commands
         self.received_commands = 0
 
+    def init(self):
+        """
+        This function initializes the module instance. If False is returned, the modules manager
+        will periodically retry an to initialize the module.
+        If an exception is raised, the module will be definitely considered as dead :/
+
+        This function must be present and return True for Alignak to consider the module as loaded
+        and fully functional.
+
+        :return: True if initialization is ok, else False
+        """
+        return True
+
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
 
@@ -315,6 +329,21 @@ class AlignakWebServices(BaseModule):
         This module is an "external" module
         :return:
         """
+        logger.info("Code coverage: %s", os.environ.get('COVERAGE_PROCESS_START'))
+        try:
+            if os.environ.get('COVERAGE_PROCESS_START'):
+                print("***")
+                print("* Executing daemon test with code coverage enabled")
+                if 'coverage' not in sys.modules:
+                    print("* coverage module is not loaded! Trying to import coverage module...")
+                    import coverage
+                    coverage.process_startup()
+                    print("* coverage process started.")
+                print("***")
+        except Exception as exp:  # pylint: disable=broad-except
+            print("Exception: %s", str(exp))
+            sys.exit(3)
+
         # Set the OS process title
         self.set_proctitle(self.alias)
         self.set_exit_handler()
