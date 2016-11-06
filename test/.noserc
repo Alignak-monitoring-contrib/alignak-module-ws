@@ -1,0 +1,13 @@
+[nosetests]
+verbosity=3
+; Uncomment to have the stdout
+;nocapture=1
+; Uncomment to remove the python logger from output (except for console logs)
+;nologcapture=1
+
+; Only 1 running test process
+processes=1
+; Process timeout is 5 minutes
+process-timeout=300
+; Restart worker process (avoid memory leak)
+process-restartworker=1
