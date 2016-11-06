@@ -387,7 +387,6 @@ class AlignakWebServices(BaseModule):
                     logger.debug("No message in the module queue")
 
             if not self.alignak_host:
-                time.sleep(0.5)
                 continue
 
             if ping_alignak_next_time < start:
@@ -430,7 +429,8 @@ class AlignakWebServices(BaseModule):
                                 self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
                 time.sleep(0.1)
 
-            logger.debug("time to manage broks and Alignak state: %d seconds", time.time() - start)
+            logger.debug("time to manage queue and Alignak state: %d seconds", time.time() - start)
+            time.sleep(0.5)
 
         logger.info("stopping...")
 
