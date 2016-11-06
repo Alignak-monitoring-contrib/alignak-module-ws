@@ -324,6 +324,7 @@ class AlignakWebServices(BaseModule):
         pass
 
     def main(self):
+        # pylint: disable=too-many-nested-blocks
         """
         Main loop of the process
 
