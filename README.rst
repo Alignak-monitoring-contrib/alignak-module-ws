@@ -40,7 +40,7 @@ This module for Alignak exposes some Alignak Web Services:
 
     * GET /alignak_map that will return the map and status of all the Alignak running daemons
 
-    * POST /alignak_command that will return the map and status of all the Alignak running daemons
+    * POST /alignak_command that will notify an external command to the Alignak framework
 
 
 
