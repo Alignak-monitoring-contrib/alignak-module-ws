@@ -165,8 +165,7 @@ class WSInterface(object):
         if element:
             command_line = '%s;%s' % (command_line, element)
         if parameters:
-            for parameter in parameters:
-                command_line = '%s;%s' % (command_line, parameter)
+            command_line = '%s;%s' % (command_line, parameters)
 
         # Add a command to get managed
         self.app.to_q.put(ExternalCommand(command_line))
