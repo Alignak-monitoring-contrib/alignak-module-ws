@@ -421,9 +421,7 @@ class TestModules(AlignakTest):
         data = {
             "command": "Command",
             "element": "test_host",
-            "parameters": [
-                "abc", 1
-            ]
+            "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
         response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
@@ -442,9 +440,7 @@ class TestModules(AlignakTest):
         data = {
             "command": "command_command",
             "element": "test_host;test_service",
-            "parameters": [
-                1, "abc", 2
-            ]
+            "parameters": "1;abc;2"
         }
         response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
