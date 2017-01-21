@@ -102,7 +102,7 @@ setup(
     data_files = data_files,
 
     # Dependencies (if some) ...
-    install_requires=['requests', 'cherrypy'],
+    install_requires=['requests', 'CherryPy<9.0.0'],
 
     # Entry points (if some) ...
     entry_points={
