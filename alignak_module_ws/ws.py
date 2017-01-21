@@ -23,7 +23,9 @@
 This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
+from __future__ import print_function
 import os
+import sys
 import time
 import logging
 import inspect
@@ -153,18 +155,34 @@ class WSInterface(object):
             return {'_status': 'ko', '_result': 'You must POST parameters on this endpoint.'}
 
         command = cherrypy.request.json.get('command', None)
+        timestamp = cherrypy.request.json.get('timestamp', None)
         element = cherrypy.request.json.get('element', None)
+        host = cherrypy.request.json.get('host', None)
+        service = cherrypy.request.json.get('service', None)
+        user = cherrypy.request.json.get('user', None)
         parameters = cherrypy.request.json.get('parameters', None)
 
         if not command:
             return {'_status': 'ko', '_result': 'Missing command parameter'}
 
         command_line = command.upper()
-        if element:
+        if timestamp:
+            command_line = '[%d] ' % (timestamp)
+
+        if host or service or user:
+            if host:
+                command_line = '%s;%s' % (command_line, host)
+            if service:
+                command_line = '%s;%s' % (command_line, service)
+            if user:
+                command_line = '%s;%s' % (command_line, user)
+        elif element:
+            if '/' in element:
+                element = element.replace('/', ';')
             command_line = '%s;%s' % (command_line, element)
+
         if parameters:
-            for parameter in parameters:
-                command_line = '%s;%s' % (command_line, parameter)
+            command_line = '%s;%s' % (command_line, parameters)
 
         # Add a command to get managed
         self.app.to_q.put(ExternalCommand(command_line))
@@ -279,12 +297,25 @@ class AlignakWebServices(BaseModule):
 
         # Daemon properties that we are interested in
         self.daemon_properties = ['address', 'port', 'spare', 'is_sent',
-                                  'realm', 'manage_sub_realms', 'manage_arbiters',
+                                  'realm_name', 'manage_sub_realms', 'manage_arbiters',
                                   'alive', 'passive', 'reachable', 'last_check',
                                   'check_interval', 'polling_interval', 'max_check_attempts']
 
         # Count received commands
         self.received_commands = 0
+
+    def init(self):
+        """
+        This function initializes the module instance. If False is returned, the modules manager
+        will periodically retry an to initialize the module.
+        If an exception is raised, the module will be definitely considered as dead :/
+
+        This function must be present and return True for Alignak to consider the module as loaded
+        and fully functional.
+
+        :return: True if initialization is ok, else False
+        """
+        return True
 
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
@@ -309,12 +340,28 @@ class AlignakWebServices(BaseModule):
         pass
 
     def main(self):
+        # pylint: disable=too-many-nested-blocks
         """
         Main loop of the process
 
         This module is an "external" module
         :return:
         """
+        logger.info("Code coverage: %s", os.environ.get('COVERAGE_PROCESS_START'))
+        try:
+            if os.environ.get('COVERAGE_PROCESS_START'):
+                print("***")
+                print("* Executing daemon test with code coverage enabled")
+                if 'coverage' not in sys.modules:
+                    print("* coverage module is not loaded! Trying to import coverage module...")
+                    import coverage
+                    coverage.process_startup()
+                    print("* coverage process started.")
+                print("***")
+        except Exception as exp:  # pylint: disable=broad-except
+            print("Exception: %s", str(exp))
+            sys.exit(3)
+
         # Set the OS process title
         self.set_proctitle(self.alias)
         self.set_exit_handler()
@@ -357,7 +404,6 @@ class AlignakWebServices(BaseModule):
                     logger.debug("No message in the module queue")
 
             if not self.alignak_host:
-                time.sleep(0.5)
                 continue
 
             if ping_alignak_next_time < start:
@@ -394,10 +440,14 @@ class AlignakWebServices(BaseModule):
                             self.daemons_map[daemon_type][daemon_name] = {}
 
                         for prop in self.daemon_properties:
-                            self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                            try:
+                                self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                            except ValueError:
+                                self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
                 time.sleep(0.1)
 
-            logger.debug("time to manage broks and Alignak state: %d seconds", time.time() - start)
+            logger.debug("time to manage queue and Alignak state: %d seconds", time.time() - start)
+            time.sleep(0.5)
 
         logger.info("stopping...")
 
