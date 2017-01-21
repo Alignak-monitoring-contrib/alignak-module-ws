@@ -449,8 +449,51 @@ class TestModules(AlignakTest):
         # Result is uppercase command, parameters are ordered
         self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
 
-        # Not during unit tests ... because module queues are not functional!
-        # self.assertEqual(my_module.received_commands, 2)
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "element": "test_host/test_service",    # Accept / as an host/service separator
+            "parameters": "1;abc;2"
+        }
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ok')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command (Alignak modern syntax)
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "host": "test_host",
+            "service": "test_service",
+            "parameters": "1;abc;2"
+        }
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ok')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command (Alignak modern syntax)
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "host": "test_host",
+            "service": "test_service",
+            "user": "test_user",
+            "parameters": "1;abc;2"
+        }
+        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ok')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_result'],
+                         'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
 
         self.modulemanager.stop_all()
 

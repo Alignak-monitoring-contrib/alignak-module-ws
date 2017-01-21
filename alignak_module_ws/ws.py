@@ -155,15 +155,32 @@ class WSInterface(object):
             return {'_status': 'ko', '_result': 'You must POST parameters on this endpoint.'}
 
         command = cherrypy.request.json.get('command', None)
+        timestamp = cherrypy.request.json.get('timestamp', None)
         element = cherrypy.request.json.get('element', None)
+        host = cherrypy.request.json.get('host', None)
+        service = cherrypy.request.json.get('service', None)
+        user = cherrypy.request.json.get('user', None)
         parameters = cherrypy.request.json.get('parameters', None)
 
         if not command:
             return {'_status': 'ko', '_result': 'Missing command parameter'}
 
         command_line = command.upper()
-        if element:
+        if timestamp:
+            command_line = '[%d] ' % (timestamp)
+
+        if host or service or user:
+            if host:
+                command_line = '%s;%s' % (command_line, host)
+            if service:
+                command_line = '%s;%s' % (command_line, service)
+            if user:
+                command_line = '%s;%s' % (command_line, user)
+        elif element:
+            if '/' in element:
+                element = element.replace('/', ';')
             command_line = '%s;%s' % (command_line, element)
+
         if parameters:
             command_line = '%s;%s' % (command_line, parameters)
 
