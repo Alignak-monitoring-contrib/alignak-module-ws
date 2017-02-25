@@ -178,7 +178,8 @@ class WSInterface(object):
                 command_line = '%s;%s' % (command_line, user)
         elif element:
             if '/' in element:
-                element = element.replace('/', ';')
+                # Replace only the first /
+                element = element.replace('/', ';', 1)
             command_line = '%s;%s' % (command_line, element)
 
         if parameters:
