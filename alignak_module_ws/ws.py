@@ -167,7 +167,7 @@ class WSInterface(object):
 
         command_line = command.upper()
         if timestamp:
-            command_line = '[%d] ' % (timestamp)
+            command_line = '[%d] %s' % (timestamp, command)
 
         if host or service or user:
             if host:
