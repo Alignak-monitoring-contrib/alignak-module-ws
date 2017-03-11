@@ -1,3 +1,4 @@
 # Nothing special except:
+alignak_backend_client
 requests
 cherrypy<9.0.0
