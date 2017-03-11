@@ -57,8 +57,7 @@ properties = {
 
 
 def get_instance(mod_conf):
-    """
-    Return a module instance for the modules manager
+    """Return a module instance for the modules manager
 
     :param mod_conf: the module properties as defined globally in this file
     :return:
@@ -132,15 +131,15 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: bool
         """
-        return 'Yes!'
+        return 'Yes I am :)'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def alignak_map(self):
         """Get the alignak internal map and state
 
-        :return: True if is alive, False otherwise
-        :rtype: dict
+        :return: A json array of the Alignak daemons state
+        :rtype: list
         """
         return self.app.daemons_map
 
@@ -194,6 +193,16 @@ class WSInterface(object):
         return {'_status': 'ok', '_result': command_line}
     command.method = 'post'
 
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def alignak_logs(self):
+        """Get the alignak logs
+
+        :return: True if is alive, False otherwise
+        :rtype: dict
+        """
+        return self.app.getBackendHistory()
+
 
 class AlignakWebServices(BaseModule):
     """Web services module main class"""
@@ -216,7 +225,9 @@ class AlignakWebServices(BaseModule):
         logger.debug("received configuration: %s", mod_conf.__dict__)
         logger.debug("loaded into: %s", self.loaded_into)
 
-        # Alignak Backend host / post
+        # Alignak Backend part
+        # ---
+        self.backend_available = False
         self.backend_url = getattr(mod_conf, 'alignak_backend', '')
         if self.backend_url:
             logger.info("Alignak backend endpoint: %s", self.backend_url)
@@ -263,10 +274,10 @@ class AlignakWebServices(BaseModule):
         self.alignak_is_alive = False
         self.alignak_polling_period = \
             int(getattr(mod_conf, 'alignak_polling_period', '1'))
-        logger.info("Alignak Arbiter polling period:%d", self.alignak_polling_period)
+        logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
         self.alignak_daemons_polling_period = \
             int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
-        logger.info("Alignak daemons get status period:%d", self.alignak_daemons_polling_period)
+        logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
         self.use_ssl = \
@@ -383,6 +394,41 @@ class AlignakWebServices(BaseModule):
             logger.debug("Exception: %s", exp)
             self.backend_available = False
 
+    def getBackendHistory(self, search=None):
+        """Get the backend Alignak logs
+
+        :return: None
+        """
+        history = []
+
+        if not search:
+            search = {}
+        if "sort" not in search:
+            search.update({'sort': '-_id'})
+        if 'embedded' not in search:
+            search.update({'embedded': {'logcheckresult': 1}})
+
+        try:
+            if not self.backend.authenticated:
+                logger.info("Signing-in to the backend...")
+                self.backend_available = self.backend.login(self.backend_username,
+                                                            self.backend_password)
+            logger.debug("Getting history: %s", search)
+
+            result = self.backend.get('history', json.dumps(search))
+            if result['_status'] == 'OK':
+                logger.debug("history, got %d items", len(result['_items']))
+                result.pop('_links')
+                return result
+
+            logger.warning("history request, got a problem: %s", result)
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            self.backend_available = False
+
+        return history
+
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
 
@@ -403,7 +449,9 @@ class AlignakWebServices(BaseModule):
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):
-        pass
+        """This function is present because of an abstract function in the BaseModule class"""
+        logger.info("In loop")
+        time.sleep(1)
 
     def main(self):
         # pylint: disable=too-many-nested-blocks
@@ -412,21 +460,6 @@ class AlignakWebServices(BaseModule):
         This module is an "external" module
         :return:
         """
-        logger.info("Code coverage: %s", os.environ.get('COVERAGE_PROCESS_START'))
-        try:
-            if os.environ.get('COVERAGE_PROCESS_START'):
-                print("***")
-                print("* Executing daemon test with code coverage enabled")
-                if 'coverage' not in sys.modules:
-                    print("* coverage module is not loaded! Trying to import coverage module...")
-                    import coverage
-                    coverage.process_startup()
-                    print("* coverage process started.")
-                print("***")
-        except Exception as exp:  # pylint: disable=broad-except
-            print("Exception: %s", str(exp))
-            sys.exit(3)
-
         # Set the OS process title
         self.set_proctitle(self.alias)
         self.set_exit_handler()
