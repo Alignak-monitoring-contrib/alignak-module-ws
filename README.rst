@@ -57,9 +57,11 @@ Short description
 
 This module for Alignak exposes some Alignak Web Services:
 
-    * GET /alignak_map that will return the map and status of all the Alignak running daemons
+    * `GET /` will return the list of the available endpoints
 
-    * POST /alignak_command that will notify an external command to the Alignak framework
+    * `GET /alignak_map` that will return the map and status of all the Alignak running daemons
+
+    * `POST /alignak_command` that will notify an external command to the Alignak framework
 
 
 Web Services
@@ -70,9 +72,9 @@ Get Alignak state
 To get Alignak daemons states, GET on the `alignak_map` endpoint:
 ::
 
-    $wget http://demo.alignak.net:8888/alignak_map
+    $ wget http://demo.alignak.net:8888/alignak_map
 
-    $cat alignak_map
+    $ cat alignak_map
 
 
 Send external command
@@ -83,14 +85,14 @@ For a global Alignak command:
 ::
 
     # Disable all notifications from Alignak
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "command": "disable_notifications"
     }' "http://demo.alignak.net:8888/command"
 
     {"_status": "ok", "_result": "DISABLE_NOTIFICATIONS"}
 
     # Enable all notifications from Alignak
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "command": "enable_notifications"
     }' "http://demo.alignak.net:8888/command"
 
@@ -100,7 +102,7 @@ If your command requires to target a specific element:
 ::
 
     # Notify a host check result for `always_down` host
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "command": "PROCESS_HOST_CHECK_RESULT",
         "element": "always_down",
         "parameters": "0;Host is UP and running"
@@ -109,7 +111,7 @@ If your command requires to target a specific element:
     {"_status": "ok", "_result": "PROCESS_HOST_CHECK_RESULT;always_down;0;Host is UP and running"}
 
     # Notify a service check result for `always_down/Load` host
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "command": "PROCESS_SERVICE_CHECK_RESULT",
         "element": "always_down/Load",
         "parameters": "0;Service is OK|'My metric=12%:80:90:0:100"
@@ -118,7 +120,7 @@ If your command requires to target a specific element:
     {"_status": "ok", "_result": "PROCESS_SERVICE_CHECK_RESULT;always_down/Load;0;Service is OK"}
 
     # Notify a service check result for `always_down/Load` host (Alignak syntax)
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "command": "PROCESS_SERVICE_CHECK_RESULT",
         "host": "always_down",
         "service": "Load",
@@ -133,7 +135,7 @@ If your command requires to target a specific element:
 ::
 
     # Notify a host check result for `always_down` host at a specific time stamp
-    $curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X POST -H "Content-Type: application/json" -d '{
         "timestamp": "1484992154",
         "command": "PROCESS_HOST_CHECK_RESULT",
         "element": "always_down",
@@ -151,9 +153,9 @@ Configuration
 Once installed, this module has its own configuration file in the */usr/local/etc/alignak/arbiter/modules* directory.
 The default configuration file is *mod-ws.cfg*. This file is commented to help configure all the parameters.
 
-To configure an Alignak daemon to use this module:
+To configure an Alignak daemon (*receiver* is the recommended daemon) to use this module:
 
-    - edit your daemon configuration file
+    - edit your daemon configuration file (eg. *receiver-master.cfg*)
     - add your module alias value (`web-services`) to the `modules` parameter of the daemon
 
 **Note** that currently the SSL part of this module as not yet been tested!
