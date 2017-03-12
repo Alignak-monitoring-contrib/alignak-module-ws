@@ -275,12 +275,19 @@ class TestModules(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("configuration, Alignak Arbiter: 127.0.0.1:7770"), 1)
+            re.escape("Alignak Backend is not configured. "
+                      "Some module features will not be available."), 1)
         self.assert_log_match(
-            re.escape("configuration, listening on: 0.0.0.0:8888"), 2)
+            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 2)
+        self.assert_log_match(
+            re.escape("Alignak Arbiter polling period: 1"), 3)
+        self.assert_log_match(
+            re.escape("Alignak daemons get status period: 10"), 4)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 3)
+                      "You should consider enabling SSL!"), 5)
+        self.assert_log_match(
+            re.escape("configuration, listening on: http://0.0.0.0:8888"), 6)
 
     def test_module_start_parameters(self):
         """
@@ -317,15 +324,22 @@ class TestModules(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("configuration, Alignak Arbiter: my_host:80"), 1)
+            re.escape("Alignak Backend is not configured. "
+                      "Some module features will not be available."), 1)
         self.assert_log_match(
-            re.escape("configuration, listening on: me:8080"), 2)
+            re.escape("Alignak Arbiter configuration: my_host:80"), 2)
         self.assert_log_match(
-            re.escape("Error : the CA certificate /usr/local/etc/alignak/certs/ca.pem is "
-                      "missing (ca_cert).Please fix it in your configuration"), 3)
+            re.escape("Alignak Arbiter polling period: 1"), 3)
+        self.assert_log_match(
+            re.escape("Alignak daemons get status period: 10"), 4)
+        self.assert_log_match(
+            re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
+                      "(ca_cert). Please fix it in your configuration"), 5)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 4)
+                      "You should consider enabling SSL!"), 6)
+        self.assert_log_match(
+            re.escape("configuration, listening on: http://me:8080"), 7)
 
     def test_module_zzz_run(self):
         """
@@ -348,6 +362,10 @@ class TestModules(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,

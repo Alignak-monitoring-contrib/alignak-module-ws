@@ -102,7 +102,7 @@ setup(
     data_files = data_files,
 
     # Dependencies (if some) ...
-    install_requires=['requests', 'CherryPy<9.0.0'],
+    install_requires=['alignak_backend_client', 'requests', 'CherryPy<9.0.0'],
 
     # Entry points (if some) ...
     entry_points={

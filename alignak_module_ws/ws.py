@@ -26,6 +26,7 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 from __future__ import print_function
 import os
 import sys
+import json
 import time
 import logging
 import inspect
@@ -33,6 +34,8 @@ import threading
 import Queue
 import requests
 import cherrypy
+
+from alignak_backend_client.client import Backend, BackendException
 
 # Used for the main function to run module independently
 from alignak.objects.module import Module
@@ -54,8 +57,7 @@ properties = {
 
 
 def get_instance(mod_conf):
-    """
-    Return a module instance for the modules manager
+    """Return a module instance for the modules manager
 
     :param mod_conf: the module properties as defined globally in this file
     :return:
@@ -129,15 +131,15 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: bool
         """
-        return 'Yes!'
+        return 'Yes I am :)'
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def alignak_map(self):
         """Get the alignak internal map and state
 
-        :return: True if is alive, False otherwise
-        :rtype: dict
+        :return: A json array of the Alignak daemons state
+        :rtype: list
         """
         return self.app.daemons_map
 
@@ -191,14 +193,21 @@ class WSInterface(object):
         return {'_status': 'ok', '_result': command_line}
     command.method = 'post'
 
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def alignak_logs(self):
+        """Get the alignak logs
+
+        :return: True if is alive, False otherwise
+        :rtype: dict
+        """
+        return self.app.getBackendHistory()
+
 
 class AlignakWebServices(BaseModule):
-    """
-    Web services module main class
-    """
+    """Web services module main class"""
     def __init__(self, mod_conf):
-        """
-        Module initialization
+        """Module initialization
 
         mod_conf is a dictionary that contains:
         - all the variables declared in the module configuration file
@@ -216,25 +225,59 @@ class AlignakWebServices(BaseModule):
         logger.debug("received configuration: %s", mod_conf.__dict__)
         logger.debug("loaded into: %s", self.loaded_into)
 
+        # Alignak Backend part
+        # ---
+        self.backend_available = False
+        self.backend_url = getattr(mod_conf, 'alignak_backend', '')
+        if self.backend_url:
+            logger.info("Alignak backend endpoint: %s", self.backend_url)
+
+            self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+            logger.info("Number of processes used by backend client: %s", self.client_processes)
+
+            self.backend = Backend(self.backend_url, self.client_processes)
+            # If a backend token is provided in the configuration, we assume that it is valid
+            # and the backend is yet connected and authenticated
+            self.backend.token = getattr(mod_conf, 'token', '')
+            self.backend.authenticated = (self.backend.token != '')
+            self.backend_available = False
+
+            self.backend_username = getattr(mod_conf, 'username', '')
+            self.backend_password = getattr(mod_conf, 'password', '')
+            self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
+
+            self.alignak_backend_polling_period = \
+                int(getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+
+            if not self.backend.token and not self.backend_username:
+                logger.warning("No Alignak backend credentials configured (empty token and "
+                               "empty username. "
+                               "The requested backend connection will not be available")
+                self.backend_url = ''
+            else:
+                self.getBackendAvailability()
+        else:
+            logger.warning('Alignak Backend is not configured. '
+                           'Some module features will not be available.')
+
         # Alignak Arbiter host / post
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
         self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
-        logger.info("configuration, Alignak Arbiter: %s:%d", self.alignak_host, self.alignak_port)
         if not self.alignak_host:
             logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
                            'disabled and some information will not be available.')
+        else:
+            logger.info("Alignak Arbiter configuration: %s:%d",
+                        self.alignak_host, self.alignak_port)
 
         # Alignak polling
         self.alignak_is_alive = False
         self.alignak_polling_period = \
             int(getattr(mod_conf, 'alignak_polling_period', '1'))
+        logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
         self.alignak_daemons_polling_period = \
             int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
-
-        # Host / post listening to...
-        self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        self.port = int(getattr(mod_conf, 'port', '8888'))
-        logger.info("configuration, listening on: %s:%d", self.host, self.port)
+        logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
         self.use_ssl = \
@@ -244,7 +287,7 @@ class AlignakWebServices(BaseModule):
             getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
         )
         if self.use_ssl and not os.path.exists(self.ca_cert):
-            logger.error('Error : the CA certificate %s is missing (ca_cert).'
+            logger.error('The CA certificate %s is missing (ca_cert). '
                          'Please fix it in your configuration', self.ca_cert)
             self.use_ssl = False
 
@@ -252,15 +295,15 @@ class AlignakWebServices(BaseModule):
             getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.cert')
         )
         if self.use_ssl and not os.path.exists(self.server_cert):
-            logger.error('Error : the SSL certificate %s is missing (server_cert).'
-                         'Please fix it in your configuration', self.server_cert)
+            logger.error("The SSL certificate '%s' is missing (server_cert). "
+                         "Please fix it in your configuration", self.server_cert)
             self.use_ssl = False
 
         self.server_key = os.path.abspath(
             getattr(mod_conf, 'server_key', '/usr/local/etc/alignak/certs/server.key')
         )
         if self.use_ssl and not os.path.exists(self.server_key):
-            logger.error('Error : the SSL key %s is missing (server_key).'
+            logger.error('The SSL key %s is missing (server_key). '
                          'Please fix it in your configuration', self.server_key)
             self.use_ssl = False
 
@@ -268,7 +311,7 @@ class AlignakWebServices(BaseModule):
             getattr(mod_conf, 'server_dh', '/usr/local/etc/alignak/certs/server.pem')
         )
         if self.use_ssl and not os.path.exists(self.server_dh):
-            logger.error('Error : the SSL DH %s is missing (server_dh).'
+            logger.error('The SSL DH %s is missing (server_dh). '
                          'Please fix it in your configuration', self.server_dh)
             self.use_ssl = False
 
@@ -283,6 +326,16 @@ class AlignakWebServices(BaseModule):
         else:
             logger.info("SSL is not enabled, this is not recommended. "
                         "You should consider enabling SSL!")
+
+        # Host / post listening to...
+        self.host = getattr(mod_conf, 'host', '0.0.0.0')
+        self.port = int(getattr(mod_conf, 'port', '8888'))
+
+        protocol = 'http'
+        if self.use_ssl:
+            protocol = 'https'
+        self.uri = '%s://%s:%s' % (protocol, self.host, self.port)
+        logger.info("configuration, listening on: %s", self.uri)
 
         # My own HTTP interface...
         self.http_interface = WSInterface(self)
@@ -306,9 +359,9 @@ class AlignakWebServices(BaseModule):
         self.received_commands = 0
 
     def init(self):
-        """
-        This function initializes the module instance. If False is returned, the modules manager
-        will periodically retry an to initialize the module.
+        """This function initializes the module instance.
+
+        If False is returned, the modules manager will periodically retry to initialize the module.
         If an exception is raised, the module will be definitely considered as dead :/
 
         This function must be present and return True for Alignak to consider the module as loaded
@@ -317,6 +370,64 @@ class AlignakWebServices(BaseModule):
         :return: True if initialization is ok, else False
         """
         return True
+
+    def getBackendAvailability(self):
+        """Authenticate and get the token
+
+        :return: None
+        """
+        generate = 'enabled'
+        if not self.backend_generate:
+            generate = 'disabled'
+
+        try:
+            if not self.backend.authenticated:
+                logger.info("Signing-in to the backend...")
+                self.backend_available = self.backend.login(self.backend_username,
+                                                            self.backend_password, generate)
+            logger.debug("Checking backend availability, token: %s, authenticated: %s",
+                         self.backend.token, self.backend.authenticated)
+            self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
+            self.backend_available = True
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            self.backend_available = False
+
+    def getBackendHistory(self, search=None):
+        """Get the backend Alignak logs
+
+        :return: None
+        """
+        history = []
+
+        if not search:
+            search = {}
+        if "sort" not in search:
+            search.update({'sort': '-_id'})
+        if 'embedded' not in search:
+            search.update({'embedded': {'logcheckresult': 1}})
+
+        try:
+            if not self.backend.authenticated:
+                logger.info("Signing-in to the backend...")
+                self.backend_available = self.backend.login(self.backend_username,
+                                                            self.backend_password)
+            logger.debug("Getting history: %s", search)
+
+            result = self.backend.get('history', json.dumps(search))
+            if result['_status'] == 'OK':
+                logger.debug("history, got %d items", len(result['_items']))
+                result.pop('_links')
+                return result
+
+            logger.warning("history request, got a problem: %s", result)
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            self.backend_available = False
+
+        return history
 
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
@@ -338,31 +449,17 @@ class AlignakWebServices(BaseModule):
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):
-        pass
+        """This function is present because of an abstract function in the BaseModule class"""
+        logger.info("In loop")
+        time.sleep(1)
 
     def main(self):
         # pylint: disable=too-many-nested-blocks
-        """
-        Main loop of the process
+        """Main loop of the process
 
         This module is an "external" module
         :return:
         """
-        logger.info("Code coverage: %s", os.environ.get('COVERAGE_PROCESS_START'))
-        try:
-            if os.environ.get('COVERAGE_PROCESS_START'):
-                print("***")
-                print("* Executing daemon test with code coverage enabled")
-                if 'coverage' not in sys.modules:
-                    print("* coverage module is not loaded! Trying to import coverage module...")
-                    import coverage
-                    coverage.process_startup()
-                    print("* coverage process started.")
-                print("***")
-        except Exception as exp:  # pylint: disable=broad-except
-            print("Exception: %s", str(exp))
-            sys.exit(3)
-
         # Set the OS process title
         self.set_proctitle(self.alias)
         self.set_exit_handler()
@@ -381,6 +478,7 @@ class AlignakWebServices(BaseModule):
         logger.info("HTTP daemon thread started")
 
         # Polling period (-100 to get sure to poll on the first loop iteration)
+        ping_alignak_backend_next_time = time.time() - 100
         ping_alignak_next_time = time.time() - 100
         get_daemons_next_time = time.time() - 100
 
@@ -402,9 +500,19 @@ class AlignakWebServices(BaseModule):
                         logger.warning("Got a message that is not an external command: %s", message)
                         # print("Got a message that is not an external command: %s", message)
                 except Queue.Empty:
-                    logger.debug("No message in the module queue")
+                    # logger.debug("No message in the module queue")
+                    pass
+
+            if self.backend_url:
+                # Check backend connection
+                if ping_alignak_backend_next_time < start:
+                    ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
+
+                    self.getBackendAvailability()
+                    time.sleep(0.1)
 
             if not self.alignak_host:
+                # Do not check Alignak daemons...
                 continue
 
             if ping_alignak_next_time < start:
@@ -471,11 +579,18 @@ class AlignakWebServices(BaseModule):
         logger.info("stopped")
 
 if __name__ == '__main__':
+    logging.getLogger("alignak_backend_client").setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+
     # Create an Alignak module
     mod = Module({
         'module_alias': 'web-services',
         'module_types': 'web-services',
         'python_name': 'alignak_module_ws',
+        # Alignak backend configuration
+        'alignak_backend': 'http://127.0.0.1:5000',
+        # 'token': '1489219787082-4a226588-9c8b-4e17-8e56-c1b5d31db28e',
+        'username': 'admin', 'password': 'admin',
         # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
         'alignak_host': '',
         'alignak_port': 7770,
