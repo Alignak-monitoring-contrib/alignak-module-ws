@@ -3,6 +3,11 @@
 # alignak
 -e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
 
+
+# alignak backend
+-e git+https://github.com/Alignak-monitoring-contrib/alignak-backend.git@develop#egg=alignak-backend
+
+uwsgi
 unittest2
 coveralls
 nose-cov

@@ -45,6 +45,8 @@ from alignak.basemodule import BaseModule
 from alignak.http.daemon import HTTPDaemon
 from alignak.external_command import ExternalCommand
 
+from alignak_module_ws.utils.helper import Helper
+
 logger = logging.getLogger('alignak.module')  # pylint: disable=C0103
 
 # pylint: disable=C0103
@@ -195,13 +197,23 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def alignak_logs(self):
+    def alignak_logs(self, start=0, count=25, search=''):
         """Get the alignak logs
 
         :return: True if is alive, False otherwise
         :rtype: dict
         """
-        return self.app.getBackendHistory()
+        start = int(cherrypy.request.params.get('start', '0'))
+        count = int(cherrypy.request.params.get('count', '25'))
+        where = Helper.decode_search(cherrypy.request.params.get('search', ''), None)
+        search = {
+            'page': (start // count) + 1,
+            'max_results': count,
+        }
+        if where:
+            search.update({'where': json.dumps(where)})
+
+        return self.app.getBackendHistory(search)
 
 
 class AlignakWebServices(BaseModule):
@@ -387,7 +399,8 @@ class AlignakWebServices(BaseModule):
                                                             self.backend_password, generate)
             logger.debug("Checking backend availability, token: %s, authenticated: %s",
                          self.backend.token, self.backend.authenticated)
-            self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
+            result = self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
+            logger.debug("Backend availability, got: %s", result)
             self.backend_available = True
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
@@ -399,35 +412,46 @@ class AlignakWebServices(BaseModule):
 
         :return: None
         """
-        history = []
-
         if not search:
             search = {}
         if "sort" not in search:
             search.update({'sort': '-_id'})
-        if 'embedded' not in search:
-            search.update({'embedded': {'logcheckresult': 1}})
+        if 'projection' not in search:
+            search.update({
+                'projection': json.dumps({
+                    "host_name": 1, "service_name": 1, "user_name": 1, "type": 1, "message": 1
+                })
+            })
 
         try:
-            if not self.backend.authenticated:
-                logger.info("Signing-in to the backend...")
-                self.backend_available = self.backend.login(self.backend_username,
-                                                            self.backend_password)
-            logger.debug("Getting history: %s", search)
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
-            result = self.backend.get('history', json.dumps(search))
+            logger.info("Getting history: %s", search)
+            result = self.backend.get('history', search)
+            logger.debug("Backend history, got: %s", result)
             if result['_status'] == 'OK':
-                logger.debug("history, got %d items", len(result['_items']))
-                result.pop('_links')
-                return result
+                logger.info("history, got %d items", len(result['_items']))
+                items = []
+                for item in result['_items']:
+                    item.pop('_id')
+                    item.pop('_etag')
+                    item.pop('_links')
+                    item.pop('_updated')
+                    items.append(item)
+                logger.info("history, return: %s", {'_status': 'OK', 'items': items})
+                return {'_status': 'OK', 'items': items}
 
             logger.warning("history request, got a problem: %s", result)
+            return result
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
-            logger.debug("Exception: %s", exp)
+            logger.warning("Exception: %s", exp)
             self.backend_available = False
 
-        return history
+        return {'_status': 'ERR', '_error': u'An exception happened during the request'}
 
     def http_daemon_thread(self):
         """Main function of the http daemon thread.
