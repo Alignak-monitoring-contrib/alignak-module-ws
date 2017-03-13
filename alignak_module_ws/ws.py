@@ -148,15 +148,83 @@ class WSInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    def host(self, host_name=None):
+        """ Declare an host and its data
+        :return:
+        """
+        if cherrypy.request.method != "PATCH":
+            return {'_status': 'ERR', '_error': 'You must only PATCH on this endpoint.'}
+
+        if cherrypy.request and not cherrypy.request.json:
+            return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
+
+        if not host_name:
+            host_name = cherrypy.request.json.get('name', None)
+        service = cherrypy.request.json.get('service', None)
+        livestate = cherrypy.request.json.get('livestate', None)
+        services = cherrypy.request.json.get('services', None)
+
+        if not host_name:
+            return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
+
+        result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+
+        # Update host livestate
+        if livestate:
+            if 'state' not in livestate:
+                result['_issues'].append('Missing state in the livestate.')
+            else:
+                state = livestate.get('state', 'UP').upper()
+                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
+                    result['_issues'].append('Host state must be UP, DOWN or UNREACHABLE.')
+                else:
+                    result['_result'].append(self.app.buildHostLivestate(host_name,
+                                                                         livestate))
+
+        # Got the livestate from several services
+        if services:
+            for service_id in services:
+                service = services[service_id]
+                service_name = service.get('name', service_id)
+                # Update livestate
+                if 'livestate' in service:
+                    livestate = service['livestate']
+                    if 'state' not in livestate:
+                        result['_issues'].append('Service %s: Missing state in the livestate.'
+                                                 % service_name)
+                        continue
+
+                    state = livestate.get('state', 'OK').upper()
+                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
+                        result['_issues'].append('Service %s state must be OK, WARNING, CRITICAL, '
+                                                 'UNKNOWN or UNREACHABLE, and not %s.'
+                                                 % (service_name, state))
+                        continue
+
+                    result['_result'].append(self.app.buildServiceLivestate(host_name,
+                                                                            service_name,
+                                                                            livestate))
+
+        if len(result['_issues']):
+            result['_status'] = 'ERR'
+            return result
+
+        result.pop('_issues')
+        return result
+    host.method = 'patch'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
     def command(self):
         """ Request to execute an external command
         :return:
         """
         if cherrypy.request.method != "POST":
-            return {'_status': 'ko', '_result': 'You must only POST on this endpoint.'}
+            return {'_status': 'ERR', '_error': 'You must only POST on this endpoint.'}
 
         if cherrypy.request and not cherrypy.request.json:
-            return {'_status': 'ko', '_result': 'You must POST parameters on this endpoint.'}
+            return {'_status': 'ERR', '_error': 'You must POST parameters on this endpoint.'}
 
         command = cherrypy.request.json.get('command', None)
         timestamp = cherrypy.request.json.get('timestamp', None)
@@ -167,7 +235,7 @@ class WSInterface(object):
         parameters = cherrypy.request.json.get('parameters', None)
 
         if not command:
-            return {'_status': 'ko', '_result': 'Missing command parameter'}
+            return {'_status': 'ERR', '_error': 'Missing command parameter'}
 
         command_line = command.upper()
         if timestamp:
@@ -192,7 +260,7 @@ class WSInterface(object):
         # Add a command to get managed
         self.app.to_q.put(ExternalCommand(command_line))
 
-        return {'_status': 'ok', '_result': command_line}
+        return {'_status': 'OK', '_command': command_line}
     command.method = 'post'
 
     @cherrypy.expose
@@ -382,6 +450,62 @@ class AlignakWebServices(BaseModule):
         :return: True if initialization is ok, else False
         """
         return True
+
+    def buildHostLivestate(self, host_name, livestate):
+        """Build the command for an host livestate
+
+        :param host_name: host name
+        :param livestate: livestate dictionary
+        :return: command line
+        """
+        state = livestate.get('state', 'UP').upper()
+        output = livestate.get('output', '')
+        long_output = livestate.get('long_output', '')
+        perf_data = livestate.get('perf_data', '')
+
+        parameters = '%s;%s' % (state, output)
+        if long_output and perf_data:
+            parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
+        elif long_output:
+            parameters = '%s\n%s' % (parameters, long_output)
+        elif perf_data:
+            parameters = '%s|%s' % (parameters, perf_data)
+
+        command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
+
+    def buildServiceLivestate(self, host_name, service_name, livestate):
+        """Build the command for an host livestate
+
+        :param host_name: host name
+        :param service_name: service description
+        :param livestate: livestate dictionary
+        :return: command line
+        """
+        state = livestate.get('state', 'UP').upper()
+        output = livestate.get('output', '')
+        long_output = livestate.get('long_output', '')
+        perf_data = livestate.get('perf_data', '')
+
+        parameters = '%s;%s' % (state, output)
+        if long_output and perf_data:
+            parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
+        elif long_output:
+            parameters = '%s\n%s' % (parameters, long_output)
+        elif perf_data:
+            parameters = '%s|%s' % (parameters, perf_data)
+
+        command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
+                       (host_name, service_name, parameters)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
 
     def getBackendAvailability(self):
         """Authenticate and get the token
