@@ -799,3 +799,162 @@ class TestModules(AlignakTest):
 
         self.modulemanager.stop_all()
 
+    def test_module_zzz_event(self):
+        """Test the module /event API
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Do not allow GET request on /command
+        response = requests.get('http://127.0.0.1:8888/event')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_issues'], ['You must only POST on this endpoint.'])
+
+        self.assertEqual(my_module.received_commands, 0)
+
+        # You must have parameters when POSTing on /command
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_issues'], ['You must POST parameters on this endpoint.'])
+
+        self.assertEqual(my_module.received_commands, 0)
+
+        # Notify an host event - missing host or service
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "fake": ""
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']})
+
+        # Notify an host event - missing comment
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "host": "test_host",
+        }
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_issues': ['Missing comment. If you do not have any comment, '
+                                              'do not comment ;)']})
+
+        # Notify an host event - default author
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "host": "test_host",
+            "comment": "My comment"
+        }
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'OK',
+                                  '_result': [u'ADD_HOST_COMMENT;test_host;1;'
+                                              u'Alignak WS;My comment']})
+
+        # Notify an host event - default author and timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "timestamp": 1234567890,
+            "host": "test_host",
+            "author": "Me",
+            "comment": "My comment"
+        }
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'OK',
+                                  '_result': [u'[1234567890] ADD_HOST_COMMENT;test_host;1;'
+                                              u'Me;My comment']})
+
+        # Notify a service event - default author
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "host": "test_host",
+            "service": "test_service",
+            "comment": "My comment"
+        }
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'OK',
+                                  '_result': [u'ADD_SVC_COMMENT;test_host;test_service;1;'
+                                              u'Alignak WS;My comment']})
+
+        # Notify a service event - default author and timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "timestamp": 1234567890,
+            "host": "test_host",
+            "service": "test_service",
+            "author": "Me",
+            "comment": "My comment"
+        }
+        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'OK',
+                                  '_result': [u'[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
+                                              u'1;Me;My comment']})
+
+        self.modulemanager.stop_all()

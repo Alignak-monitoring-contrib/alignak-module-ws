@@ -160,7 +160,6 @@ class WSInterface(object):
 
         if not host_name:
             host_name = cherrypy.request.json.get('name', None)
-        service = cherrypy.request.json.get('service', None)
         livestate = cherrypy.request.json.get('livestate', None)
         services = cherrypy.request.json.get('services', None)
 
@@ -212,6 +211,49 @@ class WSInterface(object):
         result.pop('_issues')
         return result
     host.method = 'patch'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def event(self):
+        """ Notify an event
+        :return:
+        """
+        if cherrypy.request.method != "POST":
+            return {'_status': 'ERR', '_issues': ['You must only POST on this endpoint.']}
+
+        if cherrypy.request and not cherrypy.request.json:
+            return {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
+
+        timestamp = cherrypy.request.json.get('timestamp', None)
+        host = cherrypy.request.json.get('host', None)
+        service = cherrypy.request.json.get('service', None)
+        author = cherrypy.request.json.get('author', 'Alignak WS')
+        comment = cherrypy.request.json.get('comment', None)
+
+        if not host and not service:
+            return {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']}
+
+        if not comment:
+            return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
+                                                  'comment, do not comment ;)']}
+
+        result = {'_status': 'OK', '_result': [], '_issues': []}
+
+        if host and service:
+            result['_result'].append(self.app.buildServiceComment(host, service, author,
+                                                                  comment, timestamp))
+        else:
+            result['_result'].append(self.app.buildHostComment(host, author,
+                                                               comment, timestamp))
+
+        if len(result['_issues']):
+            result['_status'] = 'ERR'
+            return result
+
+        result.pop('_issues')
+        return result
+    event.method = 'post'
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -451,8 +493,54 @@ class AlignakWebServices(BaseModule):
         """
         return True
 
+    def buildHostComment(self, host_name, author, comment, timestamp):
+        """Build the external command for an host comment
+
+        ADD_HOST_COMMENT;<host_name>;<persistent>;<author>;<comment>
+
+        :param host_name: host name
+        :param author: comment author
+        :param comment: text comment
+        :return: command line
+        """
+        command_line = 'ADD_HOST_COMMENT'
+        if timestamp:
+            command_line = '[%d] ADD_HOST_COMMENT' % (timestamp)
+
+        command_line = '%s;%s;1;%s;%s' % (command_line, host_name, author, comment)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
+
+    # pylint: disable=too-many-arguments
+    def buildServiceComment(self, host_name, service_name, author, comment, timestamp):
+        """Build the external command for an host comment
+
+        ADD_SVC_COMMENT;<host_name>;<service_description>;<persistent>;<author>;<comment>
+
+        :param host_name: host name
+        :param service_name: service description
+        :param author: comment author
+        :param comment: text comment
+        :return: command line
+        """
+        command_line = 'ADD_SVC_COMMENT'
+        if timestamp:
+            command_line = '[%d] ADD_SVC_COMMENT' % (timestamp)
+
+        command_line = '%s;%s;%s;1;%s;%s' % (command_line, host_name, service_name, author, comment)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
+
     def buildHostLivestate(self, host_name, livestate):
-        """Build the command for an host livestate
+        """Build and notify the external command for an host livestate
+
+        PROCESS_HOST_CHECK_RESULT;<host_name>;<status_code>;<plugin_output>
 
         :param host_name: host name
         :param livestate: livestate dictionary
@@ -479,7 +567,9 @@ class AlignakWebServices(BaseModule):
         return command_line
 
     def buildServiceLivestate(self, host_name, service_name, livestate):
-        """Build the command for an host livestate
+        """Build and notify the external command for a service livestate
+
+        PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<return_code>;<plugin_output>
 
         :param host_name: host name
         :param service_name: service description
