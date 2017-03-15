@@ -26,6 +26,11 @@ import os
 import re
 import time
 
+import shlex
+import subprocess
+
+import logging
+
 import requests
 
 from alignak_test import AlignakTest, time_hacker
@@ -38,9 +43,71 @@ os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
 
+# # Activate debug logs for the alignak backend client library
+# logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
+#
+# # Activate debug logs for the module
+# logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
-class TestModules(AlignakTest):
+
+class TestModuleWs(AlignakTest):
     """This class contains the tests for the module"""
+
+    @classmethod
+    def setUpClass(cls):
+
+        # Set test mode for alignak backend
+        os.environ['TEST_ALIGNAK_BACKEND'] = '1'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+
+        # Delete used mongo DBs
+        print ("Deleting Alignak backend DB...")
+        exit_code = subprocess.call(
+            shlex.split(
+                'mongo %s --eval "db.dropDatabase()"' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
+        )
+        assert exit_code == 0
+
+        cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
+                                  '--socket', '0.0.0.0:5000',
+                                  '--protocol=http', '--enable-threads', '--pidfile',
+                                  '/tmp/uwsgi.pid'])
+        time.sleep(3)
+
+        endpoint = 'http://127.0.0.1:5000'
+
+        # Backend authentication
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # Get admin user token (force regenerate)
+        response = requests.post(endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        cls.token = resp['token']
+        cls.auth = requests.auth.HTTPBasicAuth(cls.token, '')
+
+        # Get admin user
+        response = requests.get(endpoint + '/user', auth=cls.auth)
+        resp = response.json()
+        cls.user_admin = resp['_items'][0]
+
+        # Get realms
+        response = requests.get(endpoint + '/realm', auth=cls.auth)
+        resp = response.json()
+        cls.realmAll_id = resp['_items'][0]['_id']
+
+        # Add a user
+        data = {'name': 'test', 'password': 'test', 'back_role_super_admin': False,
+                'host_notification_period': cls.user_admin['host_notification_period'],
+                'service_notification_period': cls.user_admin['service_notification_period'],
+                '_realm': cls.realmAll_id}
+        response = requests.post(endpoint + '/user', json=data, headers=headers,
+                                 auth=cls.auth)
+        resp = response.json()
+        print("Created a new user: %s" % resp)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.p.kill()
 
     def test_module_loading(self):
         """
@@ -856,6 +923,24 @@ class TestModules(AlignakTest):
 
         time.sleep(1)
 
+        # ---
+        # Prepare the backend content...
+        self.endpoint = 'http://127.0.0.1:5000'
+
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # get token
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
+
+        # Get default realm
+        response = requests.get(self.endpoint + '/realm', auth=self.auth)
+        resp = response.json()
+        self.realm_all = resp['_items'][0]['_id']
+        # ---
+
         # Do not allow GET request on /command
         response = requests.get('http://127.0.0.1:8888/event')
         self.assertEqual(response.status_code, 200)
@@ -956,5 +1041,17 @@ class TestModules(AlignakTest):
         self.assertEqual(result, {'_status': 'OK',
                                   '_result': [u'[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
                                               u'1;Me;My comment']})
+
+        # Get history to confirm that backend is ready
+        # ---
+        response = requests.get(self.endpoint + '/history', auth=self.auth,
+                                params={"sort": "-_id", "max_results": 25, "page": 1})
+        resp = response.json()
+        print("Response: %s" % resp)
+        for item in resp['_items']:
+            assert item['type'] in ['webui.comment']
+        # Got 4 notified events, so we get 4 comments in the backend
+        self.assertEqual(len(resp['_items']), 4)
+        # ---
 
         self.modulemanager.stop_all()

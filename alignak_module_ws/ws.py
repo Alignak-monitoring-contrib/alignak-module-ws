@@ -238,21 +238,7 @@ class WSInterface(object):
             return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
                                                   'comment, do not comment ;)']}
 
-        result = {'_status': 'OK', '_result': [], '_issues': []}
-
-        if host and service:
-            result['_result'].append(self.app.buildServiceComment(host, service, author,
-                                                                  comment, timestamp))
-        else:
-            result['_result'].append(self.app.buildHostComment(host, author,
-                                                               comment, timestamp))
-
-        if len(result['_issues']):
-            result['_status'] = 'ERR'
-            return result
-
-        result.pop('_issues')
-        return result
+        return self.app.buildPostComment(host, service, author, comment, timestamp)
     event.method = 'post'
 
     @cherrypy.expose
@@ -493,32 +479,11 @@ class AlignakWebServices(BaseModule):
         """
         return True
 
-    def buildHostComment(self, host_name, author, comment, timestamp):
+    # pylint: disable=too-many-arguments
+    def buildPostComment(self, host_name, service_name, author, comment, timestamp):
         """Build the external command for an host comment
 
         ADD_HOST_COMMENT;<host_name>;<persistent>;<author>;<comment>
-
-        :param host_name: host name
-        :param author: comment author
-        :param comment: text comment
-        :return: command line
-        """
-        command_line = 'ADD_HOST_COMMENT'
-        if timestamp:
-            command_line = '[%d] ADD_HOST_COMMENT' % (timestamp)
-
-        command_line = '%s;%s;1;%s;%s' % (command_line, host_name, author, comment)
-
-        # Add a command to get managed
-        self.to_q.put(ExternalCommand(command_line))
-
-        return command_line
-
-    # pylint: disable=too-many-arguments
-    def buildServiceComment(self, host_name, service_name, author, comment, timestamp):
-        """Build the external command for an host comment
-
-        ADD_SVC_COMMENT;<host_name>;<service_description>;<persistent>;<author>;<comment>
 
         :param host_name: host name
         :param service_name: service description
@@ -526,16 +491,57 @@ class AlignakWebServices(BaseModule):
         :param comment: text comment
         :return: command line
         """
-        command_line = 'ADD_SVC_COMMENT'
-        if timestamp:
-            command_line = '[%d] ADD_SVC_COMMENT' % (timestamp)
+        if service_name:
+            command_line = 'ADD_SVC_COMMENT'
+            if timestamp:
+                command_line = '[%d] ADD_SVC_COMMENT' % (timestamp)
 
-        command_line = '%s;%s;%s;1;%s;%s' % (command_line, host_name, service_name, author, comment)
+            command_line = '%s;%s;%s;1;%s;%s' % (command_line, host_name, service_name,
+                                                 author, comment)
+        else:
+            command_line = 'ADD_HOST_COMMENT'
+            if timestamp:
+                command_line = '[%d] ADD_HOST_COMMENT' % (timestamp)
+
+            command_line = '%s;%s;1;%s;%s' % (command_line, host_name,
+                                              author, comment)
 
         # Add a command to get managed
         self.to_q.put(ExternalCommand(command_line))
 
-        return command_line
+        result = {'_status': 'OK', '_result': [command_line], '_issues': []}
+
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                logger.warning("Alignak backend is not available currently. "
+                               "Comment not stored: %s", command_line)
+
+            data = {
+                "host_name": host_name,
+                "user_name": author,
+                "type": "webui.comment",
+                "message": comment
+            }
+            logger.info("Posting an event: %s", data)
+            post_result = self.backend.post('history', data)
+            logger.debug("Backend post, result: %s", post_result)
+            if post_result['_status'] != 'OK':
+                logger.warning("history post, got a problem: %s", result)
+                result['_issues'] = post_result['_issues']
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            result['_issues'] = str(exp)
+            self.backend_available = False
+
+        if len(result['_issues']):
+            result['_status'] = 'ERR'
+            return result
+
+        result.pop('_issues')
+        return result
 
     def buildHostLivestate(self, host_name, livestate):
         """Build and notify the external command for an host livestate
