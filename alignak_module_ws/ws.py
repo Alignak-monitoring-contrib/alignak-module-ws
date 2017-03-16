@@ -161,6 +161,7 @@ class WSInterface(object):
         if not host_name:
             host_name = cherrypy.request.json.get('name', None)
         livestate = cherrypy.request.json.get('livestate', None)
+        variables = cherrypy.request.json.get('variables', None)
         services = cherrypy.request.json.get('services', None)
 
         if not host_name:
@@ -179,6 +180,14 @@ class WSInterface(object):
                 else:
                     result['_result'].append(self.app.buildHostLivestate(host_name,
                                                                          livestate))
+
+        # Update host variables
+        if variables:
+            (status, message) = self.app.updateHostVariables(host_name, variables)
+            if status == 'OK':
+                result['_result'].append(message)
+            else:
+                result['_issues'].append(message)
 
         # Got the livestate from several services
         if services:
@@ -478,6 +487,61 @@ class AlignakWebServices(BaseModule):
         :return: True if initialization is ok, else False
         """
         return True
+
+    def updateHostVariables(self, host_name, variables):
+        """Manage the properties for the specified host
+
+        Search the host in the backend
+
+        :param host_name: host name
+        :param properties: dictionary of the host properties
+        :return: command line
+        """
+        host = None
+
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return('ERR', "Alignak backend is not available currently. "
+                              "Host properties cannont be modified.")
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Backend availability, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested host '%s' does not exist" % host_name)
+            host = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            return ('ERR', "Alignak backend is not available currently. "
+                           "Get exception: %s" % str(exp))
+
+        customs = host['customs']
+        for prop in variables:
+            custom = '_' + prop.upper()
+            if variables[prop] == "__delete__":
+                customs.pop(custom)
+            else:
+                customs[custom] = variables[prop]
+
+        try:
+            headers = {'If-Match': host['_etag']}
+            data = {"customs": customs}
+            patch_result = self.backend.patch('/'.join(['host', host['_id']]),
+                                              data=data, headers=headers)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Host patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Host update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        return ('OK', "Host %s updated." % host['name'])
 
     # pylint: disable=too-many-arguments
     def buildPostComment(self, host_name, service_name, author, comment, timestamp):

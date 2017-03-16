@@ -25,6 +25,7 @@ Test the module
 import os
 import re
 import time
+import json
 
 import shlex
 import subprocess
@@ -866,6 +867,183 @@ class TestModuleWs(AlignakTest):
 
         self.modulemanager.stop_all()
 
+    def test_module_zzz_host_variables(self):
+        """Test the module /host API
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': '_dummy'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        print("Dummy host variables: %s" % dummy_host['customs'])
+        # ---
+
+        # Do not allow GET request on /host
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
+
+        # You must have parameters when POSTing on /host
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
+
+        # Update host variables - empty variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+            "variables": "",
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # ----------
+        # Host does not exist
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "unknown_host",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'unknown_host is alive :)'],
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+
+
+        # ----------
+        # Create host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "_dummy",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
+                                                                  u'Host _dummy updated.']})
+
+        # Get host data to confirm update
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': '_dummy'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        print("Dummy host variables: %s" % dummy_host['customs'])
+        expected = {
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, dummy_host['customs'])
+        # ----------
+
+        # ----------
+        # Update host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "_dummy",
+            "variables": {
+                'test1': 'string modified',
+                'test2': 12,
+                'test3': 15055.0,
+                'test4': "new!"
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
+                                                                  u'Host _dummy updated.']})
+
+        # Get host data to confirm update
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': '_dummy'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        print("Dummy host variables: %s" % dummy_host['customs'])
+        expected = {
+            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
+        }
+        self.assertEqual(expected, dummy_host['customs'])
+        # ----------
+
+        self.modulemanager.stop_all()
+
     def test_module_zzz_event(self):
         """Test the module /event API
         :return:
@@ -941,7 +1119,7 @@ class TestModuleWs(AlignakTest):
         self.realm_all = resp['_items'][0]['_id']
         # ---
 
-        # Do not allow GET request on /command
+        # Do not allow GET request on /event
         response = requests.get('http://127.0.0.1:8888/event')
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -950,7 +1128,7 @@ class TestModuleWs(AlignakTest):
 
         self.assertEqual(my_module.received_commands, 0)
 
-        # You must have parameters when POSTing on /command
+        # You must have parameters when POSTing on /event
         headers = {'Content-Type': 'application/json'}
         data = {}
         response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
