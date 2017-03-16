@@ -25,8 +25,9 @@ Test the module with an lignak backend connection
 import os
 import time
 import shlex
-import logging
 import subprocess
+
+import logging
 
 import requests
 
@@ -43,10 +44,10 @@ os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 from alignak_module_ws.ws import get_instance
 
-# Activate debug logs for the alignak backend client library
+# # Activate debug logs for the alignak backend client library
 # logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
-
-# Activate debug logs for the module
+#
+# # Activate debug logs for the module
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
@@ -57,7 +58,7 @@ class TestModuleConnection(AlignakTest):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-logs-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -224,8 +225,8 @@ class TestModuleConnection(AlignakTest):
 
         time.sleep(1)
 
-        # Prepare the backend content...
         # ---
+        # Prepare the backend content...
         self.endpoint = 'http://127.0.0.1:5000'
 
         headers = {'Content-Type': 'application/json'}
@@ -240,6 +241,7 @@ class TestModuleConnection(AlignakTest):
         response = requests.get(self.endpoint + '/realm', auth=self.auth)
         resp = response.json()
         self.realm_all = resp['_items'][0]['_id']
+        # ---
 
         # Add an history event
         data = {

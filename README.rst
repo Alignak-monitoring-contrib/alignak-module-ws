@@ -63,6 +63,8 @@ This module for Alignak exposes some Alignak Web Services:
 
     * `POST /alignak_command` that will notify an external command to the Alignak framework
 
+    * `PATCH /host/<host_name>` that allows to send live state for an host and its services, update host custom variables, enable/disable host checks
+
 
 Web Services
 ------------
@@ -74,7 +76,7 @@ To get Alignak daemons states, GET on the `alignak_map` endpoint:
 
     $ wget http://demo.alignak.net:8888/alignak_map
 
-    $cat alignak_map
+    $ cat alignak_map
     {
 
         "reactionner": {
@@ -122,9 +124,9 @@ Get Alignak history
 To get Alignak history, GET on the `alignak_logs` endpoint:
 ::
 
-    $wget http://demo.alignak.net:8888/alignak_logs
+    $ wget http://demo.alignak.net:8888/alignak_logs
 
-    $cat alignak_logs
+    $ cat alignak_logs
     {
         "_status": "OK",
         "items": [
@@ -230,6 +232,78 @@ Some parameters can be used to refine the results:
         (To be completed...)
 
 
+
+**Note** that the returned items are always sorted to get the most recent first
+
+
+Host/service livestate
+~~~~~~~~~~~~~~~~~~~~~~
+To send an host/service live state, PATCH on the `host` endpoint providing the host name and its state:
+::
+
+    $ curl -X POST -H "Content-Type: application/json" -d '{
+        "host_name": "test_host",
+        "livestate": {
+            "state": "up",
+            "output": "Output...",
+            "long_output": "Long output...",
+            "perf_data": "'counter':1"
+        }
+    }' "http://demo.alignak.net:8888/host"
+
+
+The result is a JSON object containing a `_status` property that should be 'OK' and an `_result` array property that contains information about the actions that were executed.
+
+If an error is detected, the `_status` property is not 'OK' and a `_issues` array property will report the detected error(s).
+
+The `/host/host_name` can be used to target the host. If a `name` property is present in the JSON data then this property will take precedence over the `host_name` in the endpoint.
+
+**Note** that the returned items are always sorted to get the most recent first
+
+
+Host custom variables
+~~~~~~~~~~~~~~~~~~~~~
+To create/update host custom variables, PATCH on the `host` endpoint providing the host name and its variables:
+::
+
+    $ curl -X POST -H "Content-Type: application/json" -d '{
+        "host_name": "test_host",
+         "name": "_dummy",
+         "variables": {
+             'test1': 'string',
+             'test2': 12,
+             'test3': 15055.0,
+             'test4': "new!"
+         }
+    }' "http://demo.alignak.net:8888/host"
+
+
+The result is a JSON object containing a `_status` property that should be 'OK' and an `_result` array property that contains information about the actions that were executed.
+
+If an error is detected, the `_status` property is not 'OK' and a `_issues` array property will report the detected error(s).
+
+The `/host/host_name` can be used to target the host. If a `name` property is present in the JSON data then this property will take precedence over the `host_name` in the endpoint.
+
+**Note** that the returned items are always sorted to get the most recent first
+
+
+Host enable/disable checks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+To enable/disable an host checks, PATCH on the `host` endpoint providing the host name and its checks configuration:
+::
+
+    $ curl -X POST -H "Content-Type: application/json" -d '{
+        "host_name": "test_host",
+        "active_checks_enabled": True,
+        "passive_checks_enabled": True
+    }' "http://demo.alignak.net:8888/host"
+
+
+The result is a JSON object containing a `_status` property that should be 'OK' and an `_result` array property that contains information about the actions that were executed.
+
+If an error is detected, the `_status` property is not 'OK' and a `_issues` array property will report the detected error(s).
+
+The `/host/host_name` can be used to target the host. If a `name` property is present in the JSON data then this property will take precedence over the `host_name` in the endpoint.
 
 **Note** that the returned items are always sorted to get the most recent first
 

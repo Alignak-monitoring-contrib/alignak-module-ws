@@ -7,12 +7,19 @@
 # alignak backend
 -e git+https://github.com/Alignak-monitoring-contrib/alignak-backend.git@develop#egg=alignak-backend
 
-uwsgi
 unittest2
+
+# Use py.test as test-runner
+pytest
+pytest-cov
+# Let coverage use the most recent version
+coverage
+# Report coverage results to coveralls.io
 coveralls
-nose-cov
-coverage==4.0
-nose
+
+# Static code analysis libraries
 pylint
 pep8
 pep257
+
+uwsgi

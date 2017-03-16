@@ -148,15 +148,132 @@ class WSInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    def host(self, host_name=None):
+        """ Declare an host and its data
+        :return:
+        """
+        if cherrypy.request.method != "PATCH":
+            return {'_status': 'ERR', '_error': 'You must only PATCH on this endpoint.'}
+
+        if cherrypy.request and not cherrypy.request.json:
+            return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
+
+        if not host_name:
+            host_name = cherrypy.request.json.get('name', None)
+        livestate = cherrypy.request.json.get('livestate', None)
+        variables = cherrypy.request.json.get('variables', None)
+        services = cherrypy.request.json.get('services', None)
+        active_checks_enabled = cherrypy.request.json.get('active_checks_enabled', None)
+        passive_checks_enabled = cherrypy.request.json.get('passive_checks_enabled', None)
+
+        if not host_name:
+            return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
+
+        result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+
+        # Update host check state
+        if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled, bool):
+            (status, message) = self.app.setHostCheckState(host_name,
+                                                           active_checks_enabled,
+                                                           passive_checks_enabled)
+            if status == 'OK':
+                result['_result'].append(message)
+            else:
+                result['_issues'].append(message)
+
+        # Update host livestate
+        if livestate:
+            if 'state' not in livestate:
+                result['_issues'].append('Missing state in the livestate.')
+            else:
+                state = livestate.get('state', 'UP').upper()
+                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
+                    result['_issues'].append('Host state must be UP, DOWN or UNREACHABLE.')
+                else:
+                    result['_result'].append(self.app.buildHostLivestate(host_name,
+                                                                         livestate))
+
+        # Update host variables
+        if variables:
+            (status, message) = self.app.updateHostVariables(host_name, variables)
+            if status == 'OK':
+                result['_result'].append(message)
+            else:
+                result['_issues'].append(message)
+
+        # Got the livestate from several services
+        if services:
+            for service_id in services:
+                service = services[service_id]
+                service_name = service.get('name', service_id)
+                # Update livestate
+                if 'livestate' in service:
+                    livestate = service['livestate']
+                    if 'state' not in livestate:
+                        result['_issues'].append('Service %s: Missing state in the livestate.'
+                                                 % service_name)
+                        continue
+
+                    state = livestate.get('state', 'OK').upper()
+                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
+                        result['_issues'].append('Service %s state must be OK, WARNING, CRITICAL, '
+                                                 'UNKNOWN or UNREACHABLE, and not %s.'
+                                                 % (service_name, state))
+                        continue
+
+                    result['_result'].append(self.app.buildServiceLivestate(host_name,
+                                                                            service_name,
+                                                                            livestate))
+
+        if len(result['_issues']):
+            result['_status'] = 'ERR'
+            return result
+
+        result.pop('_issues')
+        return result
+    host.method = 'patch'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    def event(self):
+        """ Notify an event
+        :return:
+        """
+        if cherrypy.request.method != "POST":
+            return {'_status': 'ERR', '_issues': ['You must only POST on this endpoint.']}
+
+        if cherrypy.request and not cherrypy.request.json:
+            return {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
+
+        timestamp = cherrypy.request.json.get('timestamp', None)
+        host = cherrypy.request.json.get('host', None)
+        service = cherrypy.request.json.get('service', None)
+        author = cherrypy.request.json.get('author', 'Alignak WS')
+        comment = cherrypy.request.json.get('comment', None)
+
+        if not host and not service:
+            return {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']}
+
+        if not comment:
+            return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
+                                                  'comment, do not comment ;)']}
+
+        return self.app.buildPostComment(host, service, author, comment, timestamp)
+    event.method = 'post'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
     def command(self):
         """ Request to execute an external command
         :return:
         """
         if cherrypy.request.method != "POST":
-            return {'_status': 'ko', '_result': 'You must only POST on this endpoint.'}
+            return {'_status': 'ERR', '_error': 'You must only POST on this endpoint.'}
 
         if cherrypy.request and not cherrypy.request.json:
-            return {'_status': 'ko', '_result': 'You must POST parameters on this endpoint.'}
+            return {'_status': 'ERR', '_error': 'You must POST parameters on this endpoint.'}
 
         command = cherrypy.request.json.get('command', None)
         timestamp = cherrypy.request.json.get('timestamp', None)
@@ -167,7 +284,7 @@ class WSInterface(object):
         parameters = cherrypy.request.json.get('parameters', None)
 
         if not command:
-            return {'_status': 'ko', '_result': 'Missing command parameter'}
+            return {'_status': 'ERR', '_error': 'Missing command parameter'}
 
         command_line = command.upper()
         if timestamp:
@@ -192,7 +309,7 @@ class WSInterface(object):
         # Add a command to get managed
         self.app.to_q.put(ExternalCommand(command_line))
 
-        return {'_status': 'ok', '_result': command_line}
+        return {'_status': 'OK', '_command': command_line}
     command.method = 'post'
 
     @cherrypy.expose
@@ -382,6 +499,261 @@ class AlignakWebServices(BaseModule):
         :return: True if initialization is ok, else False
         """
         return True
+
+    def updateHostVariables(self, host_name, variables):
+        """Create/update the custom variables for the specified host
+
+        Search the host in the backend and update its custom variables with the provided ones.
+
+        :param host_name: host name
+        :param properties: dictionary of the host properties
+        :return: command line
+        """
+        host = None
+
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return('ERR', "Alignak backend is not available currently. "
+                              "Host properties cannont be modified.")
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Backend availability, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested host '%s' does not exist" % host_name)
+            host = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            return ('ERR', "Alignak backend is not available currently. "
+                           "Get exception: %s" % str(exp))
+
+        customs = host['customs']
+        for prop in variables:
+            custom = '_' + prop.upper()
+            if variables[prop] == "__delete__":
+                customs.pop(custom)
+            else:
+                customs[custom] = variables[prop]
+
+        try:
+            headers = {'If-Match': host['_etag']}
+            data = {"customs": customs}
+            patch_result = self.backend.patch('/'.join(['host', host['_id']]),
+                                              data=data, headers=headers)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Host patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Host update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        return ('OK', "Host %s updated." % host['name'])
+
+    def setHostCheckState(self, host_name, active_checks_enabled, passive_checks_enabled):
+        """Update the active/passive checks state of an host
+
+        Search the host in the backend and enable/disable the active/passive checks
+        according to the provided parameters.
+
+        :param host_name: host name
+        :param active_checks_enabled: enable / disable the host active checks
+        :param passive_checks_enabled: enable / disable the host passive checks
+        :return: command line
+        """
+        host = None
+        data = {}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return('ERR', "Alignak backend is not available currently. "
+                              "Host properties cannont be modified.")
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Backend availability, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested host '%s' does not exist" % host_name)
+            host = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            return ('ERR', "Alignak backend is not available currently. "
+                           "Get exception: %s" % str(exp))
+
+        message = ''
+        if active_checks_enabled is not None:
+            # todo: perharps this command is not useful because the backend is updated...
+            command_line = 'DISABLE_HOST_CHECK;%s' % host_name
+            if active_checks_enabled:
+                command_line = 'ENABLE_HOST_CHECK;%s' % host_name
+                message += 'Active checks will be enabled. '
+            else:
+                message += 'Active checks will be disabled. '
+
+            # Add a command to get managed
+            data['active_checks_enabled'] = active_checks_enabled
+            self.to_q.put(ExternalCommand(command_line))
+
+        if passive_checks_enabled is not None:
+            # todo: perharps this command is not useful because the backend is updated...
+            command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+            if passive_checks_enabled:
+                command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                message += 'Passive checks will be enabled. '
+            else:
+                message += 'Passive checks will be disabled. '
+
+            # Add a command to get managed
+            data['passive_checks_enabled'] = passive_checks_enabled
+            self.to_q.put(ExternalCommand(command_line))
+
+        try:
+            headers = {'If-Match': host['_etag']}
+            patch_result = self.backend.patch('/'.join(['host', host['_id']]),
+                                              data=data, headers=headers)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Host patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Host update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        message += "Host %s updated." % host['name']
+        return ('OK', message)
+
+    # pylint: disable=too-many-arguments
+    def buildPostComment(self, host_name, service_name, author, comment, timestamp):
+        """Build the external command for an host comment
+
+        ADD_HOST_COMMENT;<host_name>;<persistent>;<author>;<comment>
+
+        :param host_name: host name
+        :param service_name: service description
+        :param author: comment author
+        :param comment: text comment
+        :return: command line
+        """
+        if service_name:
+            command_line = 'ADD_SVC_COMMENT'
+            if timestamp:
+                command_line = '[%d] ADD_SVC_COMMENT' % (timestamp)
+
+            command_line = '%s;%s;%s;1;%s;%s' % (command_line, host_name, service_name,
+                                                 author, comment)
+        else:
+            command_line = 'ADD_HOST_COMMENT'
+            if timestamp:
+                command_line = '[%d] ADD_HOST_COMMENT' % (timestamp)
+
+            command_line = '%s;%s;1;%s;%s' % (command_line, host_name,
+                                              author, comment)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        result = {'_status': 'OK', '_result': [command_line], '_issues': []}
+
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                logger.warning("Alignak backend is not available currently. "
+                               "Comment not stored: %s", command_line)
+
+            data = {
+                "host_name": host_name,
+                "user_name": author,
+                "type": "webui.comment",
+                "message": comment
+            }
+            logger.info("Posting an event: %s", data)
+            post_result = self.backend.post('history', data)
+            logger.debug("Backend post, result: %s", post_result)
+            if post_result['_status'] != 'OK':
+                logger.warning("history post, got a problem: %s", result)
+                result['_issues'] = post_result['_issues']
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            result['_issues'] = str(exp)
+            self.backend_available = False
+
+        if len(result['_issues']):
+            result['_status'] = 'ERR'
+            return result
+
+        result.pop('_issues')
+        return result
+
+    def buildHostLivestate(self, host_name, livestate):
+        """Build and notify the external command for an host livestate
+
+        PROCESS_HOST_CHECK_RESULT;<host_name>;<status_code>;<plugin_output>
+
+        :param host_name: host name
+        :param livestate: livestate dictionary
+        :return: command line
+        """
+        state = livestate.get('state', 'UP').upper()
+        output = livestate.get('output', '')
+        long_output = livestate.get('long_output', '')
+        perf_data = livestate.get('perf_data', '')
+
+        parameters = '%s;%s' % (state, output)
+        if long_output and perf_data:
+            parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
+        elif long_output:
+            parameters = '%s\n%s' % (parameters, long_output)
+        elif perf_data:
+            parameters = '%s|%s' % (parameters, perf_data)
+
+        command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
+
+    def buildServiceLivestate(self, host_name, service_name, livestate):
+        """Build and notify the external command for a service livestate
+
+        PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<return_code>;<plugin_output>
+
+        :param host_name: host name
+        :param service_name: service description
+        :param livestate: livestate dictionary
+        :return: command line
+        """
+        state = livestate.get('state', 'UP').upper()
+        output = livestate.get('output', '')
+        long_output = livestate.get('long_output', '')
+        perf_data = livestate.get('perf_data', '')
+
+        parameters = '%s;%s' % (state, output)
+        if long_output and perf_data:
+            parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
+        elif long_output:
+            parameters = '%s\n%s' % (parameters, long_output)
+        elif perf_data:
+            parameters = '%s|%s' % (parameters, perf_data)
+
+        command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
+                       (host_name, service_name, parameters)
+
+        # Add a command to get managed
+        self.to_q.put(ExternalCommand(command_line))
+
+        return command_line
 
     def getBackendAvailability(self):
         """Authenticate and get the token
