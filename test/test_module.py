@@ -790,7 +790,7 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;UP;"
+                                               u"PROCESS_HOST_CHECK_RESULT;test_host;0;"
                                                u"Output...|'counter':1\nLong output..."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -810,7 +810,7 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;UNREACHABLE;"
+                                               u"PROCESS_HOST_CHECK_RESULT;test_host;2;"
                                                u"Output...|'counter':1\nLong output..."]})
 
         # Update host services livestate
@@ -858,11 +858,12 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         print(result)
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [u'test_host is alive :)',
-                                            u"PROCESS_HOST_CHECK_RESULT;test_host;UP;Output...|'counter':1\nLong output...",
-                                            u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;OK;Output...|'counter':1\nLong output...",
-                                            u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;CRITICAL;Output...|'counter':1\nLong output...",
-                                            u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;WARNING;Output...|'counter':1\nLong output..."]
+            u'_status': u'OK', u'_result': [
+                u'test_host is alive :)',
+                u"PROCESS_HOST_CHECK_RESULT;test_host;0;Output...|'counter':1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..."]
         })
 
         self.modulemanager.stop_all()

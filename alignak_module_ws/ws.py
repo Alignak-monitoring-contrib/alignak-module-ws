@@ -709,7 +709,13 @@ class AlignakWebServices(BaseModule):
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
 
-        parameters = '%s;%s' % (state, output)
+        state_to_id = {
+            "UP": 0,
+            "DOWN": 1,
+            "UNREACHABLE": 2
+        }
+
+        parameters = '%s;%s' % (state_to_id[state], output)
         if long_output and perf_data:
             parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
         elif long_output:
@@ -739,7 +745,15 @@ class AlignakWebServices(BaseModule):
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
 
-        parameters = '%s;%s' % (state, output)
+        state_to_id = {
+            "OK": 0,
+            "WARNING": 1,
+            "CRITICAL": 2,
+            "UNKNOWN": 3,
+            "UNREACHABLE": 4
+        }
+
+        parameters = '%s;%s' % (state_to_id[state], output)
         if long_output and perf_data:
             parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
         elif long_output:
