@@ -17,7 +17,7 @@ __pkg_name__ = u"alignak_module_ws"
 __module_types__ = u"web-services"
 
 # Application manifest
-__version__ = u"0.4.0"
+__version__ = u"0.5.0"
 __author__ = u"Frédéric Mohier"
 __author_email__ = u"frederic.mohier@alignak.net"
 __copyright__ = u"(c) 2015-2017 - %s" % __author__
