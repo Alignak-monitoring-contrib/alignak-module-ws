@@ -21,12 +21,14 @@ script:
   - pylint --rcfile=.pylintrc alignak_module_ws/
   # Code dynamic analysis
   - cd test
-  # notice: the nose-cov is used because it is compatible with --processes, but produce a .coverage by process
-  # so we must combine them in the end
+  # Delete previously existing coverage results
   - coverage erase
-  - coverage run --source=alignak_module_ws -m nose -c .noserc
-#  - nosetests -xv --process-restartworker --processes=1 --process-timeout=300 --with-coverage --cover-package=alignak_module_ws
-#  - coverage combine
+
+  # Run test suite with py.test running its coverage plugin
+  - pytest --cov=alignak_module_ws --cov-config .coveragerc test_*.py
+
+  # Report about coverage
+  - coverage report -m
   - cd ..
 # specific call to launch coverage data into coveralls.io
 after_success:
