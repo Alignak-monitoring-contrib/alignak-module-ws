@@ -163,11 +163,23 @@ class WSInterface(object):
         livestate = cherrypy.request.json.get('livestate', None)
         variables = cherrypy.request.json.get('variables', None)
         services = cherrypy.request.json.get('services', None)
+        active_checks_enabled = cherrypy.request.json.get('active_checks_enabled', None)
+        passive_checks_enabled = cherrypy.request.json.get('passive_checks_enabled', None)
 
         if not host_name:
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
         result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+
+        # Update host check state
+        if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled, bool):
+            (status, message) = self.app.setHostCheckState(host_name,
+                                                           active_checks_enabled,
+                                                           passive_checks_enabled)
+            if status == 'OK':
+                result['_result'].append(message)
+            else:
+                result['_issues'].append(message)
 
         # Update host livestate
         if livestate:
@@ -489,9 +501,9 @@ class AlignakWebServices(BaseModule):
         return True
 
     def updateHostVariables(self, host_name, variables):
-        """Manage the properties for the specified host
+        """Create/update the custom variables for the specified host
 
-        Search the host in the backend
+        Search the host in the backend and update its custom variables with the provided ones.
 
         :param host_name: host name
         :param properties: dictionary of the host properties
@@ -542,6 +554,82 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         return ('OK', "Host %s updated." % host['name'])
+
+    def setHostCheckState(self, host_name, active_checks_enabled, passive_checks_enabled):
+        """Update the active/passive checks state of an host
+
+        Search the host in the backend and enable/disable the active/passive checks
+        according to the provided parameters.
+
+        :param host_name: host name
+        :param active_checks_enabled: enable / disable the host active checks
+        :param passive_checks_enabled: enable / disable the host passive checks
+        :return: command line
+        """
+        host = None
+        data = {}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return('ERR', "Alignak backend is not available currently. "
+                              "Host properties cannont be modified.")
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Backend availability, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested host '%s' does not exist" % host_name)
+            host = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            return ('ERR', "Alignak backend is not available currently. "
+                           "Get exception: %s" % str(exp))
+
+        message = ''
+        if active_checks_enabled is not None:
+            # todo: perharps this command is not useful because the backend is updated...
+            command_line = 'DISABLE_HOST_CHECK;%s' % host_name
+            if active_checks_enabled:
+                command_line = 'ENABLE_HOST_CHECK;%s' % host_name
+                message += 'Active checks will be enabled. '
+            else:
+                message += 'Active checks will be disabled. '
+
+            # Add a command to get managed
+            data['active_checks_enabled'] = active_checks_enabled
+            self.to_q.put(ExternalCommand(command_line))
+
+        if passive_checks_enabled is not None:
+            # todo: perharps this command is not useful because the backend is updated...
+            command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+            if passive_checks_enabled:
+                command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                message += 'Passive checks will be enabled. '
+            else:
+                message += 'Passive checks will be disabled. '
+
+            # Add a command to get managed
+            data['passive_checks_enabled'] = passive_checks_enabled
+            self.to_q.put(ExternalCommand(command_line))
+
+        try:
+            headers = {'If-Match': host['_etag']}
+            patch_result = self.backend.patch('/'.join(['host', host['_id']]),
+                                              data=data, headers=headers)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Host patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Host update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        message += "Host %s updated." % host['name']
+        return ('OK', message)
 
     # pylint: disable=too-many-arguments
     def buildPostComment(self, host_name, service_name, author, comment, timestamp):
