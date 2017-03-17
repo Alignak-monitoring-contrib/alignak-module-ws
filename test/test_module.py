@@ -77,6 +77,16 @@ class TestModuleWs(AlignakTest):
 
         endpoint = 'http://127.0.0.1:5000'
 
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        print("Current test directory: %s" % test_dir)
+
+        print("Feeding Alignak backend... %s" % test_dir)
+        exit_code = subprocess.call(
+            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir)
+        )
+        assert exit_code == 0
+        print("Fed")
+
         # Backend authentication
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
@@ -1102,7 +1112,7 @@ class TestModuleWs(AlignakTest):
         # Get host data to confirm backend update
         # ---
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
         # ---
@@ -1158,7 +1168,7 @@ class TestModuleWs(AlignakTest):
         # Enable all checks
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "active_checks_enabled": True,
             "passive_checks_enabled": True
         }
@@ -1167,15 +1177,15 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'_dummy is alive :)',
-            u'Active checks will be enabled. '
-            u'Passive checks will be enabled. '
-            u'Host _dummy updated.'
+            u'test_host_0 is alive :)',
+            u'Host test_host_0 active checks will be enabled. '
+            u'Host test_host_0 passive checks will be enabled. '
+            u'Host test_host_0 updated.'
         ]})
 
         # Get host data to confirm update
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
         self.assertTrue(dummy_host['active_checks_enabled'])
@@ -1186,7 +1196,7 @@ class TestModuleWs(AlignakTest):
         # Disable all checks
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "active_checks_enabled": False,
             "passive_checks_enabled": False
         }
@@ -1195,15 +1205,15 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'_dummy is alive :)',
-            u'Active checks will be disabled. '
-            u'Passive checks will be disabled. '
-            u'Host _dummy updated.'
+            u'test_host_0 is alive :)',
+            u'Host test_host_0 active checks will be disabled. '
+            u'Host test_host_0 passive checks will be disabled. '
+            u'Host test_host_0 updated.'
         ]})
 
         # Get host data to confirm update
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
         self.assertFalse(dummy_host['active_checks_enabled'])
@@ -1214,7 +1224,7 @@ class TestModuleWs(AlignakTest):
         # Mixed
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "active_checks_enabled": True,
             "passive_checks_enabled": False
         }
@@ -1223,15 +1233,15 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'_dummy is alive :)',
-            u'Active checks will be enabled. '
-            u'Passive checks will be disabled. '
-            u'Host _dummy updated.'
+            u'test_host_0 is alive :)',
+            u'Host test_host_0 active checks will be enabled. '
+            u'Host test_host_0 passive checks will be disabled. '
+            u'Host test_host_0 updated.'
         ]})
 
         # Get host data to confirm update
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
         self.assertTrue(dummy_host['active_checks_enabled'])
@@ -1242,7 +1252,7 @@ class TestModuleWs(AlignakTest):
         # Mixed
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "active_checks_enabled": False,
             "passive_checks_enabled": True
         }
@@ -1251,21 +1261,141 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'_dummy is alive :)',
-            u'Active checks will be disabled. '
-            u'Passive checks will be enabled. '
-            u'Host _dummy updated.'
+            u'test_host_0 is alive :)',
+            u'Host test_host_0 active checks will be disabled. '
+            u'Host test_host_0 passive checks will be enabled. '
+            u'Host test_host_0 updated.'
         ]})
 
         # Get host data to confirm update
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
         self.assertFalse(dummy_host['active_checks_enabled'])
         self.assertTrue(dummy_host['passive_checks_enabled'])
         # ----------
 
+        # ----------
+        # Enable / Disable all host services - unknown services
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "active_checks_enabled": True,
+            "passive_checks_enabled": True,
+            "services": {
+                "test_service": {
+                    "name": "test_service",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": True,
+                },
+                "test_service2": {
+                    "name": "test_service2",
+                    "active_checks_enabled": False,
+                    "passive_checks_enabled": False,
+                },
+                "test_service3": {
+                    "name": "test_service3",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": False,
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'ERR',
+            u'_result': [u'test_host_0 is alive :)',
+                         u'Host test_host_0 active checks will be enabled. '
+                         u'Host test_host_0 passive checks will be enabled. '
+                         u'Host test_host_0 updated.'],
+            u'_issues': [u"Requested service 'test_host_0 / test_service' does not exist",
+                         u"Requested service 'test_host_0 / test_service3' does not exist",
+                         u"Requested service 'test_host_0 / test_service2' does not exist"]
+        })
+        # ----------
+
+        my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
+        # ----------
+        # Enable / Disable all host services
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "active_checks_enabled": True,
+            "passive_checks_enabled": True,
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": True,
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    "active_checks_enabled": False,
+                    "passive_checks_enabled": False,
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": False,
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        print(result)
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'test_host_0 is alive :)',
+                u'Host test_host_0 active checks will be enabled. '
+                u'Host test_host_0 passive checks will be enabled. '
+                u'Host test_host_0 updated.',
+                u'Service test_host_0/test_ok_0 active checks will be enabled. '
+                u'Service test_host_0/test_ok_0 passive checks will be enabled. '
+                u'Service test_host_0/test_ok_0 updated.',
+                u'Service test_host_0/test_ok_2 active checks will be enabled. '
+                u'Service test_host_0/test_ok_2 passive checks will be disabled. '
+                u'Service test_host_0/test_ok_2 updated.',
+                u'Service test_host_0/test_ok_1 active checks will be disabled. '
+                u'Service test_host_0/test_ok_1 passive checks will be disabled. '
+                u'Service test_host_0/test_ok_1 updated.']
+        })
+
+        # Get host data to confirm update
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        host = resp['_items'][0]
+        self.assertTrue(host['active_checks_enabled'])
+        self.assertTrue(host['passive_checks_enabled'])
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        self.assertTrue(service['active_checks_enabled'])
+        self.assertTrue(service['passive_checks_enabled'])
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_1'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        self.assertFalse(service['active_checks_enabled'])
+        self.assertFalse(service['passive_checks_enabled'])
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_2'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        self.assertTrue(service['active_checks_enabled'])
+        self.assertFalse(service['passive_checks_enabled'])
+        # ----------
 
         self.modulemanager.stop_all()
 
