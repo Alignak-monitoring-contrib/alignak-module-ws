@@ -268,7 +268,7 @@ class TestModuleConnection(AlignakTest):
             "_realm": self.realm_all,
             "_sub_realm": True
         }
-        requests.post(self.endpoint + '/history', json=data, headers=headers, auth=self.auth)
+        rsp = requests.post(self.endpoint + '/history', json=data, headers=headers, auth=self.auth)
         print(rsp.json)()
 
         # Add an history event
@@ -281,7 +281,7 @@ class TestModuleConnection(AlignakTest):
             "_realm": self.realm_all,
             "_sub_realm": True
         }
-        requests.post(self.endpoint + '/history', json=data, headers=headers, auth=self.auth)
+        rsp = requests.post(self.endpoint + '/history', json=data, headers=headers, auth=self.auth)
         print(rsp.json)()
         # ---
 
