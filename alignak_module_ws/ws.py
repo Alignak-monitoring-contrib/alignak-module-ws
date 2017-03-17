@@ -540,6 +540,7 @@ class AlignakWebServices(BaseModule):
         try:
             headers = {'If-Match': host['_etag']}
             data = {"customs": customs}
+            logger.info("Updating host '%s': %s", host_name, data)
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
                                               data=data, headers=headers)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -598,6 +599,7 @@ class AlignakWebServices(BaseModule):
 
             # Add a command to get managed
             data['active_checks_enabled'] = active_checks_enabled
+            logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
         if passive_checks_enabled is not None:
@@ -611,10 +613,12 @@ class AlignakWebServices(BaseModule):
 
             # Add a command to get managed
             data['passive_checks_enabled'] = passive_checks_enabled
+            logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
         try:
             headers = {'If-Match': host['_etag']}
+            logger.info("Updating host '%s': %s", host_name, data)
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
                                               data=data, headers=headers)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -659,6 +663,7 @@ class AlignakWebServices(BaseModule):
                                               author, comment)
 
         # Add a command to get managed
+        logger.info("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         result = {'_status': 'OK', '_result': [command_line], '_issues': []}
@@ -726,6 +731,7 @@ class AlignakWebServices(BaseModule):
         command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
 
         # Add a command to get managed
+        logger.info("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         return command_line
@@ -765,6 +771,7 @@ class AlignakWebServices(BaseModule):
                        (host_name, service_name, parameters)
 
         # Add a command to get managed
+        logger.info("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         return command_line
@@ -815,7 +822,7 @@ class AlignakWebServices(BaseModule):
             if not self.backend_available:
                 return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
-            logger.info("Getting history: %s", search)
+            logger.info("Searching history: %s", search)
             result = self.backend.get('history', search)
             logger.debug("Backend history, got: %s", result)
             if result['_status'] == 'OK':
@@ -827,7 +834,7 @@ class AlignakWebServices(BaseModule):
                     item.pop('_links')
                     item.pop('_updated')
                     items.append(item)
-                logger.info("history, return: %s", {'_status': 'OK', 'items': items})
+                logger.debug("history, return: %s", {'_status': 'OK', 'items': items})
                 return {'_status': 'OK', 'items': items}
 
             logger.warning("history request, got a problem: %s", result)
