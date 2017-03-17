@@ -275,7 +275,7 @@ class TestModuleConnection(AlignakTest):
         time.sleep(1)
         data = {
             "host_name": "denice",
-            "user_name": "Alignak",
+            "user_name": "Me",
             "type": "monitoring.alert",
             "message": "HOST ALERT ....",
             "_realm": self.realm_all,
@@ -309,6 +309,14 @@ class TestModuleConnection(AlignakTest):
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 3)
+        # {u'_created': u'Fri, 17 Mar 2017 17:54:51 GMT', u'message': u'HOST ALERT ....',
+        # u'user_name': u'Alignak', u'host_name': u'denice', u'type': u'monitoring.alert'}
+        # {u'service_name': u'Zombies', u'host_name': u'denice', u'type': u'check.result',
+        # u'_created': u'Fri, 17 Mar 2017 17:54:50 GMT',
+        # u'message': u'OK[HARD] (False,False): All is ok', u'user_name': u'Alignak'}
+        # {u'service_name': u'Processus', u'host_name': u'chazay', u'type': u'check.result',
+        # u'_created': u'Fri, 17 Mar 2017 17:54:49 GMT',
+        # u'message': u'OK[HARD] (False,False): All is ok', u'user_name': u'Me'}
         # ---
 
         # ---
@@ -319,6 +327,65 @@ class TestModuleConnection(AlignakTest):
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 2)
+        # ---
+
+        # ---
+        # Get the alignak default history, only for a user
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Alignak')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        for item in result['items']:
+            print(item)
+        self.assertEqual(len(result['items']), 2)
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Me')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        for item in result['items']:
+            print(item)
+        self.assertEqual(len(result['items']), 1)
+        # ---
+
+        # ---
+        # Get the alignak default history, only for an host
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:chazay')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(len(result['items']), 1)
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(len(result['items']), 2)
+        # ---
+
+        # ---
+        # Get the alignak default history, NOT for an host
+        # todo: temporarily skipped
+        # response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!Chazay')
+        # self.assertEqual(response.status_code, 200)
+        # result = response.json()
+        # for item in result['items']:
+        #     print(item)
+        # self.assertEqual(len(result['items']), 2)
+        # ---
+
+        # ---
+        # Get the alignak default history, only for a service
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=service_name:Processus')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        for item in result['items']:
+            print(item)
+        self.assertEqual(len(result['items']), 1)
+        # ---
+
+        # ---
+        # Get the alignak default history, for an host and a service
+        response = requests.get('http://127.0.0.1:8888/alignak_logs?search="host_name:chazay service_name=Processus"')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        for item in result['items']:
+            print(item)
+        self.assertEqual(len(result['items']), 3)
         # ---
 
         # ---

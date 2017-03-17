@@ -131,18 +131,6 @@ class Helper(object):
                 patterns = qualifiers[field]
                 logger.debug("decode_search, searching for '%s' '%s'", field, patterns)
 
-                # Specific search fields, the live state
-                if field in ['is', 'isnot']:
-                    search_state = True
-                    if field == 'isnot':
-                        patterns = ['!' + pattern for pattern in patterns]
-                        logger.debug("decode_search, updated patterns: %s", patterns)
-                    field = 'overall_state'
-
-                # Specific search fields, business impact
-                if field in ['bi']:
-                    field = 'business_impact'
-
                 # Get the column definition for the searched field
                 if field not in data_model:
                     if 'ls_' + field not in data_model:
@@ -233,7 +221,7 @@ class Helper(object):
                             pattern = {"$ne": pattern}
                         parameters.update({field: {'type': 'simple', 'pattern': pattern}})
 
-                    logger.debug("decode_search, - parameters: %s", parameters)
+                    logger.info("decode_search, - parameters: %s", parameters)
         except Exception as exp:
             logger.exception("Exception: %s", exp)
 
