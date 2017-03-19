@@ -26,6 +26,7 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 from __future__ import print_function
 import os
 import sys
+import base64
 import json
 import time
 import logging
@@ -34,6 +35,7 @@ import threading
 import Queue
 import requests
 import cherrypy
+from cherrypy.lib import httpauth
 
 from alignak_backend_client.client import Backend, BackendException
 
@@ -69,15 +71,146 @@ def get_instance(mod_conf):
     return AlignakWebServices(mod_conf)
 
 
+SESSION_KEY = 'alignak_web_services'
+
+
+def protect(*args, **kwargs):
+    # pylint: disable=unused-argument
+    """Check user credentials from HTTP Authorization request header"""
+    logger.debug("Inside protect()...")
+
+    authenticated = False
+    conditions = cherrypy.request.config.get('auth.require', None)
+    if conditions is not None:
+        logger.debug("conditions: %s", conditions)
+        # A condition is just a callable that returns true or false
+        try:
+            logger.debug("Checking session: %s", SESSION_KEY)
+            # check if there is an active session
+            # sessions are turned on so we just have to know if there is
+            # something inside of cherrypy.session[SESSION_KEY]:
+            this_session = cherrypy.session[SESSION_KEY]
+            logger.debug("Session: %s", this_session)
+
+            # Not sure if I need to do this myself or what
+            cherrypy.session.regenerate()
+            token = cherrypy.request.login = cherrypy.session[SESSION_KEY]
+            authenticated = True
+            logger.warning("Authenticated with session: %s", this_session)
+
+        except KeyError:
+            # If the session isn't set, it either was not existing or valid.
+            # Now check if the request includes HTTP Authorization?
+            authorization = cherrypy.request.headers.get('Authorization')
+            logger.debug("Authorization: %s", authorization)
+            if authorization:
+                logger.warning("Got authorization header: %s", authorization)
+                ah = httpauth.parseAuthorization(authorization)
+
+                # Get module application from cherrypy request
+                app = cherrypy.request.app.root.app
+                logger.debug("Request backend login...")
+                token = app.backendLogin(ah['username'], ah['password'])
+                if token:
+
+                    cherrypy.session.regenerate()
+
+                    # This line of code is discussed in doc/sessions-and-auth.markdown
+                    cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
+                    authenticated = True
+                    logger.warning("Authenticated with backend")
+                else:
+                    logger.warning("Failed attempt to log in with authorization header.")
+            else:
+                logger.warning("Missing authorization header.")
+
+        except:  # pylint: disable=bare-except
+            logger.warning("Client has no valid session and did not provided "
+                           "HTTP Authorization credentials.")
+
+        if authenticated:
+            for condition in conditions:
+                if not condition():
+                    logger.warning("Authentication succeeded but authorization failed.")
+                    raise cherrypy.HTTPError("403 Forbidden")
+        else:
+            raise cherrypy.HTTPError("401 Unauthorized")
+
+
+cherrypy.tools.wsauth = cherrypy.Tool('before_handler', protect)
+
+
+def require(*conditions):
+    """A decorator that appends conditions to the auth.require config
+    variable."""
+    def decorate(f):
+        # pylint: disable=protected-access
+        """Decorator function"""
+        if not hasattr(f, '_cp_config'):
+            f._cp_config = dict()
+        if 'auth.require' not in f._cp_config:
+            f._cp_config['auth.require'] = []
+        f._cp_config['auth.require'].extend(conditions)
+        return f
+    return decorate
+
+
 class WSInterface(object):
     """Interface for Alignak Web Services.
 
     """
+    _cp_config = {
+        'tools.wsauth.on': True,
+        'tools.sessions.on': True,
+        'tools.sessions.name': 'alignak_ws',
+    }
+
     def __init__(self, app):
         self.app = app
 
     @cherrypy.expose
+    @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    def login(self):
+        """Validate user credentials"""
+        if cherrypy.request.method != "POST":
+            return {'_status': 'ERR', '_issues': ['You must only POST on this endpoint.']}
+
+        username = cherrypy.request.json.get('username', None)
+        password = cherrypy.request.json.get('password', None)
+
+        # Get HTTP authentication
+        authorization = cherrypy.request.headers.get('Authorization', None)
+        if authorization:
+            ah = httpauth.parseAuthorization(authorization)
+            username = ah['username']
+            password = ah['password']
+        else:
+            if cherrypy.request and not cherrypy.request.json:
+                return {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
+
+            if username is None:
+                return {'_status': 'ERR', '_issues': ['Missing username parameter.']}
+
+        token = self.app.backendLogin(username, password)
+        if token is None:
+            return {'_status': 'ERR', '_issues': ['Access denied.']}
+
+        logger.debug("Backend login, token: %s", token)
+        cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
+        return {'_status': 'OK', '_result': [token]}
+    login.method = 'post'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def logout(self):
+        """Clean the cherrypy session"""
+        cherrypy.session[SESSION_KEY] = cherrypy.request.login = None
+        return {'_status': 'OK', '_result': 'Logged out'}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @require()
     def index(self):
         """Wrapper to call api from /
 
@@ -87,6 +220,7 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    @require()
     def api(self):
         """List the methods available on the interface
 
@@ -98,6 +232,7 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    @require()
     def api_full(self):
         """List the api methods and their parameters
 
@@ -127,6 +262,7 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    @require()
     def are_you_alive(self):
         """Is the module alive
 
@@ -137,6 +273,7 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    @require()
     def alignak_map(self):
         """Get the alignak internal map and state
 
@@ -148,6 +285,7 @@ class WSInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    @require()
     def host(self, host_name=None):
         """ Declare an host and its data
         :return:
@@ -251,6 +389,7 @@ class WSInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    @require()
     def event(self):
         """ Notify an event
         :return:
@@ -280,6 +419,7 @@ class WSInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
+    @require()
     def command(self):
         """ Request to execute an external command
         :return:
@@ -329,6 +469,7 @@ class WSInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    @require()
     def alignak_logs(self, start=0, count=25, search=''):
         """Get the alignak logs
 
@@ -369,6 +510,8 @@ class AlignakWebServices(BaseModule):
         logger.debug("received configuration: %s", mod_conf.__dict__)
         logger.debug("loaded into: %s", self.loaded_into)
 
+        self.token = None
+
         # Alignak Backend part
         # ---
         self.backend_available = False
@@ -385,6 +528,7 @@ class AlignakWebServices(BaseModule):
             self.backend.token = getattr(mod_conf, 'token', '')
             self.backend.authenticated = (self.backend.token != '')
             self.backend_available = False
+            self.backend_auto_login = False
 
             self.backend_username = getattr(mod_conf, 'username', '')
             self.backend_password = getattr(mod_conf, 'password', '')
@@ -395,10 +539,11 @@ class AlignakWebServices(BaseModule):
 
             if not self.backend.token and not self.backend_username:
                 logger.warning("No Alignak backend credentials configured (empty token and "
-                               "empty username. "
-                               "The requested backend connection will not be available")
+                               "empty username). "
+                               "The backend connection will use the WS user credentials.")
                 self.backend_url = ''
             else:
+                self.backend_auto_login = True
                 self.getBackendAvailability()
         else:
             logger.warning('Alignak Backend is not configured. '
@@ -885,8 +1030,30 @@ class AlignakWebServices(BaseModule):
 
         return command_line
 
+    def backendLogin(self, username, password):
+        """Authenticate and get the backend token
+
+        :return: None
+        """
+        self.token = None
+
+        if not password:
+            # We consider that we received a backend token as login. The WS user is logged-in...
+            self.token = username
+            return self.token
+
+        try:
+            if self.backend.login(username, password):
+                self.token = self.backend.token
+                logger.debug("Logged-in to the backend, token: %s", self.token)
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+
+        return self.token
+
     def getBackendAvailability(self):
-        """Authenticate and get the token
+        """Authenticate and get the backend token
 
         :return: None
         """

@@ -69,10 +69,12 @@ class TestModuleWs(AlignakTest):
         )
         assert exit_code == 0
 
+        fnull = open(os.devnull, 'w')
         cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
                                   '--socket', '0.0.0.0:5000',
                                   '--protocol=http', '--enable-threads', '--pidfile',
-                                  '/tmp/uwsgi.pid'])
+                                  '/tmp/uwsgi.pid'],
+                                 stdout=fnull, stderr=fnull)
         time.sleep(3)
 
         endpoint = 'http://127.0.0.1:5000'
@@ -82,7 +84,8 @@ class TestModuleWs(AlignakTest):
 
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
-            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir)
+            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
+            stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
         print("Fed")
@@ -475,1116 +478,101 @@ class TestModuleWs(AlignakTest):
 
         time.sleep(1)
 
-        # Get the module API list and request on each endpoint
+        # Get the WS root endpoint
+        # Unauthorized because no authentication!
         response = requests.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        print("Response: %s" % response.__dict__)
+        assert response.status_code == 401
+
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.get('http://127.0.0.1:8888', auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp ==  [
+            u'alignak_logs', u'alignak_map', u'api', u'api_full', u'are_you_alive', u'command',
+            u'event', u'host', u'index', u'login', u'logout'
+        ]
+
+        # Login refused because of missing credentials
+        print("- Login refused")
+        headers = {'Content-Type': 'application/json'}
+        params = {}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
+        params = {'username': None, 'password': None}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['Missing username parameter.']}
+
+        # Login refused because of bad username/password (real backend login)
+        params = {'username': 'admin', 'password': 'fake'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['Access denied.']}
+
+        # Login with username/password (real backend login)
+        print("- Login accepted")
+        params = {'username': 'admin', 'password': 'admin'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert '_result' in resp
+        token = resp['_result'][0]
+
+        # Login with existing token as a username
+        params = {'username': token, 'password': None}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+
+        # Login with basic authentication
+        print("- Login with basic authentication")
+        headers = {'Content-Type': 'application/json'}
+        params = {}
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers, auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+        params = {}
+        auth = requests.auth.HTTPBasicAuth(token, '')
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers, auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+
+        # Get the module API list and request on each endpoint
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.get('http://127.0.0.1:8888', auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
             print("Trying %s" % (endpoint))
-            response = requests.get('http://127.0.0.1:8888/' + endpoint)
+            response = requests.get('http://127.0.0.1:8888/' + endpoint, auth=auth)
             print("Response %d: %s" % (response.status_code, response.content))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
                 print("Got %s: %s" % (endpoint, response.json()))
             else:
                 print("Error %s: %s" % (response.status_code, response.content))
-
-        self.modulemanager.stop_all()
-
-    def test_module_zzz_command(self):
-        """ Test the module /command API
-        :return:
-        """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
-        # Create an Alignak module
-        mod = Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-        })
-
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
-
-        # Load an initialize the modules:
-        #  - load python module
-        #  - get module properties and instances
-        self.modulemanager.load_and_init([mod])
-
-        my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
-
-        # Start external modules
-        self.modulemanager.start_external_instances()
-
-        # Starting external module logs
-        self.assert_log_match("Trying to initialize module: web-services", 0)
-        self.assert_log_match("Starting external module web-services", 1)
-        self.assert_log_match("Starting external process for module web-services", 2)
-        self.assert_log_match("web-services is now started", 3)
-
-        # Check alive
-        self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
-
-        # Do not allow GET request on /command
-        response = requests.get('http://127.0.0.1:8888/command')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only POST on this endpoint.')
-
-        self.assertEqual(my_module.received_commands, 0)
-
-        # You must have parameters when POSTing on /command
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must POST parameters on this endpoint.')
-
-        self.assertEqual(my_module.received_commands, 0)
-
-        # Request to execute an external command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "Command",
-            "element": "test_host",
-            "parameters": "abc;1"
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'OK')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_command'], 'COMMAND;test_host;abc;1')
-
-        # Not during unit tests ... because module queues are not functional!
-        # time.sleep(1)
-        # self.assertEqual(my_module.received_commands, 1)
-
-        # Request to execute an external command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "element": "test_host;test_service",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'OK')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "element": "test_host/test_service",    # Accept / as an host/service separator
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'OK')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command (Alignak modern syntax)
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "host": "test_host",
-            "service": "test_service",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'OK')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command (Alignak modern syntax)
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "host": "test_host",
-            "service": "test_service",
-            "user": "test_user",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'OK')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_command'],
-                         'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
-
-        self.modulemanager.stop_all()
-
-    def test_module_zzz_host(self):
-        """Test the module /host API
-        :return:
-        """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
-        # Create an Alignak module
-        mod = Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-        })
-
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
-
-        # Load an initialize the modules:
-        #  - load python module
-        #  - get module properties and instances
-        self.modulemanager.load_and_init([mod])
-
-        my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
-
-        # Start external modules
-        self.modulemanager.start_external_instances()
-
-        # Starting external module logs
-        self.assert_log_match("Trying to initialize module: web-services", 0)
-        self.assert_log_match("Starting external module web-services", 1)
-        self.assert_log_match("Starting external process for module web-services", 2)
-        self.assert_log_match("web-services is now started", 3)
-
-        # Check alive
-        self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
-
-        # Do not allow GET request on /host
-        response = requests.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
-
-        # You must have parameters when POSTing on /host
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
-
-        # Host name may be the last part of the URI
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "fake": ""
-        }
-        response = requests.patch('http://127.0.0.1:8888/host/test_host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
-
-        # Host name may be in the POSTed data
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-        }
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
-
-        # Host name must be somewhere !
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "fake": "test_host",
-        }
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_issues'], [u'Missing targeted element.'])
-
-        # Update host livestate (heartbeat / host is alive): empty livestate
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "livestate": "",
-            "name": "test_host",
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
-
-        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "livestate": {
-                "state": "",
-                "output": "Output...",
-                "long_output": "Long output...",
-                "perf_data": "'counter':1",
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u'Host state must be UP, DOWN or UNREACHABLE.']})
-
-        # Update host livestate (heartbeat / host is alive): livestate
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "livestate": {
-                "state": "UP",
-                "output": "Output...",
-                "long_output": "Long output...",
-                "perf_data": "'counter':1",
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;0;"
-                                               u"Output...|'counter':1\nLong output..."]})
-
-        # Update host livestate (heartbeat / host is alive): livestate
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "livestate": {
-                "state": "unreachable",
-                "output": "Output...",
-                "long_output": "Long output...",
-                "perf_data": "'counter':1",
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;2;"
-                                               u"Output...|'counter':1\nLong output..."]})
-
-        # Update host services livestate
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "livestate": {
-                "state": "up",
-                "output": "Output...",
-                "long_output": "Long output...",
-                "perf_data": "'counter':1"
-            },
-            "services": {
-                "test_service": {
-                    "name": "test_service",
-                    "livestate": {
-                        "state": "ok",
-                        "output": "Output...",
-                        "long_output": "Long output...",
-                        "perf_data": "'counter':1"
-                    }
-                },
-                "test_service2": {
-                    "name": "test_service2",
-                    "livestate": {
-                        "state": "warning",
-                        "output": "Output...",
-                        "long_output": "Long output...",
-                        "perf_data": "'counter':1"
-                    }
-                },
-                "test_service3": {
-                    "name": "test_service3",
-                    "livestate": {
-                        "state": "critical",
-                        "output": "Output...",
-                        "long_output": "Long output...",
-                        "perf_data": "'counter':1"
-                    }
-                },
-            },
-        }
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        print(result)
-        self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;test_host;0;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..."]
-        })
-
-        self.modulemanager.stop_all()
-
-    def test_module_zzz_host_variables(self):
-        """Test the module /host API * create/update custom variables
-        :return:
-        """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
-        # Create an Alignak module
-        mod = Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-        })
-
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
-
-        # Load an initialize the modules:
-        #  - load python module
-        #  - get module properties and instances
-        self.modulemanager.load_and_init([mod])
-
-        my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
-
-        # Start external modules
-        self.modulemanager.start_external_instances()
-
-        # Starting external module logs
-        self.assert_log_match("Trying to initialize module: web-services", 0)
-        self.assert_log_match("Starting external module web-services", 1)
-        self.assert_log_match("Starting external process for module web-services", 2)
-        self.assert_log_match("web-services is now started", 3)
-
-        # Check alive
-        self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
-
-        # Get host data to confirm backend update
-        # ---
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        # ---
-
-        # Do not allow GET request on /host
-        response = requests.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
-
-        # You must have parameters when POSTing on /host
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
-
-        # Update host variables - empty variables
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "variables": "",
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
-
-        # ----------
-        # Host does not exist
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "unknown_host",
-            "variables": {
-                'test1': 'string',
-                'test2': 1,
-                'test3': 5.0
-            },
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
-
-
-        # ----------
-        # Create host variables
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "_dummy",
-            "variables": {
-                'test1': 'string',
-                'test2': 1,
-                'test3': 5.0
-            },
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy updated.']})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
-        }
-        self.assertEqual(expected, dummy_host['customs'])
-        # ----------
-
-        # ----------
-        # Update host variables
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "_dummy",
-            "variables": {
-                'test1': 'string modified',
-                'test2': 12,
-                'test3': 15055.0,
-                'test4': "new!"
-            },
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy updated.']})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        expected = {
-            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
-        }
-        self.assertEqual(expected, dummy_host['customs'])
-        # ----------
-
-        self.modulemanager.stop_all()
-
-    def test_module_zzz_host_enable_disable(self):
-        """Test the module /host API - enable / disable active / passive checks
-        :return:
-        """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
-        # Create an Alignak module
-        mod = Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-        })
-
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
-
-        # Load an initialize the modules:
-        #  - load python module
-        #  - get module properties and instances
-        self.modulemanager.load_and_init([mod])
-
-        my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
-
-        # Start external modules
-        self.modulemanager.start_external_instances()
-
-        # Starting external module logs
-        self.assert_log_match("Trying to initialize module: web-services", 0)
-        self.assert_log_match("Starting external module web-services", 1)
-        self.assert_log_match("Starting external process for module web-services", 2)
-        self.assert_log_match("web-services is now started", 3)
-
-        # Check alive
-        self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
-
-        # Get host data to confirm backend update
-        # ---
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        # ---
-
-        # Do not allow GET request on /host
-        response = requests.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
-
-        # You must have parameters when POSTing on /host
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
-
-        # Update host variables - empty variables
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host",
-            "active_checks_enabled": "",
-            "passive_checks_enabled": ""
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
-
-        my_module.setHostCheckState("ljklj", True, True)
-        # ----------
-        # Host does not exist
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "unknown_host",
-            "active_checks_enabled": True,
-            "passive_checks_enabled": True
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
-
-
-        # ----------
-        # Enable all checks
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": True,
-            "passive_checks_enabled": True
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be enabled. '
-            u'Host test_host_0 passive checks will be enabled. '
-            u'Host test_host_0 updated.'
-        ]})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        self.assertTrue(dummy_host['active_checks_enabled'])
-        self.assertTrue(dummy_host['passive_checks_enabled'])
-        # ----------
-
-        # ----------
-        # Disable all checks
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": False,
-            "passive_checks_enabled": False
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be disabled. '
-            u'Host test_host_0 passive checks will be disabled. '
-            u'Host test_host_0 updated.'
-        ]})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        self.assertFalse(dummy_host['active_checks_enabled'])
-        self.assertFalse(dummy_host['passive_checks_enabled'])
-        # ----------
-
-        # ----------
-        # Mixed
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": True,
-            "passive_checks_enabled": False
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be enabled. '
-            u'Host test_host_0 passive checks will be disabled. '
-            u'Host test_host_0 updated.'
-        ]})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        self.assertTrue(dummy_host['active_checks_enabled'])
-        self.assertFalse(dummy_host['passive_checks_enabled'])
-        # ----------
-
-        # ----------
-        # Mixed
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": False,
-            "passive_checks_enabled": True
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [
-            u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be disabled. '
-            u'Host test_host_0 passive checks will be enabled. '
-            u'Host test_host_0 updated.'
-        ]})
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        dummy_host = resp['_items'][0]
-        self.assertFalse(dummy_host['active_checks_enabled'])
-        self.assertTrue(dummy_host['passive_checks_enabled'])
-        # ----------
-
-        # ----------
-        # Enable / Disable all host services - unknown services
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": True,
-            "passive_checks_enabled": True,
-            "services": {
-                "test_service": {
-                    "name": "test_service",
-                    "active_checks_enabled": True,
-                    "passive_checks_enabled": True,
-                },
-                "test_service2": {
-                    "name": "test_service2",
-                    "active_checks_enabled": False,
-                    "passive_checks_enabled": False,
-                },
-                "test_service3": {
-                    "name": "test_service3",
-                    "active_checks_enabled": True,
-                    "passive_checks_enabled": False,
-                },
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)',
-                         u'Host test_host_0 active checks will be enabled. '
-                         u'Host test_host_0 passive checks will be enabled. '
-                         u'Host test_host_0 updated.'],
-            u'_issues': [u"Requested service 'test_host_0 / test_service' does not exist",
-                         u"Requested service 'test_host_0 / test_service3' does not exist",
-                         u"Requested service 'test_host_0 / test_service2' does not exist"]
-        })
-        # ----------
-
-        my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
-        # ----------
-        # Enable / Disable all host services
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "test_host_0",
-            "active_checks_enabled": True,
-            "passive_checks_enabled": True,
-            "services": {
-                "test_service": {
-                    "name": "test_ok_0",
-                    "active_checks_enabled": True,
-                    "passive_checks_enabled": True,
-                },
-                "test_service2": {
-                    "name": "test_ok_1",
-                    "active_checks_enabled": False,
-                    "passive_checks_enabled": False,
-                },
-                "test_service3": {
-                    "name": "test_ok_2",
-                    "active_checks_enabled": True,
-                    "passive_checks_enabled": False,
-                },
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        print(result)
-        self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Host test_host_0 active checks will be enabled. '
-                u'Host test_host_0 passive checks will be enabled. '
-                u'Host test_host_0 updated.',
-                u'Service test_host_0/test_ok_0 active checks will be enabled. '
-                u'Service test_host_0/test_ok_0 passive checks will be enabled. '
-                u'Service test_host_0/test_ok_0 updated.',
-                u'Service test_host_0/test_ok_2 active checks will be enabled. '
-                u'Service test_host_0/test_ok_2 passive checks will be disabled. '
-                u'Service test_host_0/test_ok_2 updated.',
-                u'Service test_host_0/test_ok_1 active checks will be disabled. '
-                u'Service test_host_0/test_ok_1 passive checks will be disabled. '
-                u'Service test_host_0/test_ok_1 updated.']
-        })
-
-        # Get host data to confirm update
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'test_host_0'})})
-        resp = response.json()
-        host = resp['_items'][0]
-        self.assertTrue(host['active_checks_enabled'])
-        self.assertTrue(host['passive_checks_enabled'])
-        # Get services data to confirm update
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
-                                params={'where': json.dumps({'host': host['_id'],
-                                                             'name': 'test_ok_0'})})
-        resp = response.json()
-        service = resp['_items'][0]
-        self.assertTrue(service['active_checks_enabled'])
-        self.assertTrue(service['passive_checks_enabled'])
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
-                                params={'where': json.dumps({'host': host['_id'],
-                                                             'name': 'test_ok_1'})})
-        resp = response.json()
-        service = resp['_items'][0]
-        self.assertFalse(service['active_checks_enabled'])
-        self.assertFalse(service['passive_checks_enabled'])
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
-                                params={'where': json.dumps({'host': host['_id'],
-                                                             'name': 'test_ok_2'})})
-        resp = response.json()
-        service = resp['_items'][0]
-        self.assertTrue(service['active_checks_enabled'])
-        self.assertFalse(service['passive_checks_enabled'])
-        # ----------
-
-        self.modulemanager.stop_all()
-
-    def test_module_zzz_event(self):
-        """Test the module /event API
-        :return:
-        """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
-        # Create an Alignak module
-        mod = Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-        })
-
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
-
-        # Load an initialize the modules:
-        #  - load python module
-        #  - get module properties and instances
-        self.modulemanager.load_and_init([mod])
-
-        my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
-
-        # Start external modules
-        self.modulemanager.start_external_instances()
-
-        # Starting external module logs
-        self.assert_log_match("Trying to initialize module: web-services", 0)
-        self.assert_log_match("Starting external module web-services", 1)
-        self.assert_log_match("Starting external process for module web-services", 2)
-        self.assert_log_match("web-services is now started", 3)
-
-        # Check alive
-        self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
-
-        # ---
-        # Prepare the backend content...
-        self.endpoint = 'http://127.0.0.1:5000'
-
-        headers = {'Content-Type': 'application/json'}
-        params = {'username': 'admin', 'password': 'admin'}
-        # get token
-        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
-        resp = response.json()
-        self.token = resp['token']
-        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
-
-        # Get default realm
-        response = requests.get(self.endpoint + '/realm', auth=self.auth)
-        resp = response.json()
-        self.realm_all = resp['_items'][0]['_id']
-        # ---
-
-        # Do not allow GET request on /event
-        response = requests.get('http://127.0.0.1:8888/event')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_issues'], ['You must only POST on this endpoint.'])
-
-        self.assertEqual(my_module.received_commands, 0)
-
-        # You must have parameters when POSTing on /event
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_issues'], ['You must POST parameters on this endpoint.'])
-
-        self.assertEqual(my_module.received_commands, 0)
-
-        # Notify an host event - missing host or service
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "fake": ""
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']})
-
-        # Notify an host event - missing comment
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "host": "test_host",
-        }
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'ERR',
-                                  '_issues': ['Missing comment. If you do not have any comment, '
-                                              'do not comment ;)']})
-
-        # Notify an host event - default author
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "host": "test_host",
-            "comment": "My comment"
-        }
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_HOST_COMMENT;test_host;1;'
-                                              u'Alignak WS;My comment']})
-
-        # Notify an host event - default author and timestamp
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "timestamp": 1234567890,
-            "host": "test_host",
-            "author": "Me",
-            "comment": "My comment"
-        }
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_HOST_COMMENT;test_host;1;'
-                                              u'Me;My comment']})
-
-        # Notify a service event - default author
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "host": "test_host",
-            "service": "test_service",
-            "comment": "My comment"
-        }
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_SVC_COMMENT;test_host;test_service;1;'
-                                              u'Alignak WS;My comment']})
-
-        # Notify a service event - default author and timestamp
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "timestamp": 1234567890,
-            "host": "test_host",
-            "service": "test_service",
-            "author": "Me",
-            "comment": "My comment"
-        }
-        response = requests.post('http://127.0.0.1:8888/event', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
-                                              u'1;Me;My comment']})
-
-        # Get history to confirm that backend is ready
-        # ---
-        response = requests.get(self.endpoint + '/history', auth=self.auth,
-                                params={"sort": "-_id", "max_results": 25, "page": 1})
-        resp = response.json()
-        print("Response: %s" % resp)
-        for item in resp['_items']:
-            assert item['type'] in ['webui.comment']
-        # Got 4 notified events, so we get 4 comments in the backend
-        self.assertEqual(len(resp['_items']), 4)
-        # ---
 
         self.modulemanager.stop_all()

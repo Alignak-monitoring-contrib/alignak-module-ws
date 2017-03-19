@@ -47,8 +47,7 @@ class Pyopenssl(pyOpenSSLAdapter):
     """
 
     def __init__(self, certificate, private_key, certificate_chain=None, dhparam=None):
-        """
-        Add init because need get the dhparam
+        """Init to add the dhparam property
 
         :param certificate:
         :param private_key:
@@ -65,8 +64,8 @@ class Pyopenssl(pyOpenSSLAdapter):
         # override:
         ciphers = (
             'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
-            'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
-            '!eNULL:!MD5:!DSS:!RC4:!SSLv2'
+            'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:'
+            '!aNULL:!eNULL:!MD5:!DSS:!RC4:!SSLv2'
         )
         cont.set_options(SSL.OP_NO_COMPRESSION | SSL.OP_SINGLE_DH_USE | SSL.OP_NO_SSLv2 |
                          SSL.OP_NO_SSLv3)
@@ -95,6 +94,7 @@ class PortNotFree(Exception):
 
 class HTTPDaemon(object):
     """HTTP Server class. Mostly based on Cherrypy
+
     It uses CherryPyWSGIServer and daemon http_interface as Application
     """
     def __init__(self, host, port, http_interface, use_ssl, ca_cert,
@@ -124,7 +124,6 @@ class HTTPDaemon(object):
 
         self.port = port
         self.host = host
-        self.srv = None
 
         self.use_ssl = use_ssl
 
@@ -134,7 +133,7 @@ class HTTPDaemon(object):
         self.uri = '%s://%s:%s' % (protocol, self.host, self.port)
         logger.info("Opening HTTP socket at %s", self.uri)
 
-        # This config override default processors so we put them back in case we need them
+        # This config overrides default processors so we put them back in case we need them
         config = {
             '/': {
                 'request.body.processors': {'application/x-www-form-urlencoded': process_urlencoded,
@@ -142,7 +141,7 @@ class HTTPDaemon(object):
                                             'multipart': process_multipart,
                                             'application/zlib': zlib_processor},
                 'tools.gzip.on': True,
-                'tools.gzip.mime_types': ['text/*', 'application/json']
+                'tools.gzip.mime_types': ['text/*', 'application/json'],
             }
         }
         # disable console logging of cherrypy when not in DEBUG

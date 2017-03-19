@@ -301,9 +301,22 @@ class TestModuleConnection(AlignakTest):
         }
         my_module.getBackendHistory(search)
 
+        # Do not allow GET request on /alignak_logs - not yet authorized
+        response = requests.get('http://127.0.0.1:8888/alignak_logs')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
         # ---
         # Get the alignak default history
-        response = requests.get('http://127.0.0.1:8888/alignak_logs')
+        response = session.get('http://127.0.0.1:8888/alignak_logs')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -321,7 +334,7 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, only check.result
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=type:check.result')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:check.result')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -331,13 +344,13 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, only for a user
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Alignak')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Alignak')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 2)
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Me')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Me')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -347,11 +360,11 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, only for an host
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:chazay')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
@@ -370,7 +383,7 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, only for a service
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=service_name:Processus')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=service_name:Processus')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -380,7 +393,7 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, for an host and a service
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search="host_name:chazay service_name=Processus"')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search="host_name:chazay service_name=Processus"')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -390,7 +403,7 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, unknown event type
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?search=type:XXX')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:XXX')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -400,31 +413,38 @@ class TestModuleConnection(AlignakTest):
 
         # ---
         # Get the alignak default history, page count
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?start=0&count=1')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?start=0&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?start=1&count=1')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?start=1&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?start=2&count=1')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?start=2&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = requests.get('http://127.0.0.1:8888/alignak_logs?start=3&count=1')
+        response = session.get('http://127.0.0.1:8888/alignak_logs?start=3&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 0)
         # ---
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
 
         # Let the module run for the backend availability to be checked ...
         time.sleep(30)
