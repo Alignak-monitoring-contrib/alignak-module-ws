@@ -26,10 +26,10 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 from __future__ import print_function
 import os
 import sys
+import base64
 import json
 import time
 import logging
-import inspect
 import threading
 import Queue
 import requests
@@ -41,13 +41,13 @@ from alignak_backend_client.client import Backend, BackendException
 from alignak.objects.module import Module
 from alignak.modulesmanager import ModulesManager
 
-from alignak.basemodule import BaseModule
 from alignak.external_command import ExternalCommand
+from alignak.basemodule import BaseModule
 
 from alignak_module_ws.utils.daemon import HTTPDaemon
-from alignak_module_ws.utils.helper import Helper
+from alignak_module_ws.utils.ws_server import WSInterface
 
-logger = logging.getLogger('alignak.module')  # pylint: disable=C0103
+logger = logging.getLogger('alignak.module')  # pylint: disable=invalid-name
 
 # pylint: disable=C0103
 properties = {
@@ -67,285 +67,6 @@ def get_instance(mod_conf):
     logger.info("Give an instance of %s for alias: %s", mod_conf.python_name, mod_conf.module_alias)
 
     return AlignakWebServices(mod_conf)
-
-
-class WSInterface(object):
-    """Interface for Alignak Web Services.
-
-    """
-    def __init__(self, app):
-        self.app = app
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def index(self):
-        """Wrapper to call api from /
-
-        :return: function list
-        """
-        return self.api()
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def api(self):
-        """List the methods available on the interface
-
-        :return: a list of methods available
-        :rtype: list
-        """
-        return [x[0]for x in inspect.getmembers(self, predicate=inspect.ismethod)
-                if not x[0].startswith('__')]
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def api_full(self):
-        """List the api methods and their parameters
-
-        :return: a list of methods and parameters
-        :rtype: dict
-        """
-        full_api = {}
-        for fun in self.api():
-            full_api[fun] = {}
-            full_api[fun][u"doc"] = getattr(self, fun).__doc__
-            full_api[fun][u"args"] = {}
-
-            spec = inspect.getargspec(getattr(self, fun))
-            args = [a for a in spec.args if a != 'self']
-            if spec.defaults:
-                a_dict = dict(zip(args, spec.defaults))
-            else:
-                a_dict = dict(zip(args, (u"No default value",) * len(args)))
-
-            full_api[fun][u"args"] = a_dict
-
-        full_api[u"side_note"] = u"When posting data you have to serialize value. Example : " \
-                                 u"POST /set_log_level " \
-                                 u"{'loglevel' : serialize('INFO')}"
-
-        return full_api
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def are_you_alive(self):
-        """Is the module alive
-
-        :return: True if is alive, False otherwise
-        :rtype: bool
-        """
-        return 'Yes I am :)'
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def alignak_map(self):
-        """Get the alignak internal map and state
-
-        :return: A json array of the Alignak daemons state
-        :rtype: list
-        """
-        return self.app.daemons_map
-
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    def host(self, host_name=None):
-        """ Declare an host and its data
-        :return:
-        """
-        if cherrypy.request.method != "PATCH":
-            return {'_status': 'ERR', '_error': 'You must only PATCH on this endpoint.'}
-
-        if cherrypy.request and not cherrypy.request.json:
-            return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
-
-        if not host_name:
-            host_name = cherrypy.request.json.get('name', None)
-        livestate = cherrypy.request.json.get('livestate', None)
-        variables = cherrypy.request.json.get('variables', None)
-        services = cherrypy.request.json.get('services', None)
-        active_checks_enabled = cherrypy.request.json.get('active_checks_enabled', None)
-        passive_checks_enabled = cherrypy.request.json.get('passive_checks_enabled', None)
-
-        if not host_name:
-            return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
-
-        result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
-
-        # Update host check state
-        if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled, bool):
-            (status, message) = self.app.setHostCheckState(host_name,
-                                                           active_checks_enabled,
-                                                           passive_checks_enabled)
-            if status == 'OK':
-                result['_result'].append(message)
-            else:
-                result['_issues'].append(message)
-
-        # Update host livestate
-        if livestate:
-            if 'state' not in livestate:
-                result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = livestate.get('state', 'UP').upper()
-                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
-                    result['_issues'].append('Host state must be UP, DOWN or UNREACHABLE.')
-                else:
-                    result['_result'].append(self.app.buildHostLivestate(host_name,
-                                                                         livestate))
-
-        # Update host variables
-        if variables:
-            (status, message) = self.app.updateHostVariables(host_name, variables)
-            if status == 'OK':
-                result['_result'].append(message)
-            else:
-                result['_issues'].append(message)
-
-        # Got the livestate from several services
-        if services:
-            for service_id in services:
-                service = services[service_id]
-                service_name = service.get('name', service_id)
-                active_checks_enabled = service.get('active_checks_enabled', None)
-                passive_checks_enabled = service.get('passive_checks_enabled', None)
-
-                # Update service check state
-                if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled,
-                                                                         bool):
-                    (status, message) = self.app.setServiceCheckState(host_name,
-                                                                      service_name,
-                                                                      active_checks_enabled,
-                                                                      passive_checks_enabled)
-                    if status == 'OK':
-                        result['_result'].append(message)
-                    else:
-                        result['_issues'].append(message)
-
-                # Update livestate
-                if 'livestate' in service:
-                    livestate = service['livestate']
-                    if 'state' not in livestate:
-                        result['_issues'].append('Service %s: Missing state in the livestate.'
-                                                 % service_name)
-                        continue
-
-                    state = livestate.get('state', 'OK').upper()
-                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
-                        result['_issues'].append('Service %s state must be OK, WARNING, CRITICAL, '
-                                                 'UNKNOWN or UNREACHABLE, and not %s.'
-                                                 % (service_name, state))
-                        continue
-
-                    result['_result'].append(self.app.buildServiceLivestate(host_name,
-                                                                            service_name,
-                                                                            livestate))
-
-        if len(result['_issues']):
-            result['_status'] = 'ERR'
-            return result
-
-        result.pop('_issues')
-        return result
-    host.method = 'patch'
-
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    def event(self):
-        """ Notify an event
-        :return:
-        """
-        if cherrypy.request.method != "POST":
-            return {'_status': 'ERR', '_issues': ['You must only POST on this endpoint.']}
-
-        if cherrypy.request and not cherrypy.request.json:
-            return {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
-
-        timestamp = cherrypy.request.json.get('timestamp', None)
-        host = cherrypy.request.json.get('host', None)
-        service = cherrypy.request.json.get('service', None)
-        author = cherrypy.request.json.get('author', 'Alignak WS')
-        comment = cherrypy.request.json.get('comment', None)
-
-        if not host and not service:
-            return {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']}
-
-        if not comment:
-            return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
-                                                  'comment, do not comment ;)']}
-
-        return self.app.buildPostComment(host, service, author, comment, timestamp)
-    event.method = 'post'
-
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    def command(self):
-        """ Request to execute an external command
-        :return:
-        """
-        if cherrypy.request.method != "POST":
-            return {'_status': 'ERR', '_error': 'You must only POST on this endpoint.'}
-
-        if cherrypy.request and not cherrypy.request.json:
-            return {'_status': 'ERR', '_error': 'You must POST parameters on this endpoint.'}
-
-        command = cherrypy.request.json.get('command', None)
-        timestamp = cherrypy.request.json.get('timestamp', None)
-        element = cherrypy.request.json.get('element', None)
-        host = cherrypy.request.json.get('host', None)
-        service = cherrypy.request.json.get('service', None)
-        user = cherrypy.request.json.get('user', None)
-        parameters = cherrypy.request.json.get('parameters', None)
-
-        if not command:
-            return {'_status': 'ERR', '_error': 'Missing command parameter'}
-
-        command_line = command.upper()
-        if timestamp:
-            command_line = '[%d] %s' % (timestamp, command)
-
-        if host or service or user:
-            if host:
-                command_line = '%s;%s' % (command_line, host)
-            if service:
-                command_line = '%s;%s' % (command_line, service)
-            if user:
-                command_line = '%s;%s' % (command_line, user)
-        elif element:
-            if '/' in element:
-                # Replace only the first /
-                element = element.replace('/', ';', 1)
-            command_line = '%s;%s' % (command_line, element)
-
-        if parameters:
-            command_line = '%s;%s' % (command_line, parameters)
-
-        # Add a command to get managed
-        self.app.to_q.put(ExternalCommand(command_line))
-
-        return {'_status': 'OK', '_command': command_line}
-    command.method = 'post'
-
-    @cherrypy.expose
-    @cherrypy.tools.json_out()
-    def alignak_logs(self, start=0, count=25, search=''):
-        """Get the alignak logs
-
-        :return: True if is alive, False otherwise
-        :rtype: dict
-        """
-        start = int(cherrypy.request.params.get('start', '0'))
-        count = int(cherrypy.request.params.get('count', '25'))
-        where = Helper.decode_search(cherrypy.request.params.get('search', ''), None)
-        search = {
-            'page': (start // count) + 1,
-            'max_results': count,
-        }
-        if where:
-            search.update({'where': json.dumps(where)})
-
-        return self.app.getBackendHistory(search)
 
 
 class AlignakWebServices(BaseModule):
@@ -369,6 +90,8 @@ class AlignakWebServices(BaseModule):
         logger.debug("received configuration: %s", mod_conf.__dict__)
         logger.debug("loaded into: %s", self.loaded_into)
 
+        self.token = None
+
         # Alignak Backend part
         # ---
         self.backend_available = False
@@ -385,6 +108,7 @@ class AlignakWebServices(BaseModule):
             self.backend.token = getattr(mod_conf, 'token', '')
             self.backend.authenticated = (self.backend.token != '')
             self.backend_available = False
+            self.backend_auto_login = False
 
             self.backend_username = getattr(mod_conf, 'username', '')
             self.backend_password = getattr(mod_conf, 'password', '')
@@ -395,10 +119,11 @@ class AlignakWebServices(BaseModule):
 
             if not self.backend.token and not self.backend_username:
                 logger.warning("No Alignak backend credentials configured (empty token and "
-                               "empty username. "
-                               "The requested backend connection will not be available")
+                               "empty username). "
+                               "The backend connection will use the WS user credentials.")
                 self.backend_url = ''
             else:
+                self.backend_auto_login = True
                 self.getBackendAvailability()
         else:
             logger.warning('Alignak Backend is not configured. '
@@ -424,8 +149,7 @@ class AlignakWebServices(BaseModule):
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
-        self.use_ssl = \
-            getattr(mod_conf, 'use_ssl', '0') == '1'
+        self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
 
         self.ca_cert = os.path.abspath(
             getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
@@ -481,7 +205,16 @@ class AlignakWebServices(BaseModule):
         self.uri = '%s://%s:%s' % (protocol, self.host, self.port)
         logger.info("configuration, listening on: %s", self.uri)
 
+        # HTTP authorization
+        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        if not self.authorization:
+            logger.info("HTTP autorization is not enabled, this is not recommended. "
+                        "You should consider enabling authorization!")
+
         # My own HTTP interface...
+        cherrypy.config.update({"tools.wsauth.on": self.authorization})
+        cherrypy.config.update({"tools.sessions.on": True})
+        cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
         self.http_interface = WSInterface(self)
 
         # My thread pool (simultaneous connections)
@@ -885,8 +618,30 @@ class AlignakWebServices(BaseModule):
 
         return command_line
 
+    def backendLogin(self, username, password):
+        """Authenticate and get the backend token
+
+        :return: None
+        """
+        self.token = None
+
+        if not password:
+            # We consider that we received a backend token as login. The WS user is logged-in...
+            self.token = username
+            return self.token
+
+        try:
+            if self.backend.login(username, password):
+                self.token = self.backend.token
+                logger.debug("Logged-in to the backend, token: %s", self.token)
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+
+        return self.token
+
     def getBackendAvailability(self):
-        """Authenticate and get the token
+        """Authenticate and get the backend token
 
         :return: None
         """
