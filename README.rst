@@ -66,8 +66,68 @@ This module for Alignak exposes some Alignak Web Services:
     * `PATCH /host/<host_name>` that allows to send live state for an host and its services, update host custom variables, enable/disable host checks
 
 
+Configuration
+-------------
+
+Once installed, this module has its own configuration file in the */usr/local/etc/alignak/arbiter/modules* directory.
+The default configuration file is *mod-ws.cfg*. This file is commented to help configure all the parameters.
+
+To configure an Alignak daemon (*receiver* is the recommended daemon) to use this module:
+
+    - edit your daemon configuration file (eg. *receiver-master.cfg*)
+    - add your module alias value (`web-services`) to the `modules` parameter of the daemon
+
+**Note** that currently the SSL part of this module has not yet been tested!
+
+HTTP authorization
+~~~~~~~~~~~~~~~~~~
+As a default, all the WS endpoints require the client to provide some credentials. You can provide those credentials directly in the HTTP Authorization header or you can use the `/login` and `/logout` endpoints to create a WS session.
+
+To provide the credentials you can use the token delivered by the Alignak backend when you are logging-in.
+
+Example 1 (direct credentials provided):
+::
+
+    $ curl -X GET -H "Content-Type: application/json" --user "1442583814636-bed32565-2ff7-4023-87fb-34a3ac93d34c:" http://127.0.0.1:8888/alignak_logs
+
+
+Example 2 (login session):
+::
+
+    $ curl -H "Content-Type: application/json" -X POST -d '{"username":"admin","password":"admin"}' http://127.0.0.1:8888/login
+    {'_status': 'OK', '_result': ["1442583814636-bed32565-2ff7-4023-87fb-34a3ac93d34c"]}
+
+    $ curl -X GET -H "Content-Type: application/json" --user "1442583814636-bed32565-2ff7-4023-87fb-34a3ac93d34c:" http://127.0.0.1:8888/alignak_logs
+
+
+**Note** that using the login / logout session is an easy thing with a python library like requests with its session mechanism ;) Or with any client that handles sessions ...
+
+
+Alignak backend
+~~~~~~~~~~~~~~~
+The Alignak backend configuration part requires to set the Alignak backend endpoint and some login information. The login information are not mandatory because the module will use the credentials provided by the Web Service client when one will request on an endpoint with some credentials.
+
+Alignak arbiter
+~~~~~~~~~~~~~~~
+The Alignak arbiter configuration part is not mandatory. It will only be used by the module to get the Alignak daemons states to populate the `/alignak_map` endpoint. §Thus, you should only configure this part if you intend to use this endpoint to get some information.
+
+
 Web Services
 ------------
+
+Login / logout
+~~~~~~~~~~~~~~
+To create a session near the Web Services server, POST on the `/login` endpoint and provide your ``username`` and ``password`` to authenticate near the Alignak backend.
+::
+
+    $ curl -H "Content-Type: application/json" -X POST -d '{"username":"admin","password":"admin"}' http://127.0.0.1:8888/login
+    {'_status': 'OK', '_result': ["1442583814636-bed32565-2ff7-4023-87fb-34a3ac93d34c"]}
+
+Logging out will clear the session on the server side.
+::
+
+    $ curl -H "Content-Type: application/json" -X GET http://127.0.0.1:8888/logout
+
 
 Get Alignak state
 ~~~~~~~~~~~~~~~~~
@@ -258,7 +318,47 @@ If an error is detected, the `_status` property is not 'OK' and a `_issues` arra
 
 The `/host/host_name` can be used to target the host. If a `name` property is present in the JSON data then this property will take precedence over the `host_name` in the endpoint.
 
-**Note** that the returned items are always sorted to get the most recent first
+For the host services states, use the same syntax as for an host:
+::
+
+    $ curl -X POST -H "Content-Type: application/json" -d '{
+        "host_name": "test_host",
+        "livestate": {
+            "state": "up",
+            "output": "Output...",
+            "long_output": "Long output...",
+            "perf_data": "'counter':1"
+        },
+        "services": {
+            "test_service": {
+                "name": "test_service",
+                "livestate": {
+                    "state": "ok",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter':1"
+                }
+            },
+            "test_service2": {
+                "name": "test_service2",
+                "livestate": {
+                    "state": "warning",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter':1"
+                }
+            },
+            "test_service3": {
+                "name": "test_service3",
+                "livestate": {
+                    "state": "critical",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter':1"
+                }
+            },
+        }
+    }' "http://demo.alignak.net:8888/host"
 
 
 Host custom variables
@@ -289,13 +389,30 @@ The `/host/host_name` can be used to target the host. If a `name` property is pr
 
 Host enable/disable checks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-To enable/disable an host checks, PATCH on the `host` endpoint providing the host name and its checks configuration:
+To enable/disable hosts/services checks, PATCH on the `host` endpoint providing the host (service) name and its checks configuration:
 ::
 
     $ curl -X POST -H "Content-Type: application/json" -d '{
         "host_name": "test_host",
         "active_checks_enabled": True,
-        "passive_checks_enabled": True
+        "passive_checks_enabled": True,
+        "services": {
+            "test_service": {
+                "name": "test_ok_0",
+                "active_checks_enabled": True,
+                "passive_checks_enabled": True,
+            },
+            "test_service2": {
+                "name": "test_ok_1",
+                "active_checks_enabled": False,
+                "passive_checks_enabled": False,
+            },
+            "test_service3": {
+                "name": "test_ok_2",
+                "active_checks_enabled": True,
+                "passive_checks_enabled": False,
+            },
+        }
     }' "http://demo.alignak.net:8888/host"
 
 
@@ -304,8 +421,6 @@ The result is a JSON object containing a `_status` property that should be 'OK' 
 If an error is detected, the `_status` property is not 'OK' and a `_issues` array property will report the detected error(s).
 
 The `/host/host_name` can be used to target the host. If a `name` property is present in the JSON data then this property will take precedence over the `host_name` in the endpoint.
-
-**Note** that the returned items are always sorted to get the most recent first
 
 
 Send external command
@@ -377,20 +492,6 @@ If your command requires to target a specific element:
 
 
 **Note:** for the available external commands, see the `Alignak documentation chapter on the external commands <http://alignak-doc.readthedocs.io/en/latest/20_annexes/external_commands_list.html>`_.
-
-Configuration
--------------
-
-Once installed, this module has its own configuration file in the */usr/local/etc/alignak/arbiter/modules* directory.
-The default configuration file is *mod-ws.cfg*. This file is commented to help configure all the parameters.
-
-To configure an Alignak daemon (*receiver* is the recommended daemon) to use this module:
-
-    - edit your daemon configuration file (eg. *receiver-master.cfg*)
-    - add your module alias value (`web-services`) to the `modules` parameter of the daemon
-
-**Note** that currently the SSL part of this module as not yet been tested!
-
 
 Bugs, issues and contributing
 -----------------------------
