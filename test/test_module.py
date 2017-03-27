@@ -359,7 +359,7 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 2)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 1"), 3)
+            re.escape("Alignak Arbiter polling period: 5"), 3)
         self.assert_log_match(
             re.escape("Alignak daemons get status period: 10"), 4)
         self.assert_log_match(
@@ -408,7 +408,7 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak Arbiter configuration: my_host:80"), 2)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 1"), 3)
+            re.escape("Alignak Arbiter polling period: 5"), 3)
         self.assert_log_match(
             re.escape("Alignak daemons get status period: 10"), 4)
         self.assert_log_match(
