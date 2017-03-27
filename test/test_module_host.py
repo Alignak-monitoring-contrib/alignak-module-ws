@@ -194,7 +194,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         print(resp)
 
-        # Allowed GET request on /host
+        # Allowed GET request on /host - forbidden to GET
         response = session.get('http://127.0.0.1:8888/host')
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -226,6 +226,16 @@ class TestModuleWs(AlignakTest):
             "name": "test_host",
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # Host name in the POSTed data takes precedence over URI
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+        }
+        response = session.patch('http://127.0.0.1:8888/host/other_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})

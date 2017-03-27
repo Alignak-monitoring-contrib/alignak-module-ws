@@ -142,7 +142,7 @@ class AlignakWebServices(BaseModule):
         # Alignak polling
         self.alignak_is_alive = False
         self.alignak_polling_period = \
-            int(getattr(mod_conf, 'alignak_polling_period', '1'))
+            int(getattr(mod_conf, 'alignak_polling_period', '5'))
         logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
         self.alignak_daemons_polling_period = \
             int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
@@ -799,17 +799,21 @@ class AlignakWebServices(BaseModule):
             if ping_alignak_next_time < start:
                 ping_alignak_next_time = start + self.alignak_polling_period
 
-                # Ping Alignak Arbiter
-                response = requests.get("http://%s:%s/ping" %
-                                        (self.alignak_host, self.alignak_port))
-                if response.status_code == 200:
-                    if response.json() == 'pong':
-                        self.alignak_is_alive = True
-                    else:
-                        logger.error("arbiter ping/pong failed!")
+                try:
+                    # Ping Alignak Arbiter
+                    response = requests.get("http://%s:%s/ping" %
+                                            (self.alignak_host, self.alignak_port))
+                    if response.status_code == 200:
+                        if response.json() == 'pong':
+                            self.alignak_is_alive = True
+                        else:
+                            logger.error("arbiter ping/pong failed!")
+                except BackendException as exp:
+                    logger.warning("Alignak arbiter is currently not available.")
+                    logger.debug("Exception: %s", exp)
                 time.sleep(0.1)
 
-            # Get daemons map / status only if Alignak is alive
+            # Get daemons map / status only if Alignak is alive and polling period
             if self.alignak_is_alive and get_daemons_next_time < start:
                 get_daemons_next_time = start + self.alignak_daemons_polling_period
 
@@ -837,7 +841,7 @@ class AlignakWebServices(BaseModule):
                 time.sleep(0.1)
 
             logger.debug("time to manage queue and Alignak state: %d seconds", time.time() - start)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         logger.info("stopping...")
 
