@@ -40,7 +40,7 @@ SESSION_KEY = 'alignak_web_services'
 def protect(*args, **kwargs):
     # pylint: disable=unused-argument
     """Check user credentials from HTTP Authorization request header"""
-    logger.debug("Inside protect()...")
+    # logger.debug("Inside protect()...")
 
     authenticated = False
     conditions = cherrypy.request.config.get('auth.require', None)
@@ -256,6 +256,9 @@ class WSInterface(object):
 
         if cherrypy.request and not cherrypy.request.json:
             return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
+
+        if host_name and cherrypy.request.json.get('name', None) is not None:
+            host_name = cherrypy.request.json.get('name', None)
 
         if not host_name:
             host_name = cherrypy.request.json.get('name', None)
