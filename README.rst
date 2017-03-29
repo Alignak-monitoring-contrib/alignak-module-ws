@@ -302,7 +302,7 @@ To send an host/service live state, PATCH on the `host` endpoint providing the h
 ::
 
     $ curl -X POST -H "Content-Type: application/json" -d '{
-        "host_name": "test_host",
+        "name": "test_host",
         "livestate": {
             "state": "up",
             "output": "Output...",
@@ -322,7 +322,7 @@ For the host services states, use the same syntax as for an host:
 ::
 
     $ curl -X POST -H "Content-Type: application/json" -d '{
-        "host_name": "test_host",
+        "name": "test_host",
         "livestate": {
             "state": "up",
             "output": "Output...",
@@ -367,14 +367,13 @@ To create/update host custom variables, PATCH on the `host` endpoint providing t
 ::
 
     $ curl -X POST -H "Content-Type: application/json" -d '{
-        "host_name": "test_host",
-         "name": "_dummy",
-         "variables": {
-             'test1': 'string',
-             'test2': 12,
-             'test3': 15055.0,
-             'test4': "new!"
-         }
+        "name": "test_host",
+        "variables": {
+            'test1': 'string',
+            'test2': 12,
+            'test3': 15055.0,
+            'test4': "new!"
+        }
     }' "http://demo.alignak.net:8888/host"
 
 
@@ -393,7 +392,7 @@ To enable/disable hosts/services checks, PATCH on the `host` endpoint providing 
 ::
 
     $ curl -X POST -H "Content-Type: application/json" -d '{
-        "host_name": "test_host",
+        "name": "test_host",
         "active_checks_enabled": True,
         "passive_checks_enabled": True,
         "services": {

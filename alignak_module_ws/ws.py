@@ -808,7 +808,7 @@ class AlignakWebServices(BaseModule):
                             self.alignak_is_alive = True
                         else:
                             logger.error("arbiter ping/pong failed!")
-                except BackendException as exp:
+                except requests.ConnectionError as exp:
                     logger.warning("Alignak arbiter is currently not available.")
                     logger.debug("Exception: %s", exp)
                 time.sleep(0.1)
