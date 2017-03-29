@@ -354,19 +354,21 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
+            re.escape("Alignak external commands, set timestamp: True"), 1)
+        self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 1)
+                      "Some module features will not be available."), 2)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 2)
+            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 3)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 3)
+            re.escape("Alignak Arbiter polling period: 5"), 4)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 4)
+            re.escape("Alignak daemons get status period: 10"), 5)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 5)
+                      "You should consider enabling SSL!"), 6)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://0.0.0.0:8888"), 6)
+            re.escape("configuration, listening on: http://0.0.0.0:8888"), 7)
 
     def test_module_start_parameters(self):
         """
@@ -392,6 +394,8 @@ class TestModuleWs(AlignakTest):
             'use_ssl': '1',
             'alignak_host': 'my_host',
             'alignak_port': 80,
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
             'host': 'me',
             'port': 8080,
         })
@@ -403,22 +407,24 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
+            re.escape("Alignak external commands, set timestamp: False"), 1)
+        self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 1)
+                      "Some module features will not be available."), 2)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: my_host:80"), 2)
+            re.escape("Alignak Arbiter configuration: my_host:80"), 3)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 3)
+            re.escape("Alignak Arbiter polling period: 5"), 4)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 4)
+            re.escape("Alignak daemons get status period: 10"), 5)
         self.assert_log_match(
             re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
-                      "(ca_cert). Please fix it in your configuration"), 5)
+                      "(ca_cert). Please fix it in your configuration"), 6)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 6)
+                      "You should consider enabling SSL!"), 7)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://me:8080"), 7)
+            re.escape("configuration, listening on: http://me:8080"), 8)
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled

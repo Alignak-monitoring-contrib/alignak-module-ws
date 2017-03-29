@@ -147,6 +147,8 @@ class TestModuleWs(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -373,6 +375,271 @@ class TestModuleWs(AlignakTest):
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..."]
+        })
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_timestamp(self):
+        """Test the module /host API
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Timestamp
+            'set_timestamp': '1',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print(resp)
+
+        # Allowed GET request on /host - forbidden to GET
+        response = session.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
+
+        # You must have parameters when POSTing on /host
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
+
+        # Host name may be the last part of the URI
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "fake": ""
+        }
+        response = session.patch('http://127.0.0.1:8888/host/test_host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # Host name may be in the POSTed data
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # Host name in the POSTed data takes precedence over URI
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+        }
+        response = session.patch('http://127.0.0.1:8888/host/other_host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # Host name must be somewhere !
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "fake": "test_host",
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_issues'], [u'Missing targeted element.'])
+
+        # Update host livestate (heartbeat / host is alive): empty livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "livestate": "",
+            "name": "test_host",
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+
+        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+            "livestate": {
+                "state": "",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter':1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host is alive :)'],
+                                  u'_issues': [u'Host state must be UP, DOWN or UNREACHABLE.']})
+
+        # Update host livestate (heartbeat / host is alive): livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+            "livestate": {
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter':1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK',
+                                  u'_result': [u'test_host is alive :)',
+                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;0;"
+                                               u"Output...|'counter':1\nLong output..."
+                                               % time.time()]})
+
+        # Update host livestate (heartbeat / host is alive): livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+            "livestate": {
+                "state": "unreachable",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter':1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK',
+                                  u'_result': [u'test_host is alive :)',
+                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;2;"
+                                               u"Output...|'counter':1\nLong output..."
+                                               % time.time()]})
+
+        # Update host services livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host",
+            "livestate": {
+                "state": "up",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter':1"
+            },
+            "services": {
+                "test_service": {
+                    "name": "test_service",
+                    "livestate": {
+                        "state": "ok",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter':1"
+                    }
+                },
+                "test_service2": {
+                    "name": "test_service2",
+                    "livestate": {
+                        "state": "warning",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter':1"
+                    }
+                },
+                "test_service3": {
+                    "name": "test_service3",
+                    "livestate": {
+                        "state": "critical",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter':1"
+                    }
+                },
+            },
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        print(result)
+        self.assertEqual(result, {
+            u'_status': u'OK', u'_result': [
+                u'test_host is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;0;Output...|'counter':1\nLong output..."  % time.time(),
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output..." % time.time(),
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output..." % time.time(),
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..." % time.time()]
         })
 
         # Logout

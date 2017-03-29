@@ -92,6 +92,10 @@ class AlignakWebServices(BaseModule):
 
         self.token = None
 
+        # Set timestamp
+        self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
+        logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
+
         # Alignak Backend part
         # ---
         self.backend_available = False
@@ -431,6 +435,8 @@ class AlignakWebServices(BaseModule):
                 message += 'Host %s active checks will be disabled. ' % host_name
 
             # Add a command to get managed
+            if self.set_timestamp:
+                command_line = '[%d] %s' % (time.time(), command_line)
             data['active_checks_enabled'] = active_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
@@ -446,6 +452,8 @@ class AlignakWebServices(BaseModule):
                 message += 'Host %s passive checks will be disabled. ' % host_name
 
             # Add a command to get managed
+            if self.set_timestamp:
+                command_line = '[%d] %s' % (time.time(), command_line)
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
@@ -529,6 +537,8 @@ class AlignakWebServices(BaseModule):
                            % (host_name, service_name)
 
             # Add a command to get managed
+            if self.set_timestamp:
+                command_line = '[%d] %s' % (time.time(), command_line)
             data['active_checks_enabled'] = active_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
@@ -546,6 +556,8 @@ class AlignakWebServices(BaseModule):
                            % (host_name, service_name)
 
             # Add a command to get managed
+            if self.set_timestamp:
+                command_line = '[%d] %s' % (time.time(), command_line)
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
@@ -667,6 +679,8 @@ class AlignakWebServices(BaseModule):
             parameters = '%s|%s' % (parameters, perf_data)
 
         command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
+        if self.set_timestamp:
+            command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
         logger.info("Sending command: %s", command_line)
@@ -684,7 +698,7 @@ class AlignakWebServices(BaseModule):
         :param livestate: livestate dictionary
         :return: command line
         """
-        state = livestate.get('state', 'UP').upper()
+        state = livestate.get('state', 'OK').upper()
         output = livestate.get('output', '')
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
@@ -707,6 +721,8 @@ class AlignakWebServices(BaseModule):
 
         command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
                        (host_name, service_name, parameters)
+        if self.set_timestamp:
+            command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
         logger.info("Sending command: %s", command_line)
