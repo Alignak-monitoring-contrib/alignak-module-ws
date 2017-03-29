@@ -579,19 +579,13 @@ class TestModuleWs(AlignakTest):
         self.modulemanager.stop_all()
 
     def test_module_zzz_host_enable_disable(self):
-        """Test the module /host API - enable / disable active / passive checks
+        """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
         """
         self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
@@ -656,22 +650,6 @@ class TestModuleWs(AlignakTest):
         assert response.status_code == 200
         resp = response.json()
 
-        # Do not allow GET request on /host
-        response = session.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
-
-        # You must have parameters when POSTing on /host
-        headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
-
         # Update host variables - empty variables
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -685,7 +663,6 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
 
-        my_module.setHostCheckState("ljklj", True, True)
         # ----------
         # Host does not exist
         headers = {'Content-Type': 'application/json'}
@@ -702,7 +679,6 @@ class TestModuleWs(AlignakTest):
                                   u'_result': [u'unknown_host is alive :)'],
                                   u'_issues': [u"Requested host 'unknown_host' does not exist"]})
 
-
         # ----------
         # Enable all checks
         headers = {'Content-Type': 'application/json'}
@@ -717,9 +693,33 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be enabled. '
-            u'Host test_host_0 passive checks will be enabled. '
-            u'Host test_host_0 updated.'
+            u'Host test_host_0 unchanged.'
+        ]})
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        self.assertTrue(dummy_host['active_checks_enabled'])
+        self.assertTrue(dummy_host['passive_checks_enabled'])
+        # ----------
+
+        # ----------
+        # Enable all checks - again!
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "active_checks_enabled": True,
+            "passive_checks_enabled": True
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [
+            u'test_host_0 is alive :)',
+            u'Host test_host_0 unchanged.'
         ]})
 
         # Get host data to confirm update
@@ -774,7 +774,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
             u'Host test_host_0 active checks will be enabled. '
-            u'Host test_host_0 passive checks will be disabled. '
             u'Host test_host_0 updated.'
         ]})
 
@@ -820,7 +819,7 @@ class TestModuleWs(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
-            "active_checks_enabled": True,
+            "active_checks_enabled": False,
             "passive_checks_enabled": True,
             "services": {
                 "test_service": {
@@ -847,22 +846,20 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)',
-                         u'Host test_host_0 active checks will be enabled. '
-                         u'Host test_host_0 passive checks will be enabled. '
-                         u'Host test_host_0 updated.'],
+                         u'Host test_host_0 unchanged.'],
             u'_issues': [u"Requested service 'test_host_0 / test_service' does not exist",
                          u"Requested service 'test_host_0 / test_service3' does not exist",
                          u"Requested service 'test_host_0 / test_service2' does not exist"]
         })
         # ----------
 
-        my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
         # ----------
+        my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
         # Enable / Disable all host services
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
-            "active_checks_enabled": True,
+            "active_checks_enabled": False,
             "passive_checks_enabled": True,
             "services": {
                 "test_service": {
@@ -886,18 +883,12 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
                 u'test_host_0 is alive :)',
-                u'Host test_host_0 active checks will be enabled. '
-                u'Host test_host_0 passive checks will be enabled. '
-                u'Host test_host_0 updated.',
-                u'Service test_host_0/test_ok_0 active checks will be enabled. '
-                u'Service test_host_0/test_ok_0 passive checks will be enabled. '
-                u'Service test_host_0/test_ok_0 updated.',
-                u'Service test_host_0/test_ok_2 active checks will be enabled. '
+                u'Host test_host_0 unchanged.',
+                u'Service test_host_0/test_ok_0 unchanged.',
                 u'Service test_host_0/test_ok_2 passive checks will be disabled. '
                 u'Service test_host_0/test_ok_2 updated.',
                 u'Service test_host_0/test_ok_1 active checks will be disabled. '
@@ -910,7 +901,7 @@ class TestModuleWs(AlignakTest):
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         host = resp['_items'][0]
-        self.assertTrue(host['active_checks_enabled'])
+        self.assertFalse(host['active_checks_enabled'])
         self.assertTrue(host['passive_checks_enabled'])
         # Get services data to confirm update
         response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,

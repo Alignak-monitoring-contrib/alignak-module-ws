@@ -305,6 +305,7 @@ class AlignakWebServices(BaseModule):
         return ('OK', "Host %s updated." % host['name'])
 
     def setHostCheckState(self, host_name, active_checks_enabled, passive_checks_enabled):
+        # pylint: disable=too-many-return-statements
         """Update the active/passive checks state of an host
 
         Search the host in the backend and enable/disable the active/passive checks
@@ -336,7 +337,8 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         message = ''
-        if active_checks_enabled is not None:
+        if active_checks_enabled is not None and \
+                active_checks_enabled != host['active_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_HOST_CHECK;%s' % host_name
             if active_checks_enabled:
@@ -350,7 +352,8 @@ class AlignakWebServices(BaseModule):
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
-        if passive_checks_enabled is not None:
+        if passive_checks_enabled is not None and \
+                passive_checks_enabled != host['passive_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
             if passive_checks_enabled:
@@ -363,6 +366,10 @@ class AlignakWebServices(BaseModule):
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
+
+        if not data:
+            message += "Host %s unchanged." % (host['name'])
+            return ('OK', message)
 
         try:
             headers = {'If-Match': host['_etag']}
@@ -426,7 +433,8 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         message = ''
-        if active_checks_enabled is not None:
+        if active_checks_enabled is not None and \
+                active_checks_enabled != service['active_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_SVC_CHECK;%s;%s' % (host_name, service_name)
             if active_checks_enabled:
@@ -442,7 +450,8 @@ class AlignakWebServices(BaseModule):
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
-        if passive_checks_enabled is not None:
+        if passive_checks_enabled is not None and \
+                passive_checks_enabled != service['passive_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_PASSIVE_SVC_CHECKS;%s;%s' % (host_name, service_name)
             if passive_checks_enabled:
@@ -457,6 +466,10 @@ class AlignakWebServices(BaseModule):
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
+
+        if not data:
+            message += "Service %s/%s unchanged." % (host['name'], service['name'])
+            return ('OK', message)
 
         try:
             headers = {'If-Match': service['_etag']}
