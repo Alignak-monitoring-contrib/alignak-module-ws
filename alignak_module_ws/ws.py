@@ -92,6 +92,12 @@ class AlignakWebServices(BaseModule):
 
         self.token = None
 
+        # Allow host/service creation
+        self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '0') == '1'
+        logger.info("Alignak host creation allowed: %s", self.allow_host_creation)
+        self.allow_service_creation = getattr(mod_conf, 'allow_service_creation', '0') == '1'
+        logger.info("Alignak service creation allowed: %s", self.allow_service_creation)
+
         # Set timestamp
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
         logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
@@ -252,6 +258,421 @@ class AlignakWebServices(BaseModule):
         """
         return True
 
+    def updateHost(self, host_name, data):
+        # pylint: disable=too-many-locals, too-many-return-statements
+        """Create/update the specified host
+
+        Search the host in the backend
+        If the host is not found, and the module is configured to create missing hosts, the
+        function tries to create a new host with the provided data as parameters.
+        If the creation fails it returns and error message
+
+        If the host exists, it is updated with the provided data.
+
+        :param host_name: host name
+        :param properties: dictionary of the host properties
+        :return: command line
+        """
+        host = None
+
+        ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend is not available currently. "
+                                            "Host properties cannot be modified.")
+                return ws_result
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Get host, got: %s", result)
+            if not result['_items'] and not self.allow_host_creation:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Requested host '%s' does not exist" % host_name)
+                return ws_result
+
+            if not result['_items']:
+                # Tries to create the host
+                ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
+                result = self.backend.post('host', data=data['template'])
+                logger.debug("Post host, response: %s", result)
+                if result['_status'] != 'OK':
+                    logger.warning("Post host, error: %s", result)
+                    ws_result['_status'] = 'ERR'
+                    ws_result['_issues'].append("Requested host '%s' creation failed" % host_name)
+                    return ws_result
+
+                # Get the newly created host
+                ws_result['_result'].append("Requested host '%s' created." % host_name)
+                result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+                logger.debug("Get host, got: %s", result)
+
+            host = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend exception.")
+            logger.warning("Exception: %s", exp)
+            ws_result['_status'] = 'ERR'
+            ws_result['_issues'].append("Alignak backend error. Got exception: %s" % str(exp))
+            return ws_result
+
+        update = None
+
+        # Update host check state
+        if 'active_checks_enabled' in data:
+            if isinstance(data['active_checks_enabled'], bool):
+                update = False
+                if data['active_checks_enabled'] != host['active_checks_enabled']:
+                    update = True
+
+                    # todo: perharps this command is not useful because the backend is updated...
+                    command_line = 'DISABLE_HOST_CHECK;%s' % host_name
+                    if data['active_checks_enabled']:
+                        command_line = 'ENABLE_HOST_CHECK;%s' % host_name
+                        ws_result['_result'].append(
+                            'Host %s active checks will be enabled.' % host_name)
+                    else:
+                        ws_result['_result'].append(
+                            'Host %s active checks will be disabled.' % host_name)
+
+                    # Add a command to get managed
+                    if self.set_timestamp:
+                        command_line = '[%d] %s' % (time.time(), command_line)
+                    ws_result['_result'].append('Sent external command: %s.' % command_line)
+                    logger.info("Sending command: %s", command_line)
+                    self.to_q.put(ExternalCommand(command_line))
+            else:
+                data.pop('active_checks_enabled')
+
+        if 'passive_checks_enabled' in data:
+            if isinstance(data['passive_checks_enabled'], bool):
+                if update is None:
+                    update = False
+                if data['passive_checks_enabled'] != host['passive_checks_enabled']:
+                    update = True
+
+                    # todo: perharps this command is not useful because the backend is updated...
+                    command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                    if data['passive_checks_enabled']:
+                        command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                        ws_result['_result'].append(
+                            'Host %s passive checks will be enabled.' % host_name)
+                    else:
+                        ws_result['_result'].append(
+                            'Host %s passive checks will be disabled.' % host_name)
+
+                    # Add a command to get managed
+                    if self.set_timestamp:
+                        command_line = '[%d] %s' % (time.time(), command_line)
+                    ws_result['_result'].append('Sent external command: %s.' % command_line)
+                    logger.info("Sending command: %s", command_line)
+                    self.to_q.put(ExternalCommand(command_line))
+            else:
+                data.pop('passive_checks_enabled')
+
+        # Update host variables
+        if data['variables']:
+            if update is None:
+                update = False
+            customs = host['customs']
+            for prop in data['variables']:
+                custom = '_' + prop.upper()
+                if custom in customs and data['variables'][prop] == "__delete__":
+                    update = True
+                    customs.pop(custom)
+                else:
+                    if custom not in customs or customs[custom] != data['variables'][prop]:
+                        update = True
+                        customs[custom] = data['variables'][prop]
+            if update:
+                data['customs'] = customs
+
+        # Update host livestate
+        if data['livestate']:
+            if update is None:
+                update = False
+            if 'state' not in data['livestate']:
+                ws_result['_issues'].append('Missing state in the livestate.')
+            else:
+                state = data['livestate'].get('state', 'UP').upper()
+                print("State: %s" % state)
+                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
+                    ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
+                                                ", and not '%s'." % (state))
+                else:
+                    ws_result['_result'].append(self.buildHostLivestate(host_name,
+                                                                        data['livestate']))
+            data.pop('livestate')
+
+        # Update host services
+        if data['services']:
+            if update is None:
+                update = False
+            for service_id in data['services']:
+                service = data['services'][service_id]
+                service_name = service['name']
+                service.pop('name')
+                result = self.updateService(host, service_name, service)
+                if '_result' in result:
+                    ws_result['_result'].extend(result['_result'])
+                if '_issues' in result:
+                    ws_result['_issues'].extend(result['_issues'])
+
+        print(result)
+        # If no update requested
+        if update is None:
+            # Simple host alive without any required update
+            if len(ws_result['_issues']):
+                ws_result['_status'] = 'ERR'
+                return ws_result
+
+            ws_result.pop('_issues')
+            return ws_result
+
+        # If no update needed
+        if not update:
+            # Simple host alive with updates required but no update needed
+            ws_result['_result'].append("Host '%s' unchanged." % host['name'])
+            if len(ws_result['_issues']):
+                ws_result['_status'] = 'ERR'
+                return ws_result
+
+            ws_result.pop('_issues')
+            return ws_result
+
+        # Clean data to be posted
+        data.pop('template')
+        data.pop('livestate')
+        data.pop('variables')
+        data.pop('services')
+        try:
+            headers = {'If-Match': host['_etag']}
+            logger.info("Updating host '%s': %s", host_name, data)
+            patch_result = self.backend.patch('/'.join(['host', host['_id']]),
+                                              data=data, headers=headers)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Host patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Host update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        ws_result['_result'].append("Host '%s' updated." % host['name'])
+
+        if len(ws_result['_issues']):
+            ws_result['_status'] = 'ERR'
+            return ws_result
+
+        ws_result.pop('_issues')
+        return ws_result
+
+    def updateService(self, host, service_name, data):
+        # pylint: disable=too-many-locals,too-many-return-statements
+        """Create/update the custom variables for the specified service
+
+        Search the service in the backend and update its custom variables with the provided ones.
+
+        :param host: host data
+        :param service_name: service description
+        :param data: dictionary of the service data
+        :return: (status, message) tuple
+        """
+        service = None
+
+        ws_result = {'_status': 'OK', '_result': [], '_issues': []}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend is not available currently. "
+                                            "Service properties cannot be modified.")
+                return ws_result
+
+            result = self.backend.get('/service', {'where': json.dumps({'host': host['_id'],
+                                                                        'name': service_name})})
+            logger.debug("Get service, got: %s", result)
+            if not result['_items'] and not self.allow_service_creation:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Requested service '%s/%s' does not exist"
+                                            % (host['name'], service_name))
+                return ws_result
+
+            if not result['_items']:
+                # Tries to create the service
+                ws_result['_result'].append("Requested service '%s/%s' does not exist"
+                                            % (host['name'], service_name))
+                result = self.backend.post('service', data=data['template'])
+                logger.debug("Post service, response: %s", result)
+                if result['_status'] != 'OK':
+                    logger.warning("Post service, error: %s", result)
+                    ws_result['_status'] = 'ERR'
+                    ws_result['_issues'].append("Requested service '%s/%s' creation failed"
+                                                % (host['name'], service_name))
+                    return ws_result
+
+                # Get the newly created service
+                ws_result['_result'].append("Requested service '%s / %s' created"
+                                            % (host['name'], service_name))
+                result = self.backend.get('/service', {'where': json.dumps({'name': host['name']})})
+                logger.debug("Get service, got: %s", result)
+
+            service = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend exception.")
+            logger.warning("Exception: %s", exp)
+            ws_result['_status'] = 'ERR'
+            ws_result['_issues'].append("Alignak backend error. Got exception: %s" % str(exp))
+            return ws_result
+
+        update = None
+
+        # Update service check state
+        if 'active_checks_enabled' in data:
+            if isinstance(data['active_checks_enabled'], bool):
+                update = False
+                if data['active_checks_enabled'] != service['active_checks_enabled']:
+                    update = True
+
+                    # todo: perharps this command is not useful because the backend is updated...
+                    command_line = 'DISABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
+                    if data['active_checks_enabled']:
+                        command_line = 'ENABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
+                        ws_result['_result'].append('Service %s/%s active checks will be enabled.'
+                                                    % (host['name'], service_name))
+                    else:
+                        ws_result['_result'].append('Service %s/%s active checks will be disabled.'
+                                                    % (host['name'], service_name))
+
+                    # Add a command to get managed
+                    if self.set_timestamp:
+                        command_line = '[%d] %s' % (time.time(), command_line)
+                    ws_result['_result'].append('Sent external command: %s.' % command_line)
+                    logger.info("Sending command: %s", command_line)
+                    self.to_q.put(ExternalCommand(command_line))
+            else:
+                data.pop('active_checks_enabled')
+
+        if 'passive_checks_enabled' in data:
+            if isinstance(data['passive_checks_enabled'], bool):
+                if update is None:
+                    update = False
+                if data['passive_checks_enabled'] != service['passive_checks_enabled']:
+                    update = True
+
+                    # todo: perharps this command is not useful because the backend is updated...
+                    command_line = 'DISABLE_PASSIVE_SVC_CHECKS;%s;%s' % (host['name'], service_name)
+                    if data['passive_checks_enabled']:
+                        command_line = 'ENABLE_PASSIVE_SVC_CHECKS;%s;%s' \
+                                       % (host['name'], service_name)
+                        ws_result['_result'].append('Service %s/%s passive checks will be enabled.'
+                                                    % (host['name'], service_name))
+                    else:
+                        ws_result['_result'].append('Service %s/%s passive checks will be disabled.'
+                                                    % (host['name'], service_name))
+
+                    # Add a command to get managed
+                    if self.set_timestamp:
+                        command_line = '[%d] %s' % (time.time(), command_line)
+                    ws_result['_result'].append('Sent external command: %s.' % command_line)
+                    logger.info("Sending command: %s", command_line)
+                    self.to_q.put(ExternalCommand(command_line))
+            else:
+                data.pop('passive_checks_enabled')
+
+        # Update service variables
+        if 'variables' in data and data['variables']:
+            if update is None:
+                update = False
+            customs = host['customs']
+            for prop in data['variables']:
+                custom = '_' + prop.upper()
+                if custom in customs and data['variables'][prop] == "__delete__":
+                    update = True
+                    customs.pop(custom)
+                else:
+                    if custom not in customs or customs[custom] != data['variables'][prop]:
+                        update = True
+                        customs[custom] = data['variables'][prop]
+            if update:
+                data['customs'] = customs
+
+        # Update service livestate
+        if 'livestate' in data and data['livestate']:
+            if update is None:
+                update = False
+            if 'state' not in data['livestate']:
+                ws_result['_issues'].append('Missing state in the livestate.')
+            else:
+                state = data['livestate'].get('state', 'OK').upper()
+                if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
+                    ws_result['_issues'].append("Service %s state must be OK, WARNING, CRITICAL, "
+                                                "UNKNOWN or UNREACHABLE, and not %s."
+                                                % (service_name, state))
+                else:
+                    ws_result['_result'].append(self.buildServiceLivestate(host['name'],
+                                                                           service_name,
+                                                                           data['livestate']))
+            data.pop('livestate')
+
+        # If no update requested
+        if update is None:
+            # Simple host alive without any required update
+            if len(ws_result['_issues']):
+                ws_result['_status'] = 'ERR'
+                return ws_result
+
+            ws_result.pop('_issues')
+            return ws_result
+
+        # If no update needed
+        if not update:
+            # Simple host alive with updates required but no update needed
+            ws_result['_result'].append("Service '%s/%s' unchanged."
+                                        % (host['name'], service_name))
+            if len(ws_result['_issues']):
+                ws_result['_status'] = 'ERR'
+                return ws_result
+
+            ws_result.pop('_issues')
+            return ws_result
+
+        # Clean data to be posted
+        if 'template' in data:
+            data.pop('template')
+        if 'livestate' in data:
+            data.pop('livestate')
+        if 'variables' in data:
+            data.pop('variables')
+        try:
+            headers = {'If-Match': service['_etag']}
+            logger.info("Updating service '%s/%s': %s", host['name'], service_name, data)
+            patch_result = self.backend.patch('/'.join(['service', service['_id']]),
+                                              data=data, headers=headers, inception=True)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Service patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Service update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        ws_result['_result'].append("Service '%s/%s' updated" % (host['name'], service_name))
+
+        if len(ws_result['_issues']):
+            ws_result['_status'] = 'ERR'
+            return ws_result
+
+        ws_result.pop('_issues')
+        return ws_result
+
     def updateHostVariables(self, host_name, variables):
         # pylint: disable=too-many-return-statements
         """Create/update the custom variables for the specified host
@@ -259,8 +680,8 @@ class AlignakWebServices(BaseModule):
         Search the host in the backend and update its custom variables with the provided ones.
 
         :param host_name: host name
-        :param properties: dictionary of the host properties
-        :return: command line
+        :param variables: dictionary of the host custom variables
+        :return: (status, message) tuple
         """
         host = None
 
@@ -323,8 +744,9 @@ class AlignakWebServices(BaseModule):
         Search the service in the backend and update its custom variables with the provided ones.
 
         :param host_name: host name
-        :param properties: dictionary of the host properties
-        :return: command line
+        :param service_name: service description
+        :param variables: dictionary of the service custom variables
+        :return: (status, message) tuple
         """
         host = None
         service = None
@@ -346,7 +768,7 @@ class AlignakWebServices(BaseModule):
                                                                         'name': service_name})})
             logger.debug("Get service, got: %s", result)
             if not result['_items']:
-                return ('ERR', "Requested service '%s / %s' does not exist" %
+                return ('ERR', "Requested service '%s/%s' does not exist" %
                         (host_name, service_name))
             service = result['_items'][0]
         except BackendException as exp:
@@ -401,7 +823,8 @@ class AlignakWebServices(BaseModule):
         :param host_name: host name
         :param active_checks_enabled: enable / disable the host active checks
         :param passive_checks_enabled: enable / disable the host passive checks
-        :return: command line
+        :param variables: dictionary of the host custom variables
+        :return: (status, message) tuple
         """
         host = None
         data = {}
@@ -490,9 +913,11 @@ class AlignakWebServices(BaseModule):
         according to the provided parameters.
 
         :param host_name: host name
+        :param service_name: service description
         :param active_checks_enabled: enable / disable the host active checks
         :param passive_checks_enabled: enable / disable the host passive checks
-        :return: command line
+        :param variables: dictionary of the host custom variables
+        :return: (status, message) tuple
         """
         host = None
         service = None
@@ -514,7 +939,7 @@ class AlignakWebServices(BaseModule):
                                                                         'name': service_name})})
             logger.debug("Get service, got: %s", result)
             if not result['_items']:
-                return ('ERR', "Requested service '%s / %s' does not exist" %
+                return ('ERR', "Requested service '%s/%s' does not exist" %
                         (host_name, service_name))
             service = result['_items'][0]
         except BackendException as exp:

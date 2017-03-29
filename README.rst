@@ -307,7 +307,7 @@ To send an host/service live state, PATCH on the `host` endpoint providing the h
             "state": "up",
             "output": "Output...",
             "long_output": "Long output...",
-            "perf_data": "'counter':1"
+            "perf_data": "'counter'=1"
         }
     }' "http://demo.alignak.net:8888/host"
 
@@ -327,7 +327,7 @@ For the host services states, use the same syntax as for an host:
             "state": "up",
             "output": "Output...",
             "long_output": "Long output...",
-            "perf_data": "'counter':1"
+            "perf_data": "'counter'=1"
         },
         "services": {
             "test_service": {
@@ -336,7 +336,7 @@ For the host services states, use the same syntax as for an host:
                     "state": "ok",
                     "output": "Output...",
                     "long_output": "Long output...",
-                    "perf_data": "'counter':1"
+                    "perf_data": "'counter'=1"
                 }
             },
             "test_service2": {
@@ -345,7 +345,7 @@ For the host services states, use the same syntax as for an host:
                     "state": "warning",
                     "output": "Output...",
                     "long_output": "Long output...",
-                    "perf_data": "'counter':1"
+                    "perf_data": "'counter'=2"
                 }
             },
             "test_service3": {
@@ -354,7 +354,7 @@ For the host services states, use the same syntax as for an host:
                     "state": "critical",
                     "output": "Output...",
                     "long_output": "Long output...",
-                    "perf_data": "'counter':1"
+                    "perf_data": "'counter'=3"
                 }
             },
         }
