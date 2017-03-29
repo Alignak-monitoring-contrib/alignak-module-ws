@@ -278,12 +278,19 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         customs = host['customs']
+        update = False
         for prop in variables:
             custom = '_' + prop.upper()
-            if variables[prop] == "__delete__":
+            if custom in customs and variables[prop] == "__delete__":
+                update = True
                 customs.pop(custom)
             else:
-                customs[custom] = variables[prop]
+                if custom not in customs or customs[custom] != variables[prop]:
+                    update = True
+                    customs[custom] = variables[prop]
+
+        if not update:
+            return ('OK', "Host %s unchanged." % host['name'])
 
         try:
             headers = {'If-Match': host['_etag']}

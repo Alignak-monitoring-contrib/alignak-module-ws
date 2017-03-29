@@ -393,12 +393,6 @@ class TestModuleWs(AlignakTest):
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
 
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -540,6 +534,35 @@ class TestModuleWs(AlignakTest):
         # ----------
 
         # ----------
+        # Unchanged host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "_dummy",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
+                                                                  u'Host _dummy unchanged.']})
+
+        # Get host data to confirm there was not update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': '_dummy'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        expected = {
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, dummy_host['customs'])
+        # ----------
+
+        # ----------
         # Update host variables
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -563,6 +586,41 @@ class TestModuleWs(AlignakTest):
                                 params={'where': json.dumps({'name': '_dummy'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
+        expected = {
+            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
+        }
+        self.assertEqual(expected, dummy_host['customs'])
+        # ----------
+
+        # ----------
+        # Delete host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "_dummy",
+            "variables": {
+                'test1': 'string modified',
+                'test2': 12,
+                'test3': 15055.0,
+                'test4': "__delete__"
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
+                                                                  u'Host _dummy updated.']})
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': '_dummy'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        # todo: expected should be this:
+        # currently it is not possible to update/delete a backend dict property!
+        # expected = {
+        #     u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified'
+        # }
         expected = {
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
