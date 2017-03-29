@@ -249,6 +249,7 @@ class AlignakWebServices(BaseModule):
         return True
 
     def updateHostVariables(self, host_name, variables):
+        # pylint: disable=too-many-return-statements
         """Create/update the custom variables for the specified host
 
         Search the host in the backend and update its custom variables with the provided ones.
@@ -278,12 +279,19 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         customs = host['customs']
+        update = False
         for prop in variables:
             custom = '_' + prop.upper()
-            if variables[prop] == "__delete__":
+            if custom in customs and variables[prop] == "__delete__":
+                update = True
                 customs.pop(custom)
             else:
-                customs[custom] = variables[prop]
+                if custom not in customs or customs[custom] != variables[prop]:
+                    update = True
+                    customs[custom] = variables[prop]
+
+        if not update:
+            return ('OK', "Host %s unchanged." % host['name'])
 
         try:
             headers = {'If-Match': host['_etag']}
@@ -304,7 +312,83 @@ class AlignakWebServices(BaseModule):
 
         return ('OK', "Host %s updated." % host['name'])
 
+    def updateServiceVariables(self, host_name, service_name, variables):
+        # pylint: disable=too-many-locals,too-many-return-statements
+        """Create/update the custom variables for the specified service
+
+        Search the service in the backend and update its custom variables with the provided ones.
+
+        :param host_name: host name
+        :param properties: dictionary of the host properties
+        :return: command line
+        """
+        host = None
+        service = None
+        data = {}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                return('ERR', "Alignak backend is not available currently. "
+                              "Host properties cannont be modified.")
+
+            result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            logger.debug("Get host, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested host '%s' does not exist" % host_name)
+            host = result['_items'][0]
+
+            result = self.backend.get('/service', {'where': json.dumps({'host': host['_id'],
+                                                                        'name': service_name})})
+            logger.debug("Get service, got: %s", result)
+            if not result['_items']:
+                return ('ERR', "Requested service '%s / %s' does not exist" %
+                        (host_name, service_name))
+            service = result['_items'][0]
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.debug("Exception: %s", exp)
+            return ('ERR', "Alignak backend is not available currently. "
+                           "Get exception: %s" % str(exp))
+
+        message = ''
+        customs = service['customs']
+        update = False
+        for prop in variables:
+            custom = '_' + prop.upper()
+            if custom in customs and variables[prop] == "__delete__":
+                update = True
+                customs.pop(custom)
+            else:
+                if custom not in customs or customs[custom] != variables[prop]:
+                    update = True
+                    customs[custom] = variables[prop]
+
+        if not update:
+            return ('OK', "Service %s/%s unchanged." % (host['name'], service['name']))
+
+        try:
+            headers = {'If-Match': service['_etag']}
+            data = {"customs": customs}
+            logger.info("Updating service '%s/%s': %s", host_name, service_name, data)
+            patch_result = self.backend.patch('/'.join(['service', service['_id']]),
+                                              data=data, headers=headers, inception=True)
+            logger.debug("Backend patch, result: %s", patch_result)
+            if patch_result['_status'] != 'OK':
+                logger.warning("Service patch, got a problem: %s", result)
+                return ('ERR', patch_result['_issues'])
+        except BackendException as exp:
+            logger.warning("Alignak backend is currently not available.")
+            logger.warning("Exception: %s", exp)
+            self.backend_available = False
+            return ('ERR', "Service update error, backend exception. "
+                           "Get exception: %s" % str(exp))
+
+        message += "Service %s/%s updated." % (host['name'], service['name'])
+        return ('OK', message)
+
     def setHostCheckState(self, host_name, active_checks_enabled, passive_checks_enabled):
+        # pylint: disable=too-many-return-statements
         """Update the active/passive checks state of an host
 
         Search the host in the backend and enable/disable the active/passive checks
@@ -336,7 +420,8 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         message = ''
-        if active_checks_enabled is not None:
+        if active_checks_enabled is not None and \
+                active_checks_enabled != host['active_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_HOST_CHECK;%s' % host_name
             if active_checks_enabled:
@@ -350,7 +435,8 @@ class AlignakWebServices(BaseModule):
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
-        if passive_checks_enabled is not None:
+        if passive_checks_enabled is not None and \
+                passive_checks_enabled != host['passive_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
             if passive_checks_enabled:
@@ -363,6 +449,10 @@ class AlignakWebServices(BaseModule):
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
+
+        if not data:
+            message += "Host %s unchanged." % (host['name'])
+            return ('OK', message)
 
         try:
             headers = {'If-Match': host['_etag']}
@@ -426,7 +516,8 @@ class AlignakWebServices(BaseModule):
                            "Get exception: %s" % str(exp))
 
         message = ''
-        if active_checks_enabled is not None:
+        if active_checks_enabled is not None and \
+                active_checks_enabled != service['active_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_SVC_CHECK;%s;%s' % (host_name, service_name)
             if active_checks_enabled:
@@ -442,7 +533,8 @@ class AlignakWebServices(BaseModule):
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
 
-        if passive_checks_enabled is not None:
+        if passive_checks_enabled is not None and \
+                passive_checks_enabled != service['passive_checks_enabled']:
             # todo: perharps this command is not useful because the backend is updated...
             command_line = 'DISABLE_PASSIVE_SVC_CHECKS;%s;%s' % (host_name, service_name)
             if passive_checks_enabled:
@@ -457,6 +549,10 @@ class AlignakWebServices(BaseModule):
             data['passive_checks_enabled'] = passive_checks_enabled
             logger.info("Sending command: %s", command_line)
             self.to_q.put(ExternalCommand(command_line))
+
+        if not data:
+            message += "Service %s/%s unchanged." % (host['name'], service['name'])
+            return ('OK', message)
 
         try:
             headers = {'If-Match': service['_etag']}
@@ -772,14 +868,12 @@ class AlignakWebServices(BaseModule):
                 try:
                     message = self.to_q.get_nowait()
                     if isinstance(message, ExternalCommand):
-                        # print("Got an external command: %s", message.cmd_line)
                         logger.info("Got an external command: %s", message.cmd_line)
                         # Send external command to my Alignak daemon...
                         self.from_q.put(message)
                         self.received_commands += 1
                     else:
                         logger.warning("Got a message that is not an external command: %s", message)
-                        # print("Got a message that is not an external command: %s", message)
                 except Queue.Empty:
                     # logger.debug("No message in the module queue")
                     pass
