@@ -342,6 +342,16 @@ class WSInterface(object):
                                                                             service_name,
                                                                             livestate))
 
+                # Update service variables
+                if 'variables' in service:
+                    variables = service['variables']
+                    (status, message) = self.app.updateServiceVariables(host_name,
+                                                                        service_name, variables)
+                    if status == 'OK':
+                        result['_result'].append(message)
+                    else:
+                        result['_issues'].append(message)
+
         if len(result['_issues']):
             result['_status'] = 'ERR'
             return result

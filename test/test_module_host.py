@@ -627,6 +627,76 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(expected, dummy_host['customs'])
         # ----------
 
+        # ----------
+        # Create host service variables - unknown service
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+
+            "services": {
+                "test_service": {
+                    "name": "test_service",
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR', u'_result': [u'test_host_0 is alive :)'],
+                                  u'_issues': [u"Requested service 'test_host_0 / "
+                                               u"test_service' does not exist"]})
+        # ----------
+
+        # ----------
+        # Create host service variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+
+            "services": {
+                "test_ok_0": {
+                    "name": "test_ok_0",
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        print(result)
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)',
+                                                                  u'Service test_host_0/'
+                                                                  u'test_ok_0 updated.']})
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        host = resp['_items'][0]
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        # The service still had a variable _CUSTNAME
+        expected = {
+            u'_CUSTNAME': u'custvalue', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, service['customs'])
+        # ----------
+
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)
