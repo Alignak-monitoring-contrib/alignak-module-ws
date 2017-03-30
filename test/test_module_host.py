@@ -212,7 +212,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
 
         # When host does not exist...
-        headers = {'Content-Type': 'application/json'}
         data = {
             "fake": ""
         }
@@ -224,7 +223,6 @@ class TestModuleWs(AlignakTest):
                                   u'_issues': [u"Requested host 'test_host' does not exist"]})
 
         # Host name may be the last part of the URI
-        headers = {'Content-Type': 'application/json'}
         data = {
             "fake": ""
         }
@@ -234,7 +232,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name may be in the POSTed data
-        headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
         }
@@ -244,7 +241,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name in the POSTed data takes precedence over URI
-        headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
         }

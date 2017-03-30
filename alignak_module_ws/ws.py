@@ -258,6 +258,71 @@ class AlignakWebServices(BaseModule):
         """
         return True
 
+    def backendCreationData(self, host_name, data):
+        """Returns the data that will be posted to the backend for host or service creation
+
+        This function parses the provided data to find out some items that are already
+        existing in the alignak backend. If some found, their name is replaced with the
+        item identifier read from the backend
+
+        :param host_name: host name
+        :param data: posted data for the element creation
+        :return: data to post on element creation
+        """
+        post_data = {}
+
+        if data is None:
+            return post_data
+
+        for field in data:
+            logger.info("Host creation field: %s = %s", field, data[field])
+            # Filter specific backend inner computed fields
+            if field in ['_overall_state_id']:
+                continue
+
+            # Manage potential object link fields
+            if field not in ['realm', 'template', 'host', 'service',
+                             'check_period', 'notification_period',
+                             'host_notification_period', 'service_notification_period',
+                             'check_command', 'event_handler']:
+                post_data[field] = data[field]
+                continue
+
+            try:
+                int(data[field])
+            except TypeError:
+                post_data[field] = data[field]
+                continue
+            except ValueError:
+                # Not an integer, consider it is an item name...
+                params = {'where': json.dumps({'name': data[field]})}
+                if field in ['check_period', 'notification_period',
+                             'host_notification_period', 'service_notification_period']:
+                    response2 = self.backend.get('timeperiod', params=params)
+                elif field in ['check_command', 'event_handler']:
+                    response2 = self.backend.get('command', params=params)
+                elif field in ['template']:
+                    params = {'where': json.dumps({'name': data[field], '_is_template': True})}
+                    response2 = self.backend.get('host', params=params)
+                else:
+                    response2 = self.backend.get(field, params=params)
+                if len(response2['_items']) > 0:
+                    response2 = response2['_items'][0]
+                    logger.info("Replaced %s = %s with found item identifier",
+                                field, data[field])
+                    post_data[field] = response2['_id']
+                else:
+                    logger.info("Not found %s = %s, ignoring field!",
+                                field, data[field])
+
+        post_data['name'] = host_name
+        if 'realm' in post_data:
+            post_data['_realm'] = post_data.pop('realm')
+        if 'template' in post_data:
+            post_data['_templates'] = [post_data.pop('template')]
+
+        return post_data
+
     def updateHost(self, host_name, data):
         # pylint: disable=too-many-locals, too-many-return-statements
         """Create/update the specified host
@@ -294,8 +359,12 @@ class AlignakWebServices(BaseModule):
 
             if not result['_items']:
                 # Tries to create the host
+                logger.info("Requested host '%s' does not exist. Trying to create a new host",
+                            host_name)
                 ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
-                result = self.backend.post('host', data=data['template'])
+
+                post_data = self.backendCreationData(host_name, data['template'])
+                result = self.backend.post('host', data=post_data)
                 logger.debug("Post host, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post host, error: %s", result)
@@ -312,8 +381,10 @@ class AlignakWebServices(BaseModule):
         except BackendException as exp:
             logger.warning("Alignak backend exception.")
             logger.warning("Exception: %s", exp)
+            logger.warning("Exception response: %s", exp.response)
             ws_result['_status'] = 'ERR'
-            ws_result['_issues'].append("Alignak backend error. Got exception: %s" % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Exception: %s" % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
             return ws_result
 
         update = None
@@ -525,8 +596,10 @@ class AlignakWebServices(BaseModule):
         except BackendException as exp:
             logger.warning("Alignak backend exception.")
             logger.warning("Exception: %s", exp)
+            logger.warning("Exception response: %s", exp.response)
             ws_result['_status'] = 'ERR'
-            ws_result['_issues'].append("Alignak backend error. Got exception: %s" % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Exception: %s" % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
             return ws_result
 
         update = None
@@ -728,7 +801,8 @@ class AlignakWebServices(BaseModule):
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
-            result['_issues'] = str(exp)
+            logger.warning("Response: %s", exp.response)
+            result['_issues'] = str(exp) + ' - ' + exp.response
             self.backend_available = False
 
         if len(result['_issues']):
@@ -837,6 +911,7 @@ class AlignakWebServices(BaseModule):
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
+            logger.warning("Response: %s", exp.response)
 
         return self.token
 
@@ -861,7 +936,8 @@ class AlignakWebServices(BaseModule):
             self.backend_available = True
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
-            logger.debug("Exception: %s", exp)
+            logger.warning("Exception: %s", exp)
+            logger.warning("Response: %s", exp.response)
             self.backend_available = False
 
     def getBackendHistory(self, search=None):
@@ -906,6 +982,7 @@ class AlignakWebServices(BaseModule):
         except BackendException as exp:
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
+            logger.warning("Response: %s", exp.response)
             self.backend_available = False
 
         return {'_status': 'ERR', '_error': u'An exception happened during the request'}
