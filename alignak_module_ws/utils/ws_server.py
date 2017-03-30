@@ -335,7 +335,11 @@ class WSInterface(object):
 
         command_line = command.upper()
         if timestamp:
-            command_line = '[%d] %s' % (timestamp, command)
+            try:
+                timestamp = int(timestamp)
+            except ValueError:
+                return {'_status': 'ERR', '_error': 'Timestamp must be an integer value'}
+            command_line = '[%d] %s' % (timestamp, command_line)
 
         if host or service or user:
             if host:
