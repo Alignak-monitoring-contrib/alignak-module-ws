@@ -124,7 +124,7 @@ class TestModuleWs(AlignakTest):
         cls.p.kill()
 
     def test_module_zzz_host_creation(self):
-        """Test the module /host API - host/service creation
+        """Test the module /host API - host creation
         :return:
         """
         self.print_header()
@@ -207,14 +207,15 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
+        print(result)
         self.assertEqual(result, {
             u'_status': u'ERR',
-            u'_result': [u'new_host_0 is alive :)',
-                         u"Requested host 'new_host_0' does not exist."],
+            u'_result': [
+                u'new_host_0 is alive :)',
+                u"Requested host 'new_host_0' does not exist."],
             u'_issues': [
-                u'Alignak backend error. Exception: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)',
-                u"Alignak backend error. Response: {u'_status': u'ERR', u'_issues': {u'name': u'required field', u'_realm': u'required field'}, u'_error': {u'message': u'Insertion failure: 1 document(s) contain(s) error(s)', u'code': 422}}"
-            ]
+                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)',
+                u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required", u\'_realm\': u\'required field\'}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}']
         })
         # Raised an error because _realm field is missing
 
@@ -236,7 +237,7 @@ class TestModuleWs(AlignakTest):
                 u"Requested host 'new_host_0' does not exist."
             ],
             u'_issues': [
-                u'Alignak backend error. Exception: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required", u\'_realm\': u\'required field\'}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
+                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required", u\'_realm\': u\'required field\'}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
             ]
         })
         # Raised an error because _realm and check_command fields are missing
@@ -261,12 +262,12 @@ class TestModuleWs(AlignakTest):
                 u"Requested host 'new_host_0' does not exist."
             ],
             u'_issues': [
-                u'Alignak backend error. Exception: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required"}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
+                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required"}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
             ]
         })
         # Raised an error because check_command field is missing
 
-        # Request to create an host - unknown provided data
+        # Request to create an host - host created
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_0",
@@ -296,6 +297,7 @@ class TestModuleWs(AlignakTest):
         new_host_0 = resp['_items'][0]
         self.assertEqual('new_host_0', new_host_0['name'])
         self.assertEqual([], new_host_0['_templates'])
+        self.assertEqual({}, new_host_0['customs'])
 
         # Create a new host with a template and Update host livestate (heartbeat / host is alive): livestate
         data = {
@@ -309,7 +311,7 @@ class TestModuleWs(AlignakTest):
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -322,12 +324,253 @@ class TestModuleWs(AlignakTest):
                 u'new_host_1 is alive :)',
                 u"Requested host 'new_host_1' does not exist.",
                 u"Requested host 'new_host_1' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_1;0;Output...|'counter':1\nLong output...",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_1;0;Output...|'counter'=1\nLong output...",
                 u"Host 'new_host_1' unchanged."
             ],
         })
         # No errors!
 
+        # Get new host to confirm creation
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_1'})})
+        resp = response.json()
+        new_host_1 = resp['_items'][0]
+        self.assertEqual('new_host_1', new_host_1['name'])
+        self.assertNotEqual([], new_host_1['_templates'])
+        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_1['customs'])
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_service_creation(self):
+        """Test the module /host API - service creation
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Allow host/service creation
+            'allow_host_creation': '1',
+            'allow_service_creation': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Request to create an host - create a new host
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "new_host_for_services_0",
+            "template": {
+                "realm": 'All',
+                "check_command": "_internal_host_up"
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested host 'new_host_for_services_0' does not exist.",
+                u"Requested host 'new_host_for_services_0' created."
+            ],
+        })
+        # No errors!
+
+        # Request to create an host - create a new service for the new host
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "new_host_for_services_0",
+            "services": {
+                "new_service": {
+                    "name": "test_ok_0",
+                    "template": {
+                        "realm": 'All',
+                        "check_command": "_echo"
+                    },
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1",
+                    },
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                }
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested service 'new_host_for_services_0/test_ok_0' does not exist.",
+                u"Requested service 'new_host_for_services_0/test_ok_0' created.",
+                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_ok_0' updated",
+                u"Host 'new_host_for_services_0' unchanged."
+            ],
+        })
+        # No errors!
+
+        # Get new host to confirm creation
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        resp = response.json()
+        new_host_for_services_0 = resp['_items'][0]
+        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
+        self.assertEqual([], new_host_for_services_0['_templates'])
+        self.assertEqual({}, new_host_for_services_0['customs'])
+
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': new_host_for_services_0['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        # The service still had a variable _CUSTNAME and it inherits from the host variables
+        expected = {
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, service['customs'])
+
+        # Create a new host with a template and Update host livestate (heartbeat / host is alive): livestate
+        data = {
+            "name": "new_host_for_services_0",
+            "services": {
+                "new_service": {
+                    "name": "test_ok_1",
+                    "template": {
+                        "realm": 'All',
+                        "check_command": "_echo",
+                        "template": "generic-service"
+                    },
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1",
+                    },
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                }
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested service 'new_host_for_services_0/test_ok_1' does not exist.",
+                u"Requested service 'new_host_for_services_0/test_ok_1' created.",
+                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_1;0;Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_ok_1' updated",
+                u"Host 'new_host_for_services_0' unchanged."
+            ],
+        })
+        # No errors!
+
+        # Get new host to confirm creation
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        resp = response.json()
+        new_host_for_services_0 = resp['_items'][0]
+        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
+        self.assertEqual([], new_host_for_services_0['_templates'])
+        self.assertEqual({}, new_host_for_services_0['customs'])
+
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': new_host_for_services_0['_id'],
+                                                             'name': 'test_ok_1'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        # The service still had a variable _CUSTNAME and it inherits from the host variables
+        expected = {
+            u'_TEMPLATE': u'generic', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, service['customs'])
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)

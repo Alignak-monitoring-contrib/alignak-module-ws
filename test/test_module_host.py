@@ -279,7 +279,7 @@ class TestModuleWs(AlignakTest):
             "livestate": {
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -299,7 +299,7 @@ class TestModuleWs(AlignakTest):
                 "state": "",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -320,7 +320,7 @@ class TestModuleWs(AlignakTest):
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -330,7 +330,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                                               u"Output...|'counter':1\nLong output...",
+                                               u"Output...|'counter'=1\nLong output...",
                                                u"Host 'test_host_0' unchanged."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -341,7 +341,7 @@ class TestModuleWs(AlignakTest):
                 "state": "unreachable",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -351,7 +351,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                                               u"Output...|'counter':1\nLong output...",
+                                               u"Output...|'counter'=1\nLong output...",
                                                u"Host 'test_host_0' unchanged."]})
 
         # Update host services livestate
@@ -362,7 +362,7 @@ class TestModuleWs(AlignakTest):
                 "state": "up",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1"
+                "perf_data": "'counter'=1"
             },
             "services": {
                 "test_service": {
@@ -371,7 +371,7 @@ class TestModuleWs(AlignakTest):
                         "state": "ok",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service2": {
@@ -380,7 +380,7 @@ class TestModuleWs(AlignakTest):
                         "state": "warning",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service3": {
@@ -389,7 +389,7 @@ class TestModuleWs(AlignakTest):
                         "state": "critical",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
             },
@@ -401,12 +401,12 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter':1\nLong output...",
+                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter':1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter':1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"Host 'test_host_0' unchanged."
             ]
@@ -581,7 +581,7 @@ class TestModuleWs(AlignakTest):
             "livestate": {
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -601,7 +601,7 @@ class TestModuleWs(AlignakTest):
                 "state": "",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -622,7 +622,7 @@ class TestModuleWs(AlignakTest):
                 "state": "XxX",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -643,7 +643,7 @@ class TestModuleWs(AlignakTest):
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -653,7 +653,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                                               u"Output...|'counter':1\nLong output..."
+                                               u"Output...|'counter'=1\nLong output..."
                                                % time.time(),
                                                u"Host 'test_host_0' unchanged."]})
 
@@ -665,7 +665,7 @@ class TestModuleWs(AlignakTest):
                 "state": "unreachable",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -675,7 +675,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {u'_status': u'OK',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                                               u"Output...|'counter':1\nLong output..."
+                                               u"Output...|'counter'=1\nLong output..."
                                                % time.time(),
                                                u"Host 'test_host_0' unchanged."]})
 
@@ -687,7 +687,7 @@ class TestModuleWs(AlignakTest):
                 "state": "up",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1"
+                "perf_data": "'counter'=1"
             },
             "services": {
                 "test_service": {
@@ -696,7 +696,7 @@ class TestModuleWs(AlignakTest):
                         "state": "ok",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service2": {
@@ -705,7 +705,7 @@ class TestModuleWs(AlignakTest):
                         "state": "warning",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service3": {
@@ -714,7 +714,7 @@ class TestModuleWs(AlignakTest):
                         "state": "critical",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
             },
@@ -726,12 +726,12 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter':1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter':1\nLong output..." % now,
+                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter':1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter':1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"Host 'test_host_0' unchanged."
             ]
@@ -892,6 +892,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -923,6 +924,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -954,6 +956,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -990,6 +993,7 @@ class TestModuleWs(AlignakTest):
         #     u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified'
         # }
         expected = {
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -1067,6 +1071,7 @@ class TestModuleWs(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
