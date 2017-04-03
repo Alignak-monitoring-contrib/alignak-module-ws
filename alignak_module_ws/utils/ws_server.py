@@ -262,102 +262,20 @@ class WSInterface(object):
 
         if not host_name:
             host_name = cherrypy.request.json.get('name', None)
-        livestate = cherrypy.request.json.get('livestate', None)
-        variables = cherrypy.request.json.get('variables', None)
-        services = cherrypy.request.json.get('services', None)
-        active_checks_enabled = cherrypy.request.json.get('active_checks_enabled', None)
-        passive_checks_enabled = cherrypy.request.json.get('passive_checks_enabled', None)
 
         if not host_name:
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
-        result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+        data = {
+            'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
+            'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
+            'template': cherrypy.request.json.get('template', None),
+            'livestate': cherrypy.request.json.get('livestate', None),
+            'variables': cherrypy.request.json.get('variables', None),
+            'services': cherrypy.request.json.get('services', None)
+        }
 
-        # Update host check state
-        if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled, bool):
-            (status, message) = self.app.setHostCheckState(host_name,
-                                                           active_checks_enabled,
-                                                           passive_checks_enabled)
-            if status == 'OK':
-                result['_result'].append(message)
-            else:
-                result['_issues'].append(message)
-
-        # Update host livestate
-        if livestate:
-            if 'state' not in livestate:
-                result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = livestate.get('state', 'UP').upper()
-                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
-                    result['_issues'].append('Host state must be UP, DOWN or UNREACHABLE.')
-                else:
-                    result['_result'].append(self.app.buildHostLivestate(host_name,
-                                                                         livestate))
-
-        # Update host variables
-        if variables:
-            (status, message) = self.app.updateHostVariables(host_name, variables)
-            if status == 'OK':
-                result['_result'].append(message)
-            else:
-                result['_issues'].append(message)
-
-        # Got the livestate from several services
-        if services:
-            for service_id in services:
-                service = services[service_id]
-                service_name = service.get('name', service_id)
-                active_checks_enabled = service.get('active_checks_enabled', None)
-                passive_checks_enabled = service.get('passive_checks_enabled', None)
-
-                # Update service check state
-                if isinstance(active_checks_enabled, bool) or isinstance(passive_checks_enabled,
-                                                                         bool):
-                    (status, message) = self.app.setServiceCheckState(host_name,
-                                                                      service_name,
-                                                                      active_checks_enabled,
-                                                                      passive_checks_enabled)
-                    if status == 'OK':
-                        result['_result'].append(message)
-                    else:
-                        result['_issues'].append(message)
-
-                # Update livestate
-                if 'livestate' in service:
-                    livestate = service['livestate']
-                    if 'state' not in livestate:
-                        result['_issues'].append('Service %s: Missing state in the livestate.'
-                                                 % service_name)
-                        continue
-
-                    state = livestate.get('state', 'OK').upper()
-                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
-                        result['_issues'].append('Service %s state must be OK, WARNING, CRITICAL, '
-                                                 'UNKNOWN or UNREACHABLE, and not %s.'
-                                                 % (service_name, state))
-                        continue
-
-                    result['_result'].append(self.app.buildServiceLivestate(host_name,
-                                                                            service_name,
-                                                                            livestate))
-
-                # Update service variables
-                if 'variables' in service:
-                    variables = service['variables']
-                    (status, message) = self.app.updateServiceVariables(host_name,
-                                                                        service_name, variables)
-                    if status == 'OK':
-                        result['_result'].append(message)
-                    else:
-                        result['_issues'].append(message)
-
-        if len(result['_issues']):
-            result['_status'] = 'ERR'
-            return result
-
-        result.pop('_issues')
-        return result
+        return self.app.updateHost(host_name, data)
     host.method = 'patch'
 
     @cherrypy.expose
@@ -417,7 +335,11 @@ class WSInterface(object):
 
         command_line = command.upper()
         if timestamp:
-            command_line = '[%d] %s' % (timestamp, command)
+            try:
+                timestamp = int(timestamp)
+            except ValueError:
+                return {'_status': 'ERR', '_error': 'Timestamp must be an integer value'}
+            command_line = '[%d] %s' % (timestamp, command_line)
 
         if host or service or user:
             if host:

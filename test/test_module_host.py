@@ -194,7 +194,6 @@ class TestModuleWs(AlignakTest):
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-        print(resp)
 
         # Allowed GET request on /host - forbidden to GET
         response = session.get('http://127.0.0.1:8888/host')
@@ -212,35 +211,43 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result['_status'], 'ERR')
         self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
 
-        # Host name may be the last part of the URI
-        headers = {'Content-Type': 'application/json'}
+        # When host does not exist...
         data = {
             "fake": ""
         }
         response = session.patch('http://127.0.0.1:8888/host/test_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host is alive :)'],
+                                  u'_issues': [u"Requested host 'test_host' does not exist"]})
+
+        # Host name may be the last part of the URI
+        data = {
+            "fake": ""
+        }
+        response = session.patch('http://127.0.0.1:8888/host/test_host_0', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name may be in the POSTed data
-        headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name in the POSTed data takes precedence over URI
-        headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
         }
         response = session.patch('http://127.0.0.1:8888/host/other_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name must be somewhere !
         headers = {'Content-Type': 'application/json'}
@@ -257,23 +264,22 @@ class TestModuleWs(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "livestate": "",
-            "name": "test_host",
+            "name": "test_host_0",
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
-        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        # Update host livestate (heartbeat / host is alive): missing state in the livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
-                "state": "",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -281,18 +287,40 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u'Host state must be UP, DOWN or UNREACHABLE.']})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."],
+                                  u'_issues': [u'Missing state in the livestate.']})
+
+        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "state": "",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."],
+                                  u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
+                                               u"and not ''."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -300,19 +328,20 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;0;"
-                                               u"Output...|'counter':1\nLong output..."]})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                                               u"Output...|'counter'=1\nLong output...",
+                                               u"Host 'test_host_0' unchanged."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "unreachable",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -320,46 +349,47 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"PROCESS_HOST_CHECK_RESULT;test_host;2;"
-                                               u"Output...|'counter':1\nLong output..."]})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
+                                               u"Output...|'counter'=1\nLong output...",
+                                               u"Host 'test_host_0' unchanged."]})
 
         # Update host services livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "up",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1"
+                "perf_data": "'counter'=1"
             },
             "services": {
                 "test_service": {
-                    "name": "test_service",
+                    "name": "test_ok_0",
                     "livestate": {
                         "state": "ok",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service2": {
-                    "name": "test_service2",
+                    "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service3": {
-                    "name": "test_service3",
+                    "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
             },
@@ -370,11 +400,16 @@ class TestModuleWs(AlignakTest):
         print(result)
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
-                u'test_host is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;test_host;0;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..."]
+                u'test_host_0 is alive :)',
+                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ]
         })
 
         # Logout
@@ -457,7 +492,6 @@ class TestModuleWs(AlignakTest):
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-        print(resp)
 
         # Allowed GET request on /host - forbidden to GET
         response = session.get('http://127.0.0.1:8888/host')
@@ -475,7 +509,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result['_status'], 'ERR')
         self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
 
-        # Host name may be the last part of the URI
+        # When host does not exist...
         headers = {'Content-Type': 'application/json'}
         data = {
             "fake": ""
@@ -483,27 +517,39 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host/test_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host is alive :)'],
+                                  u'_issues': [u"Requested host 'test_host' does not exist"]})
+
+        # Host name may be the last part of the URI
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "fake": ""
+        }
+        response = session.patch('http://127.0.0.1:8888/host/test_host_0', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name may be in the POSTed data
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name in the POSTed data takes precedence over URI
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
         }
         response = session.patch('http://127.0.0.1:8888/host/other_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # Host name must be somewhere !
         headers = {'Content-Type': 'application/json'}
@@ -520,23 +566,22 @@ class TestModuleWs(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "livestate": "",
-            "name": "test_host",
+            "name": "test_host_0",
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
-        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        # Update host livestate (heartbeat / host is alive): missing state in the livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
-                "state": "",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -544,18 +589,61 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u'Host state must be UP, DOWN or UNREACHABLE.']})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."],
+                                  u'_issues': [u'Missing state in the livestate.']})
+
+        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "state": "",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."],
+                                  u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
+                                               u"and not ''."]})
+
+        # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "state": "XxX",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."],
+                                  u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
+                                               u"and not 'XXX'."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -563,20 +651,21 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;0;"
-                                               u"Output...|'counter':1\nLong output..."
-                                               % time.time()]})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                                               u"Output...|'counter'=1\nLong output..."
+                                               % time.time(),
+                                               u"Host 'test_host_0' unchanged."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "unreachable",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1",
+                "perf_data": "'counter'=1",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -584,47 +673,48 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK',
-                                  u'_result': [u'test_host is alive :)',
-                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;2;"
-                                               u"Output...|'counter':1\nLong output..."
-                                               % time.time()]})
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
+                                               u"Output...|'counter'=1\nLong output..."
+                                               % time.time(),
+                                               u"Host 'test_host_0' unchanged."]})
 
         # Update host services livestate
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "livestate": {
                 "state": "up",
                 "output": "Output...",
                 "long_output": "Long output...",
-                "perf_data": "'counter':1"
+                "perf_data": "'counter'=1"
             },
             "services": {
                 "test_service": {
-                    "name": "test_service",
+                    "name": "test_ok_0",
                     "livestate": {
                         "state": "ok",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service2": {
-                    "name": "test_service2",
+                    "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
                 "test_service3": {
-                    "name": "test_service3",
+                    "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
                         "output": "Output...",
                         "long_output": "Long output...",
-                        "perf_data": "'counter':1"
+                        "perf_data": "'counter'=1"
                     }
                 },
             },
@@ -632,14 +722,19 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
+        now = time.time()
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
-                u'test_host is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host;0;Output...|'counter':1\nLong output..."  % time.time(),
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service;0;Output...|'counter':1\nLong output..." % time.time(),
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service3;2;Output...|'counter':1\nLong output..." % time.time(),
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host;test_service2;1;Output...|'counter':1\nLong output..." % time.time()]
+                u'test_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ]
         })
 
         # Logout
@@ -669,6 +764,8 @@ class TestModuleWs(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -705,9 +802,9 @@ class TestModuleWs(AlignakTest):
         # Get host data to confirm backend update
         # ---
         response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
-        dummy_host = resp['_items'][0]
+        test_host_0 = resp['_items'][0]
         # ---
 
         # Do not allow GET request on /host - not authorized
@@ -742,14 +839,14 @@ class TestModuleWs(AlignakTest):
         # Update host variables - empty variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "variables": "",
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # ----------
         # Host does not exist
@@ -775,7 +872,7 @@ class TestModuleWs(AlignakTest):
         # Create host variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "variables": {
                 'test1': 'string',
                 'test2': 1,
@@ -786,25 +883,27 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy updated.']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u"test_host_0 is alive :)",
+                                                                  u"Host 'test_host_0' updated."]})
 
         # Get host data to confirm update
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
-        dummy_host = resp['_items'][0]
+        test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
-        self.assertEqual(expected, dummy_host['customs'])
+        self.assertEqual(expected, test_host_0['customs'])
         # ----------
 
         # ----------
         # Unchanged host variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "variables": {
                 'test1': 'string',
                 'test2': 1,
@@ -815,25 +914,28 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy unchanged.']})
+        self.assertEqual(result, {u'_status': u'OK',
+                                  u'_result': [u'test_host_0 is alive :)',
+                                               u"Host 'test_host_0' unchanged."]})
 
         # Get host data to confirm there was not update
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
-        dummy_host = resp['_items'][0]
+        test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
-        self.assertEqual(expected, dummy_host['customs'])
+        self.assertEqual(expected, test_host_0['customs'])
         # ----------
 
         # ----------
         # Update host variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "variables": {
                 'test1': 'string modified',
                 'test2': 12,
@@ -845,25 +947,27 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy updated.']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)',
+                                                                  u"Host 'test_host_0' updated."]})
 
         # Get host data to confirm update
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
-        dummy_host = resp['_items'][0]
+        test_host_0 = resp['_items'][0]
         expected = {
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
-        self.assertEqual(expected, dummy_host['customs'])
+        self.assertEqual(expected, test_host_0['customs'])
         # ----------
 
         # ----------
         # Delete host variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "_dummy",
+            "name": "test_host_0",
             "variables": {
                 'test1': 'string modified',
                 'test2': 12,
@@ -875,23 +979,25 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'_dummy is alive :)',
-                                                                  u'Host _dummy updated.']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u"test_host_0 is alive :)",
+                                                                  u"Host 'test_host_0' updated."]})
 
         # Get host data to confirm update
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': '_dummy'})})
+                                params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
-        dummy_host = resp['_items'][0]
+        test_host_0 = resp['_items'][0]
         # todo: expected should be this:
         # currently it is not possible to update/delete a backend dict property!
         # expected = {
         #     u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified'
         # }
         expected = {
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
-        self.assertEqual(expected, dummy_host['customs'])
+        self.assertEqual(expected, test_host_0['customs'])
         # ----------
 
         # ----------
@@ -915,9 +1021,11 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR', u'_result': [u'test_host_0 is alive :)'],
-                                  u'_issues': [u"Requested service 'test_host_0 / "
-                                               u"test_service' does not exist"]})
+        self.assertEqual(result, {
+            u'_status': u'ERR',
+            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist"]
+        })
         # ----------
 
         # ----------
@@ -932,7 +1040,8 @@ class TestModuleWs(AlignakTest):
                     "variables": {
                         'test1': 'string',
                         'test2': 1,
-                        'test3': 5.0
+                        'test3': 5.0,
+                        'test5': 'service specific'
                     },
                 },
             }
@@ -942,9 +1051,12 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         print(result)
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)',
-                                                                  u'Service test_host_0/'
-                                                                  u'test_ok_0 updated.']})
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)',
+                         u"Service 'test_host_0/test_ok_0' updated",
+                         u"Host 'test_host_0' unchanged."]
+        })
 
         # Get host data to confirm update
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
@@ -957,9 +1069,14 @@ class TestModuleWs(AlignakTest):
                                                              'name': 'test_ok_0'})})
         resp = response.json()
         service = resp['_items'][0]
-        # The service still had a variable _CUSTNAME
+        # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_CUSTNAME': u'custvalue', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
+            u'_CUSTNAME': u'custvalue',
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
+            u'_TEST4': u'new!',
+            u'_TEST5': u'service specific'
         }
         self.assertEqual(expected, service['customs'])
         # ----------
@@ -991,6 +1108,8 @@ class TestModuleWs(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -1048,7 +1167,7 @@ class TestModuleWs(AlignakTest):
         # Update host variables - empty variables
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "test_host",
+            "name": "test_host_0",
             "active_checks_enabled": "",
             "passive_checks_enabled": ""
         }
@@ -1056,7 +1175,7 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host is alive :)']})
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'test_host_0 is alive :)']})
 
         # ----------
         # Host does not exist
@@ -1088,7 +1207,7 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 unchanged.'
+            u"Host 'test_host_0' unchanged."
         ]})
 
         # Get host data to confirm update
@@ -1114,7 +1233,7 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 unchanged.'
+            u"Host 'test_host_0' unchanged."
         ]})
 
         # Get host data to confirm update
@@ -1140,9 +1259,11 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be disabled. '
-            u'Host test_host_0 passive checks will be disabled. '
-            u'Host test_host_0 updated.'
+            u'Host test_host_0 active checks will be disabled.',
+            u'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
+            u'Host test_host_0 passive checks will be disabled.',
+            u'Sent external command: DISABLE_PASSIVE_HOST_CHECKS;test_host_0.',
+            u"Host 'test_host_0' updated."
         ]})
 
         # Get host data to confirm update
@@ -1168,8 +1289,9 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be enabled. '
-            u'Host test_host_0 updated.'
+            u'Host test_host_0 active checks will be enabled.',
+            u'Sent external command: ENABLE_HOST_CHECK;test_host_0.',
+            u"Host 'test_host_0' updated."
         ]})
 
         # Get host data to confirm update
@@ -1195,9 +1317,11 @@ class TestModuleWs(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'OK', u'_result': [
             u'test_host_0 is alive :)',
-            u'Host test_host_0 active checks will be disabled. '
-            u'Host test_host_0 passive checks will be enabled. '
-            u'Host test_host_0 updated.'
+            u'Host test_host_0 active checks will be disabled.',
+            u'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
+            u'Host test_host_0 passive checks will be enabled.',
+            u'Sent external command: ENABLE_PASSIVE_HOST_CHECKS;test_host_0.',
+            u"Host 'test_host_0' updated."
         ]})
 
         # Get host data to confirm update
@@ -1241,15 +1365,15 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)',
-                         u'Host test_host_0 unchanged.'],
-            u'_issues': [u"Requested service 'test_host_0 / test_service' does not exist",
-                         u"Requested service 'test_host_0 / test_service3' does not exist",
-                         u"Requested service 'test_host_0 / test_service2' does not exist"]
+                         u"Host 'test_host_0' unchanged."],
+            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist",
+                         u"Requested service 'test_host_0/test_service3' does not exist",
+                         u"Requested service 'test_host_0/test_service2' does not exist"]
         })
         # ----------
 
         # ----------
-        my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
+        # my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
         # Enable / Disable all host services
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -1282,13 +1406,17 @@ class TestModuleWs(AlignakTest):
             u'_status': u'OK',
             u'_result': [
                 u'test_host_0 is alive :)',
-                u'Host test_host_0 unchanged.',
-                u'Service test_host_0/test_ok_0 unchanged.',
-                u'Service test_host_0/test_ok_2 passive checks will be disabled. '
-                u'Service test_host_0/test_ok_2 updated.',
-                u'Service test_host_0/test_ok_1 active checks will be disabled. '
-                u'Service test_host_0/test_ok_1 passive checks will be disabled. '
-                u'Service test_host_0/test_ok_1 updated.']
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u'Service test_host_0/test_ok_2 passive checks will be disabled.',
+                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                u"Service 'test_host_0/test_ok_2' updated",
+                u'Service test_host_0/test_ok_1 active checks will be disabled.',
+                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_1.',
+                u'Service test_host_0/test_ok_1 passive checks will be disabled.',
+                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                u"Service 'test_host_0/test_ok_1' updated",
+                u"Host 'test_host_0' unchanged."
+            ]
         })
 
         # Get host data to confirm update

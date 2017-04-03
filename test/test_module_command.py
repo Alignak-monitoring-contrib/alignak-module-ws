@@ -213,6 +213,21 @@ class TestModuleWs(AlignakTest):
 
         self.assertEqual(my_module.received_commands, 0)
 
+        # You must have a command parameter when POSTing on /command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            # "command": "Command",
+            "element": "test_host",
+            "parameters": "abc;1"
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        # Result error message
+        self.assertEqual(result['_error'], 'Missing command parameter')
+
         # Request to execute an external command
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -228,9 +243,36 @@ class TestModuleWs(AlignakTest):
         # Result is uppercase command, parameters are ordered
         self.assertEqual(result['_command'], 'COMMAND;test_host;abc;1')
 
-        # Not during unit tests ... because module queues are not functional!
-        # time.sleep(1)
-        # self.assertEqual(my_module.received_commands, 1)
+        # Request to execute an external command with timestamp - bad value
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "Command",
+            "timestamp": "text",
+            "element": "test_host",
+            "parameters": "abc;1"
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_error': u'Timestamp must be an integer value'})
+
+        # Request to execute an external command with timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "timestamp": "1234",
+            "element": "test_host;test_service",
+            "parameters": "1;abc;2"
+        }
+        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'],
+                         '[1234] COMMAND_COMMAND;test_host;test_service;1;abc;2')
 
         # Request to execute an external command
         headers = {'Content-Type': 'application/json'}

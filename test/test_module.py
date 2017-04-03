@@ -354,21 +354,25 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("Alignak external commands, set timestamp: True"), 1)
+            re.escape("Alignak host creation allowed: False"), 1)
+        self.assert_log_match(
+            re.escape("Alignak service creation allowed: False"), 2)
+        self.assert_log_match(
+            re.escape("Alignak external commands, set timestamp: True"), 3)
         self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 2)
+                      "Some module features will not be available."), 4)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 3)
+            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 5)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 4)
+            re.escape("Alignak Arbiter polling period: 5"), 6)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 5)
+            re.escape("Alignak daemons get status period: 10"), 7)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 6)
+                      "You should consider enabling SSL!"), 8)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://0.0.0.0:8888"), 7)
+            re.escape("configuration, listening on: http://0.0.0.0:8888"), 9)
 
     def test_module_start_parameters(self):
         """
@@ -407,24 +411,28 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("Alignak external commands, set timestamp: False"), 1)
+            re.escape("Alignak host creation allowed: False"), 1)
+        self.assert_log_match(
+            re.escape("Alignak service creation allowed: False"), 2)
+        self.assert_log_match(
+            re.escape("Alignak external commands, set timestamp: False"), 3)
         self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 2)
+                      "Some module features will not be available."), 4)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: my_host:80"), 3)
+            re.escape("Alignak Arbiter configuration: my_host:80"), 5)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 4)
+            re.escape("Alignak Arbiter polling period: 5"), 6)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 5)
+            re.escape("Alignak daemons get status period: 10"), 7)
         self.assert_log_match(
             re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
-                      "(ca_cert). Please fix it in your configuration"), 6)
+                      "(ca_cert). Please fix it in your configuration"), 8)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 7)
+                      "You should consider enabling SSL!"), 9)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://me:8080"), 8)
+            re.escape("configuration, listening on: http://me:8080"), 10)
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled
@@ -593,12 +601,6 @@ class TestModuleWs(AlignakTest):
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
 
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -611,6 +613,7 @@ class TestModuleWs(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Disable authorization
             'authorization': '0'
         })
 
@@ -656,5 +659,172 @@ class TestModuleWs(AlignakTest):
                 print("Got %s: %s" % (endpoint, response.json()))
             else:
                 print("Error %s: %s" % (response.status_code, response.content))
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_authorization(self):
+        """Test the module basic API - authorization login logout
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Login with username/password - bad credentials
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'fake', 'password': 'fake'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        result = response.json()
+        assert result == {u'_status': u'ERR', u'_issues': [u'Access denied.']}
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], [self.user_admin['token']])
+
+        # Logout
+        response = requests.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_authorized(self):
+        """Test the module basic API - authorization enabled
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Get the module API list and request on each endpoint
+        response = session.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = session.get('http://127.0.0.1:8888/' + endpoint)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
 
         self.modulemanager.stop_all()
