@@ -207,17 +207,23 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
         self.assertEqual(result, {
-            u'_status': u'ERR',
+            u'_status': u'OK',
             u'_result': [
                 u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist."],
-            u'_issues': [
-                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)',
-                u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required", u\'_realm\': u\'required field\'}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}']
+                u"Requested host 'new_host_0' does not exist.",
+                u"Requested host 'new_host_0' created."],
         })
-        # Raised an error because _realm field is missing
+        # Host created with default check_command and in default user realm
+
+        # Get new host to confirm creation
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_0'})})
+        resp = response.json()
+        new_host_0 = resp['_items'][0]
+        self.assertEqual('new_host_0', new_host_0['name'])
+        self.assertEqual([], new_host_0['_templates'])
+        self.assertEqual({}, new_host_0['customs'])
 
         # Request to create an host - empty provided data
         headers = {'Content-Type': 'application/json'}
@@ -229,23 +235,13 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
-        self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist."
-            ],
-            u'_issues': [
-                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required", u\'_realm\': u\'required field\'}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
-            ]
-        })
-        # Raised an error because _realm and check_command fields are missing
+        self.assertEqual(result, {u'_status': u'OK', u'_result': [u'new_host_0 is alive :)']})
+        # The host already exists, returns an host alive ;)
 
         # Request to create an host - unknown provided data
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "new_host_0",
+            "name": "new_host_1",
             "template": {
                 "realm": 'All',
                 "check_command": "unknown"
@@ -256,21 +252,19 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
+            u'_status': u'OK',
             u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist."
+                u'new_host_1 is alive :)',
+                u"Requested host 'new_host_1' does not exist.",
+                u"Requested host 'new_host_1' created."
             ],
-            u'_issues': [
-                u'Alignak backend error. Exception, updateHost: Backend error code 422: Insertion failure: 1 document(s) contain(s) error(s)', u'Alignak backend error. Response: {u\'_status\': u\'ERR\', u\'_issues\': {u\'name\': u"field \'check_command\' is required"}, u\'_error\': {u\'message\': u\'Insertion failure: 1 document(s) contain(s) error(s)\', u\'code\': 422}}'
-            ]
         })
-        # Raised an error because check_command field is missing
+        # Host created, even if check_command does not exist, it uses the default check_command!
 
-        # Request to create an host - host created
+        # Request to create an host - host created with specified realm and check_command
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "new_host_0",
+            "name": "new_host_2",
             "template": {
                 "realm": 'All',
                 "check_command": "_internal_host_up"
@@ -283,25 +277,25 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist.",
-                u"Requested host 'new_host_0' created."
+                u'new_host_2 is alive :)',
+                u"Requested host 'new_host_2' does not exist.",
+                u"Requested host 'new_host_2' created."
             ],
         })
         # No errors!
 
         # Get new host to confirm creation
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_0'})})
+                                params={'where': json.dumps({'name': 'new_host_2'})})
         resp = response.json()
-        new_host_0 = resp['_items'][0]
-        self.assertEqual('new_host_0', new_host_0['name'])
-        self.assertEqual([], new_host_0['_templates'])
-        self.assertEqual({}, new_host_0['customs'])
+        new_host_2 = resp['_items'][0]
+        self.assertEqual('new_host_2', new_host_2['name'])
+        self.assertEqual([], new_host_2['_templates'])
+        self.assertEqual({}, new_host_2['customs'])
 
         # Create a new host with a template and Update host livestate (heartbeat / host is alive): livestate
         data = {
-            "name": "new_host_1",
+            "name": "new_host_3",
             "template": {
                 "realm": 'All',
                 "check_command": "_internal_host_up",
@@ -321,23 +315,23 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
-                u'new_host_1 is alive :)',
-                u"Requested host 'new_host_1' does not exist.",
-                u"Requested host 'new_host_1' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_1;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_1' unchanged."
+                u'new_host_3 is alive :)',
+                u"Requested host 'new_host_3' does not exist.",
+                u"Requested host 'new_host_3' created.",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_3' unchanged."
             ],
         })
         # No errors!
 
         # Get new host to confirm creation
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_1'})})
+                                params={'where': json.dumps({'name': 'new_host_3'})})
         resp = response.json()
-        new_host_1 = resp['_items'][0]
-        self.assertEqual('new_host_1', new_host_1['name'])
-        self.assertNotEqual([], new_host_1['_templates'])
-        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_1['customs'])
+        new_host_3 = resp['_items'][0]
+        self.assertEqual('new_host_3', new_host_3['name'])
+        self.assertNotEqual([], new_host_3['_templates'])
+        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_3['customs'])
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
