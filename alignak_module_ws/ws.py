@@ -298,7 +298,7 @@ class AlignakWebServices(BaseModule):
                 continue
 
             try:
-                int(data[field])
+                int(data[field], 16)
             except TypeError:
                 post_data[field] = data[field]
                 continue
