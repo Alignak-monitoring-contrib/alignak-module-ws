@@ -1024,19 +1024,6 @@ class TestModuleWs(AlignakTest):
                 u'services': {
                     u'test_service': {
                         u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
                         u'alias': u'',
                         u'check_freshness': False,
@@ -1048,7 +1035,7 @@ class TestModuleWs(AlignakTest):
                         u'passive_checks_enabled': False,
                         u'retry_interval': 1
                     },
-                    u'test_service3': {
+                    u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
                         u'alias': u'',
@@ -1058,7 +1045,20 @@ class TestModuleWs(AlignakTest):
                         u'freshness_threshold': -1,
                         u'max_check_attempts': 2,
                         u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    },
+                    u'test_service3': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
                         u'retry_interval': 1
                     }
                 }
@@ -1488,7 +1488,7 @@ class TestModuleWs(AlignakTest):
                 u'services': {
                     u'test_ok_0': {
                         u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
+                        u'active_checks_enabled': False,
                         u'alias': u'',
                         u'check_freshness': False,
                         u'check_interval': 1,
@@ -1496,7 +1496,7 @@ class TestModuleWs(AlignakTest):
                         u'freshness_threshold': -1,
                         u'max_check_attempts': 2,
                         u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
+                        u'passive_checks_enabled': False,
                         u'retry_interval': 1
                     },
                 }
@@ -1923,7 +1923,6 @@ class TestModuleWs(AlignakTest):
         # ----------
 
         # ----------
-        # my_module.setServiceCheckState('test_host_0', 'test_ok_0', True, True)
         # Enable / Disable all host services
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -2058,6 +2057,86 @@ class TestModuleWs(AlignakTest):
         # ----------
 
         # Logout
+
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "active_checks_enabled": False,
+            "passive_checks_enabled": True,
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    "active_checks_enabled": False,
+                    "passive_checks_enabled": False,
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": True,
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "active_checks_enabled": False,
+                    "passive_checks_enabled": True,
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        print(result)
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'test_host_0 is alive :)',
+                u'Service test_host_0/test_ok_0 active checks will be disabled.',
+                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_0.',
+                u'Service test_host_0/test_ok_0 passive checks will be disabled.',
+                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
+                u"Service 'test_host_0/test_ok_0' updated",
+                u'Service test_host_0/test_ok_2 active checks will be disabled.',
+                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                u'Service test_host_0/test_ok_2 passive checks will be enabled.',
+                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                u"Service 'test_host_0/test_ok_2' updated",
+                u'Service test_host_0/test_ok_1 active checks will be enabled.',
+                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
+                u'Service test_host_0/test_ok_1 passive checks will be enabled.',
+                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                u"Service 'test_host_0/test_ok_1' updated",
+                u"Host 'test_host_0' unchanged."
+            ],
+            u'_feedback': {
+                u'active_checks_enabled': False, u'_overall_state_id': 3,
+                u'freshness_state': u'x', u'notes': u'', u'retry_interval': 1,
+                u'alias': u'up_0', u'freshness_threshold': -1,
+                u'check_freshness': False,
+                u'location': {u'type': u'Point', u'coordinates': [46.60611, 1.87528]},
+                u'passive_checks_enabled': True, u'check_interval': 1,
+                u'services': {
+                    u'test_service': {u'active_checks_enabled': False, u'alias': u'',
+                                      u'freshness_state': u'x', u'notes': u'just a notes string',
+                                      u'retry_interval': 1, u'_overall_state_id': 3,
+                                      u'freshness_threshold': -1, u'passive_checks_enabled': False,
+                                      u'check_interval': 1, u'max_check_attempts': 2,
+                                      u'check_freshness': False},
+                    u'test_service3': {u'active_checks_enabled': False, u'alias': u'',
+                                       u'freshness_state': u'x', u'notes': u'just a notes string',
+                                       u'retry_interval': 1, u'_overall_state_id': 3,
+                                       u'freshness_threshold': -1, u'passive_checks_enabled': True,
+                                       u'check_interval': 1, u'max_check_attempts': 2,
+                                       u'check_freshness': False},
+                    u'test_service2': {u'active_checks_enabled': True, u'alias': u'',
+                                       u'freshness_state': u'x', u'notes': u'just a notes string',
+                                       u'retry_interval': 1, u'_overall_state_id': 3,
+                                       u'freshness_threshold': -1, u'passive_checks_enabled': True,
+                                       u'check_interval': 1, u'max_check_attempts': 2,
+                                       u'check_freshness': False}}, u'max_check_attempts': 3,
+
+            }
+        })
+
         response = session.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()

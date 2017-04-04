@@ -392,7 +392,7 @@ class AlignakWebServices(BaseModule):
                 logger.debug("Get host, got: %s", host)
             else:
                 host = result['_items'][0]
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, updateHost.")
             logger.warning("Exception: %s", exp)
             logger.warning("Exception response: %s", exp.response)
@@ -590,7 +590,7 @@ class AlignakWebServices(BaseModule):
                 'freshness_threshold': host['freshness_threshold'],
                 '_overall_state_id': host['_overall_state_id']
             })
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             self.backend_available = False
@@ -666,7 +666,7 @@ class AlignakWebServices(BaseModule):
                 logger.info("Get service, got: %s", service)
             else:
                 service = result['_items'][0]
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, updateService.")
             logger.warning("Exception: %s", exp)
             logger.warning("Exception response: %s", exp.response)
@@ -850,7 +850,7 @@ class AlignakWebServices(BaseModule):
                 '_overall_state_id': service['_overall_state_id']
             }
 
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             self.backend_available = False
@@ -918,7 +918,7 @@ class AlignakWebServices(BaseModule):
             if post_result['_status'] != 'OK':
                 logger.warning("history post, got a problem: %s", result)
                 result['_issues'] = post_result['_issues']
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -1028,7 +1028,7 @@ class AlignakWebServices(BaseModule):
             if self.backend.login(username, password):
                 self.token = self.backend.token
                 logger.debug("Logged-in to the backend, token: %s", self.token)
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -1054,7 +1054,7 @@ class AlignakWebServices(BaseModule):
             result = self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
             logger.debug("Backend availability, got: %s", result)
             self.backend_available = True
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -1099,7 +1099,7 @@ class AlignakWebServices(BaseModule):
 
             logger.warning("history request, got a problem: %s", result)
             return result
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)

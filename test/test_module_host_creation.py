@@ -623,7 +623,7 @@ class TestModuleWs(AlignakTest):
         }
         self.assertEqual(expected, service['customs'])
 
-        # Create a new host with a template and Update host livestate (heartbeat / host is alive): livestate
+        # Create a new service with a template and update service livestate and data
         data = {
             "name": "new_host_for_services_0",
             "services": {
@@ -692,7 +692,7 @@ class TestModuleWs(AlignakTest):
         })
         # No errors!
 
-        # Get new host to confirm creation
+        # Get new service to confirm creation
         response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_for_services_0'})})
         resp = response.json()

@@ -828,3 +828,91 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result['_result'], 'Logged out')
 
         self.modulemanager.stop_all()
+
+    def test_module_zzz_authorized_bis(self):
+        """Test the module basic API - authorization enabled even if no credentials are configured
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            # No credentials nor token configured !
+            # 'username': 'admin',
+            # 'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Get the module API list and request on each endpoint
+        response = session.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = session.get('http://127.0.0.1:8888/' + endpoint)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
