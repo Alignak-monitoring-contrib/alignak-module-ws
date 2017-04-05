@@ -306,13 +306,39 @@ To send an host/service live state, PATCH on the `host` endpoint providing the h
       --header 'authorization: Basic MTQ4NDU1ODM2NjkyMi1iY2Y3Y2NmMS03MjM4LTQ4N2ItYWJkOS0zMGNlZDdlNDI2ZmI6' \
       --header 'cache-control: no-cache' \
       --header 'content-type: application/json' \
-      --data '{ "name": "passive-01", "variables": { "test": "test" }, "active_checks_enabled": false, "passive_checks_enabled": true, "livestate": { "state": "UP", "output": "WS output - active checks disabled" }}'
+      --data '
+      {
+        "name": "passive-01",
+        "variables": {
+            "test": "test"
+        },
+        "active_checks_enabled": false,
+        "passive_checks_enabled": true,
+        "livestate": {
+            "state": "UP",
+            "output": "WS output - active checks disabled"
+        },
+        "services": {
+            "first": {
+                "name": "dev_BarcodeReader",
+                "active_checks_enabled": false,
+                "passive_checks_enabled": true,
+                "livestate": {
+                    "state": "OK",
+                    "output": "WS output - I am ok!"
+                }
+            }
+        }
+    }'
 
+    # JSON result
     {
       "_status": "OK",
       "_result": [
         "passive-01 is alive :)",
-        "[1491368076] PROCESS_HOST_CHECK_RESULT;passive-01;0;WS output - active checks disabled",
+        "[1491368659] PROCESS_HOST_CHECK_RESULT;passive-01;0;WS output - active checks disabled",
+        "[1491368659] PROCESS_SERVICE_CHECK_RESULT;passive-01;dev_BarcodeReader;0;WS output - I am ok!",
+        "Service 'passive-01/dev_BarcodeReader' unchanged.",
         "Host 'passive-01' unchanged."
       ],
       "_feedback": {
@@ -332,6 +358,21 @@ To send an host/service live state, PATCH on the `host` endpoint providing the h
           ]
         },
         "check_interval": 5,
+        "services": {
+          "first": {
+            "active_checks_enabled": false,
+            "freshness_threshold": 43200,
+            "_overall_state_id": 1,
+            "freshness_state": "x",
+            "notes": "",
+            "retry_interval": 0,
+            "alias": "Barcode reader",
+            "passive_checks_enabled": true,
+            "check_interval": 0,
+            "max_check_attempts": 1,
+            "check_freshness": true
+          }
+        },
         "max_check_attempts": 1,
         "check_freshness": true
       }
@@ -347,7 +388,7 @@ The `/host/host_name` can be used to target the host. If a `name` property is pr
 For the host services states, use the same syntax as for an host:
 ::
 
-    $ curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "livestate": {
             "state": "up",
@@ -392,7 +433,7 @@ Host custom variables
 To create/update host custom variables, PATCH on the `host` endpoint providing the host name and its variables:
 ::
 
-    $ curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "variables": {
             'test1': 'string',
@@ -417,7 +458,7 @@ Host enable/disable checks
 To enable/disable hosts/services checks, PATCH on the `host` endpoint providing the host (service) name and its checks configuration:
 ::
 
-    $ curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "active_checks_enabled": True,
         "passive_checks_enabled": True,
