@@ -487,7 +487,6 @@ class AlignakWebServices(BaseModule):
                 else:
                     ws_result['_result'].append(self.buildHostLivestate(host_name,
                                                                         data['livestate']))
-            data.pop('livestate')
 
         # Update host services
         if data['services']:
@@ -561,10 +560,14 @@ class AlignakWebServices(BaseModule):
             return ws_result
 
         # Clean data to be posted
-        data.pop('template')
-        data.pop('livestate')
-        data.pop('variables')
-        data.pop('services')
+        if 'template' in data:
+            data.pop('template')
+        if 'livestate' in data:
+            data.pop('livestate')
+        if 'variables' in data:
+            data.pop('variables')
+        if 'services' in data:
+            data.pop('services')
         try:
             headers = {'If-Match': host['_etag']}
             logger.info("Updating host '%s': %s", host_name, data)

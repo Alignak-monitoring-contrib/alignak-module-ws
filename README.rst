@@ -301,7 +301,7 @@ Host/service livestate
 To send an host/service live state, PATCH on the `host` endpoint providing the host name and its state:
 ::
 
-    $ curl -X POST -H "Content-Type: application/json" -d '{
+    $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "livestate": {
             "state": "up",
@@ -310,6 +310,35 @@ To send an host/service live state, PATCH on the `host` endpoint providing the h
             "perf_data": "'counter'=1"
         }
     }' "http://demo.alignak.net:8888/host"
+
+    {
+      "_status": "OK",
+      "_result": [
+        "always_down is alive :)",
+        "[1491364449] PROCESS_HOST_CHECK_RESULT;always_down;0;WS output - no more checks",
+        "Host 'always_down' unchanged."
+      ],
+      "_feedback": {
+        "passive_checks_enabled": true,
+        "active_checks_enabled": true,
+        "alias": "Always down",
+        "freshness_state": "x",
+        "notes": "",
+        "retry_interval": 0,
+        "_overall_state_id": 1,
+        "freshness_threshold": -1,
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            43.54278,
+            1.510058
+          ]
+        },
+        "check_interval": 5,
+        "max_check_attempts": 2,
+        "check_freshness": false
+      }
+    }
 
 
 The result is a JSON object containing a `_status` property that should be 'OK' and an `_result` array property that contains information about the actions that were executed.
