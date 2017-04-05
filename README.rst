@@ -301,47 +301,44 @@ Host/service livestate
 To send an host/service live state, PATCH on the `host` endpoint providing the host name and its state:
 ::
 
-    $ curl -X PATCH -H "Content-Type: application/json" -d '{
-        "name": "test_host",
-        "livestate": {
-            "state": "up",
-            "output": "Output...",
-            "long_output": "Long output...",
-            "perf_data": "'counter'=1"
-        }
-    }' "http://demo.alignak.net:8888/host"
+    $ curl --request PATCH \
+      --url http://demo.alignak.net:8888/host \
+      --header 'authorization: Basic MTQ4NDU1ODM2NjkyMi1iY2Y3Y2NmMS03MjM4LTQ4N2ItYWJkOS0zMGNlZDdlNDI2ZmI6' \
+      --header 'cache-control: no-cache' \
+      --header 'content-type: application/json' \
+      --data '{ "name": "passive-01", "variables": { "test": "test" }, "active_checks_enabled": false, "passive_checks_enabled": true, "livestate": { "state": "UP", "output": "WS output - active checks disabled" }}'
 
     {
       "_status": "OK",
       "_result": [
-        "always_down is alive :)",
-        "[1491364449] PROCESS_HOST_CHECK_RESULT;always_down;0;WS output - no more checks",
-        "Host 'always_down' unchanged."
+        "passive-01 is alive :)",
+        "[1491368076] PROCESS_HOST_CHECK_RESULT;passive-01;0;WS output - active checks disabled",
+        "Host 'passive-01' unchanged."
       ],
       "_feedback": {
         "passive_checks_enabled": true,
-        "active_checks_enabled": true,
-        "alias": "Always down",
-        "freshness_state": "x",
+        "active_checks_enabled": false,
+        "alias": "Passive host 1",
+        "freshness_state": "d",
         "notes": "",
         "retry_interval": 0,
-        "_overall_state_id": 1,
-        "freshness_threshold": -1,
+        "_overall_state_id": 4,
+        "freshness_threshold": 14400,
         "location": {
           "type": "Point",
           "coordinates": [
-            43.54278,
-            1.510058
+            46.60611,
+            1.87528
           ]
         },
         "check_interval": 5,
-        "max_check_attempts": 2,
-        "check_freshness": false
+        "max_check_attempts": 1,
+        "check_freshness": true
       }
     }
 
 
-The result is a JSON object containing a `_status` property that should be 'OK' and an `_result` array property that contains information about the actions that were executed.
+The result is a JSON object containing a `_status` property that should be 'OK' and a `_result` array property that contains information about the actions that were executed. A `_feedback` dictionary property provides some informatyion about the host/service.
 
 If an error is detected, the `_status` property is not 'OK' and a `_issues` array property will report the detected error(s).
 
