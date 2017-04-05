@@ -298,7 +298,7 @@ class AlignakWebServices(BaseModule):
                 continue
 
             try:
-                int(data[field])
+                int(data[field], 16)
             except TypeError:
                 post_data[field] = data[field]
                 continue
@@ -351,7 +351,8 @@ class AlignakWebServices(BaseModule):
         """
         host = None
 
-        ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name], '_issues': []}
+        ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name],
+                     '_issues': [], '_feedback': {}}
         try:
             if not self.backend_available:
                 self.backend_available = self.getBackendAvailability()
@@ -387,11 +388,11 @@ class AlignakWebServices(BaseModule):
 
                 # Get the newly created host
                 ws_result['_result'].append("Requested host '%s' created." % host_name)
-                host = self.backend.get('/host/%s' % result['_id'])
+                host = self.backend.get('/'.join(['host', result['_id']]))
                 logger.debug("Get host, got: %s", host)
             else:
                 host = result['_items'][0]
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, updateHost.")
             logger.warning("Exception: %s", exp)
             logger.warning("Exception response: %s", exp.response)
@@ -492,6 +493,7 @@ class AlignakWebServices(BaseModule):
         if data['services']:
             if update is None:
                 update = False
+            ws_result['_feedback']['services'] = {}
             for service_id in data['services']:
                 service = data['services'][service_id]
                 service_name = service['name']
@@ -501,6 +503,9 @@ class AlignakWebServices(BaseModule):
                     ws_result['_result'].extend(result['_result'])
                 if '_issues' in result:
                     ws_result['_issues'].extend(result['_issues'])
+                else:
+                    if '_feedback' in result:
+                        ws_result['_feedback']['services'][service_id] = result['_feedback']
 
         # If no update requested
         if update is None:
@@ -508,6 +513,22 @@ class AlignakWebServices(BaseModule):
             if len(ws_result['_issues']):
                 ws_result['_status'] = 'ERR'
                 return ws_result
+
+            host = self.backend.get('/'.join(['host', host['_id']]))
+            ws_result['_feedback'].update({
+                'alias': host['alias'],
+                'notes': host['notes'],
+                'location': host['location'],
+                'active_checks_enabled': host['active_checks_enabled'],
+                'max_check_attempts': host['max_check_attempts'],
+                'check_interval': host['check_interval'],
+                'retry_interval': host['retry_interval'],
+                'passive_checks_enabled': host['passive_checks_enabled'],
+                'check_freshness': host['check_freshness'],
+                'freshness_state': host['freshness_state'],
+                'freshness_threshold': host['freshness_threshold'],
+                '_overall_state_id': host['_overall_state_id']
+            })
 
             ws_result.pop('_issues')
             return ws_result
@@ -519,6 +540,22 @@ class AlignakWebServices(BaseModule):
             if len(ws_result['_issues']):
                 ws_result['_status'] = 'ERR'
                 return ws_result
+
+            host = self.backend.get('/'.join(['host', host['_id']]))
+            ws_result['_feedback'].update({
+                'alias': host['alias'],
+                'notes': host['notes'],
+                'location': host['location'],
+                'active_checks_enabled': host['active_checks_enabled'],
+                'max_check_attempts': host['max_check_attempts'],
+                'check_interval': host['check_interval'],
+                'retry_interval': host['retry_interval'],
+                'passive_checks_enabled': host['passive_checks_enabled'],
+                'check_freshness': host['check_freshness'],
+                'freshness_state': host['freshness_state'],
+                'freshness_threshold': host['freshness_threshold'],
+                '_overall_state_id': host['_overall_state_id']
+            })
 
             ws_result.pop('_issues')
             return ws_result
@@ -537,7 +574,23 @@ class AlignakWebServices(BaseModule):
             if patch_result['_status'] != 'OK':
                 logger.warning("Host patch, got a problem: %s", result)
                 return ('ERR', patch_result['_issues'])
-        except BackendException as exp:
+
+            host = self.backend.get('/'.join(['host', host['_id']]))
+            ws_result['_feedback'].update({
+                'alias': host['alias'],
+                'notes': host['notes'],
+                'location': host['location'],
+                'active_checks_enabled': host['active_checks_enabled'],
+                'max_check_attempts': host['max_check_attempts'],
+                'check_interval': host['check_interval'],
+                'retry_interval': host['retry_interval'],
+                'passive_checks_enabled': host['passive_checks_enabled'],
+                'check_freshness': host['check_freshness'],
+                'freshness_state': host['freshness_state'],
+                'freshness_threshold': host['freshness_threshold'],
+                '_overall_state_id': host['_overall_state_id']
+            })
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             self.backend_available = False
@@ -609,11 +662,11 @@ class AlignakWebServices(BaseModule):
                 # Get the newly created service
                 ws_result['_result'].append("Requested service '%s/%s' created."
                                             % (host['name'], service_name))
-                service = self.backend.get('/service/%s' % result['_id'])
+                service = self.backend.get('/'.join(['service', result['_id']]))
                 logger.info("Get service, got: %s", service)
             else:
                 service = result['_items'][0]
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, updateService.")
             logger.warning("Exception: %s", exp)
             logger.warning("Exception response: %s", exp.response)
@@ -720,6 +773,21 @@ class AlignakWebServices(BaseModule):
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
+            service = self.backend.get('/'.join(['service', service['_id']]))
+            ws_result['_feedback'] = {
+                'alias': service['alias'],
+                'notes': service['notes'],
+                'active_checks_enabled': service['active_checks_enabled'],
+                'max_check_attempts': service['max_check_attempts'],
+                'check_interval': service['check_interval'],
+                'retry_interval': service['retry_interval'],
+                'passive_checks_enabled': service['passive_checks_enabled'],
+                'check_freshness': service['check_freshness'],
+                'freshness_state': service['freshness_state'],
+                'freshness_threshold': service['freshness_threshold'],
+                '_overall_state_id': service['_overall_state_id']
+            }
+
             ws_result.pop('_issues')
             return ws_result
 
@@ -731,6 +799,21 @@ class AlignakWebServices(BaseModule):
             if len(ws_result['_issues']):
                 ws_result['_status'] = 'ERR'
                 return ws_result
+
+            service = self.backend.get('/'.join(['service', service['_id']]))
+            ws_result['_feedback'] = {
+                'alias': service['alias'],
+                'notes': service['notes'],
+                'active_checks_enabled': service['active_checks_enabled'],
+                'max_check_attempts': service['max_check_attempts'],
+                'check_interval': service['check_interval'],
+                'retry_interval': service['retry_interval'],
+                'passive_checks_enabled': service['passive_checks_enabled'],
+                'check_freshness': service['check_freshness'],
+                'freshness_state': service['freshness_state'],
+                'freshness_threshold': service['freshness_threshold'],
+                '_overall_state_id': service['_overall_state_id']
+            }
 
             ws_result.pop('_issues')
             return ws_result
@@ -751,7 +834,23 @@ class AlignakWebServices(BaseModule):
             if patch_result['_status'] != 'OK':
                 logger.warning("Service patch, got a problem: %s", result)
                 return ('ERR', patch_result['_issues'])
-        except BackendException as exp:
+
+            service = self.backend.get('/'.join(['service', service['_id']]))
+            ws_result['_feedback'] = {
+                'alias': service['alias'],
+                'notes': service['notes'],
+                'active_checks_enabled': service['active_checks_enabled'],
+                'max_check_attempts': service['max_check_attempts'],
+                'check_interval': service['check_interval'],
+                'retry_interval': service['retry_interval'],
+                'passive_checks_enabled': service['passive_checks_enabled'],
+                'check_freshness': service['check_freshness'],
+                'freshness_state': service['freshness_state'],
+                'freshness_threshold': service['freshness_threshold'],
+                '_overall_state_id': service['_overall_state_id']
+            }
+
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             self.backend_available = False
@@ -819,7 +918,7 @@ class AlignakWebServices(BaseModule):
             if post_result['_status'] != 'OK':
                 logger.warning("history post, got a problem: %s", result)
                 result['_issues'] = post_result['_issues']
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -929,7 +1028,7 @@ class AlignakWebServices(BaseModule):
             if self.backend.login(username, password):
                 self.token = self.backend.token
                 logger.debug("Logged-in to the backend, token: %s", self.token)
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -955,7 +1054,7 @@ class AlignakWebServices(BaseModule):
             result = self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
             logger.debug("Backend availability, got: %s", result)
             self.backend_available = True
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
@@ -1000,7 +1099,7 @@ class AlignakWebServices(BaseModule):
 
             logger.warning("history request, got a problem: %s", result)
             return result
-        except BackendException as exp:
+        except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
