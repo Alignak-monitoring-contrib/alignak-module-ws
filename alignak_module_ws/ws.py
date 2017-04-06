@@ -90,6 +90,7 @@ class AlignakWebServices(BaseModule):
         logger.debug("loaded into: %s", self.loaded_into)
 
         self.token = None
+        self.default_realm = None
 
         # Allow host/service creation
         self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '0') == '1'
@@ -290,48 +291,85 @@ class AlignakWebServices(BaseModule):
                 continue
 
             # Manage potential object link fields
-            if field not in ['realm', 'template', 'host', 'service',
-                             'check_period', 'notification_period',
-                             'host_notification_period', 'service_notification_period',
-                             'check_command', 'event_handler']:
+            if field not in ['_realm', '_templates',
+                             'command', 'host', 'service',
+                             'escalation_period', 'maintenance_period',
+                             'snapshot_period', 'check_period', 'dependency_period',
+                             'notification_period', 'host_notification_period',
+                             'host_notification_commands',
+                             'service_notification_period',
+                             'service_notification_commands',
+                             'check_command', 'event_handler', 'grafana', 'statsd']:
                 post_data[field] = data[field]
                 continue
 
-            try:
-                int(data[field], 16)
-            except TypeError:
-                post_data[field] = data[field]
-                continue
-            except ValueError:
-                # Not an integer, consider it is an item name...
-                params = {'where': json.dumps({'name': data[field]})}
-                if field in ['check_period', 'notification_period',
-                             'host_notification_period', 'service_notification_period']:
-                    response2 = self.backend.get('timeperiod', params=params)
-                elif field in ['check_command', 'event_handler']:
-                    response2 = self.backend.get('command', params=params)
-                elif field in ['template']:
-                    params = {'where': json.dumps({'name': data[field], '_is_template': True})}
-                    if host_creation:
-                        response2 = self.backend.get('host', params=params)
+            field_values = data[field]
+            if not isinstance(data[field], list):
+                field_values = [data[field]]
+
+            found = None
+            for value in field_values:
+                logger.debug(" - %s, single value: %s", field, value)
+                try:
+                    int(value, 16)
+
+                    if not isinstance(data[field], list):
+                        found = value
                     else:
-                        response2 = self.backend.get('service', params=params)
-                else:
-                    response2 = self.backend.get(field, params=params)
-                if len(response2['_items']) > 0:
-                    response2 = response2['_items'][0]
-                    logger.info("Replaced %s = %s with found item identifier",
-                                field, data[field])
-                    post_data[field] = response2['_id']
-                else:
-                    logger.info("Not found %s = %s, ignoring field!",
-                                field, data[field])
+                        if found is None:
+                            found = []
+                        found.append(value)
+                except TypeError:
+                    pass
+                except ValueError:
+                    # Not an integer, consider an item name
+                    field_params = {'where': json.dumps({'name': value})}
+                    if field in ['escalation_period', 'maintenance_period',
+                                 'snapshot_period', 'check_period',
+                                 'dependency_period', 'notification_period',
+                                 'host_notification_period',
+                                 'service_notification_period']:
+                        response2 = self.backend.get('timeperiod', params=field_params)
+                    elif field in ['_realm']:
+                        response2 = self.backend.get('realm', params=field_params)
+                    elif field in ['check_command', 'event_handler',
+                                   'service_notification_commands',
+                                   'host_notification_commands']:
+                        response2 = self.backend.get('command', params=field_params)
+                    elif field in ['_templates']:
+                        field_params = {'where': json.dumps({'name': value,
+                                                             '_is_template': True})}
+                        if host_creation:
+                            response2 = self.backend.get('host', params=field_params)
+                        else:
+                            response2 = self.backend.get('service', params=field_params)
+                    else:
+                        response2 = self.backend.get(field, params=field_params)
 
-        if 'realm' in post_data:
-            post_data['_realm'] = post_data.pop('realm')
-        if 'template' in post_data:
-            post_data['_templates'] = [post_data.pop('template')]
+                    if len(response2['_items']) > 0:
+                        response2 = response2['_items'][0]
+                        logger.info("Replaced %s = %s with found item _id",
+                                    field, value)
+                        if not isinstance(data[field], list):
+                            found = response2['_id']
+                        else:
+                            if found is None:
+                                found = []
+                            found.append(response2['_id'])
 
+            if found is None:
+                logger.warning("Not found %s = %s, ignoring field!", field, field_values)
+            else:
+                post_data[field] = found
+
+        if '_realm' not in post_data:
+            logger.info("add default realm to the data")
+            post_data.update({'_realm': self.default_realm['_id']})
+
+        if '_id' in post_data:
+            post_data.pop('_id')
+
+        logger.info("post_data: %s", post_data)
         return post_data
 
     def updateHost(self, host_name, data):
@@ -375,7 +413,10 @@ class AlignakWebServices(BaseModule):
                             host_name)
                 ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
 
-                # Request data for host creation only (no service!)
+                if 'template' not in data:
+                    data['template'] = None
+
+                # Request data for host creation (no service)
                 post_data = self.backendCreationData(host_name, None, data['template'])
                 logger.debug("Post host, data: %s", post_data)
                 result = self.backend.post('host', data=post_data)
@@ -495,7 +536,7 @@ class AlignakWebServices(BaseModule):
             ws_result['_feedback']['services'] = {}
             for service_id in data['services']:
                 service = data['services'][service_id]
-                service_name = service['name']
+                service_name = service.get('name', service_id)
                 service.pop('name')
                 result = self.updateService(host, service_name, service)
                 if '_result' in result:
@@ -649,7 +690,10 @@ class AlignakWebServices(BaseModule):
                 ws_result['_result'].append("Requested service '%s/%s' does not exist."
                                             % (host['name'], service_name))
 
-                # Request data for host creation only (no service!)
+                if 'template' not in data:
+                    data['template'] = None
+
+                # Request data for service creation
                 post_data = self.backendCreationData(host['name'], service_name, data['template'])
                 post_data.update({'host': host['_id']})
                 logger.debug("Post service, data: %s", post_data)
@@ -1021,6 +1065,7 @@ class AlignakWebServices(BaseModule):
         :return: None
         """
         self.token = None
+        self.default_realm = None
 
         if not password:
             # We consider that we received a backend token as login. The WS user is logged-in...
@@ -1031,6 +1076,13 @@ class AlignakWebServices(BaseModule):
             if self.backend.login(username, password):
                 self.token = self.backend.token
                 logger.debug("Logged-in to the backend, token: %s", self.token)
+
+                # Get the higher level realm for the current logger-in user
+                # This realm identifier will be used when it is necessaty to provide a realm
+                # (eg. for new objects creation)
+                result = self.backend.get('/realm', {'max_results': 1, 'sort': '_level'})
+                self.default_realm = result['_items'][0]
+                logger.debug("Got default realm: %s", self.default_realm)
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)

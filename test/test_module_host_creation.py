@@ -240,11 +240,10 @@ class TestModuleWs(AlignakTest):
         self.assertEqual([], new_host_0['_templates'])
         self.assertEqual({}, new_host_0['customs'])
 
-        # Request to create an host - empty provided data
+        # Request to create an host - host still existing
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_0",
-            "template": {}
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -276,8 +275,10 @@ class TestModuleWs(AlignakTest):
         data = {
             "name": "new_host_1",
             "template": {
-                "realm": 'All',
-                "check_command": "unknown"
+                # "_realm": 'All',
+                # "check_command": "unknown"
+                "alias": "My host...",
+                "check_period": "24x7"
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -294,7 +295,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'My host...',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -314,7 +315,7 @@ class TestModuleWs(AlignakTest):
         data = {
             "name": "new_host_2",
             "template": {
-                "realm": 'All',
+                "_realm": 'All',
                 "check_command": "_internal_host_up"
             }
         }
@@ -360,9 +361,9 @@ class TestModuleWs(AlignakTest):
         data = {
             "name": "new_host_3",
             "template": {
-                "realm": 'All',
+                "_realm": 'All',
                 "check_command": "_internal_host_up",
-                "template": "generic-host"
+                "_templates": ["generic-host"]
             },
             "livestate": {
                 "state": "UP",
@@ -500,7 +501,7 @@ class TestModuleWs(AlignakTest):
         data = {
             "name": "new_host_for_services_0",
             "template": {
-                "realm": 'All',
+                "_realm": 'All',
                 "check_command": "_internal_host_up"
             }
         }
@@ -533,6 +534,99 @@ class TestModuleWs(AlignakTest):
         })
         # No errors!
 
+
+        # Request to create an host - create a new service without any template data
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "new_host_for_services_0",
+            "services": {
+                "new_service": {
+                    "name": "test_empty_0",
+                    # "template": {
+                    #     "_realm": 'All',
+                    #     "check_command": "_echo"
+                    # },
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1",
+                    },
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                }
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
+                u"Requested service 'new_host_for_services_0/test_empty_0' created.",
+                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_empty_0' updated",
+                u"Host 'new_host_for_services_0' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': True,
+                u'alias': u'',
+                u'check_freshness': False,
+                u'check_interval': 5,
+                u'freshness_state': u'x',
+                u'freshness_threshold': 0,
+                u'location': {u'coordinates': [46.3613628, 6.5394704],
+                              u'type': u'Point'},
+                u'max_check_attempts': 1,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 0,
+                u'services': {u'new_service': {u'_overall_state_id': 3,
+                                               u'active_checks_enabled': True,
+                                               u'alias': u'',
+                                               u'check_freshness': False,
+                                               u'check_interval': 5,
+                                               u'freshness_state': u'o',
+                                               u'freshness_threshold': 0,
+                                               u'max_check_attempts': 1,
+                                               u'notes': u'',
+                                               u'passive_checks_enabled': True,
+                                               u'retry_interval': 0}
+                              }
+            }
+        })
+        # No errors!
+
+        # Get new host to confirm creation
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        resp = response.json()
+        new_host_for_services_0 = resp['_items'][0]
+        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
+        self.assertEqual([], new_host_for_services_0['_templates'])
+        self.assertEqual({}, new_host_for_services_0['customs'])
+
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': new_host_for_services_0['_id'],
+                                                             'name': 'test_empty_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        # The service still had a variable _CUSTNAME and it inherits from the host variables
+        expected = {
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, service['customs'])
+
+
+
         # Request to create an host - create a new service for the new host
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -541,8 +635,10 @@ class TestModuleWs(AlignakTest):
                 "new_service": {
                     "name": "test_ok_0",
                     "template": {
-                        "realm": 'All',
-                        "check_command": "_echo"
+                        "_realm": 'All',
+                        "check_command": "_echo",
+                        "alias": "My service...",
+                        "check_period": "24x7"
                     },
                     "livestate": {
                         "state": "OK",
@@ -588,7 +684,7 @@ class TestModuleWs(AlignakTest):
                 u'retry_interval': 0,
                 u'services': {u'new_service': {u'_overall_state_id': 3,
                                                u'active_checks_enabled': True,
-                                               u'alias': u'',
+                                               u'alias': u'My service...',
                                                u'check_freshness': False,
                                                u'check_interval': 5,
                                                u'freshness_state': u'o',
@@ -623,6 +719,7 @@ class TestModuleWs(AlignakTest):
         }
         self.assertEqual(expected, service['customs'])
 
+
         # Create a new service with a template and update service livestate and data
         data = {
             "name": "new_host_for_services_0",
@@ -630,9 +727,9 @@ class TestModuleWs(AlignakTest):
                 "new_service": {
                     "name": "test_ok_1",
                     "template": {
-                        "realm": 'All',
+                        "_realm": 'All',
                         "check_command": "_echo",
-                        "template": "generic-service"
+                        "_templates": ["generic-service"]
                     },
                     "livestate": {
                         "state": "OK",
