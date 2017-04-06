@@ -518,16 +518,19 @@ class AlignakWebServices(BaseModule):
         if data['livestate']:
             if update is None:
                 update = False
-            if 'state' not in data['livestate']:
-                ws_result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = data['livestate'].get('state', 'UP').upper()
-                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
-                    ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
-                                                ", and not '%s'." % (state))
+            if not isinstance(data['livestate'], list):
+                data['livestate'] = [data['livestate']]
+            for livestate in data['livestate']:
+                if 'state' not in livestate:
+                    ws_result['_issues'].append('Missing state in the livestate.')
                 else:
-                    ws_result['_result'].append(self.buildHostLivestate(host_name,
-                                                                        data['livestate']))
+                    state = livestate.get('state', 'UP').upper()
+                    if state not in ['UP', 'DOWN', 'UNREACHABLE']:
+                        ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
+                                                    ", and not '%s'." % (state))
+                    else:
+                        ws_result['_result'].append(self.buildHostLivestate(host_name,
+                                                                            livestate))
 
         # Update host services
         if data['services']:
@@ -799,19 +802,21 @@ class AlignakWebServices(BaseModule):
         if 'livestate' in data and data['livestate']:
             if update is None:
                 update = False
-            if 'state' not in data['livestate']:
-                ws_result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = data['livestate'].get('state', 'OK').upper()
-                if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
-                    ws_result['_issues'].append("Service %s state must be OK, WARNING, CRITICAL, "
-                                                "UNKNOWN or UNREACHABLE, and not %s."
-                                                % (service_name, state))
+            if not isinstance(data['livestate'], list):
+                data['livestate'] = [data['livestate']]
+            for livestate in data['livestate']:
+                if 'state' not in livestate:
+                    ws_result['_issues'].append('Missing state in the livestate.')
                 else:
-                    ws_result['_result'].append(self.buildServiceLivestate(host['name'],
-                                                                           service_name,
-                                                                           data['livestate']))
-            data.pop('livestate')
+                    state = livestate.get('state', 'OK').upper()
+                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
+                        ws_result['_issues'].append("Service %s state must be OK, WARNING, "
+                                                    "CRITICAL, UNKNOWN or UNREACHABLE, and not %s."
+                                                    % (service_name, state))
+                    else:
+                        ws_result['_result'].append(self.buildServiceLivestate(host['name'],
+                                                                               service_name,
+                                                                               livestate))
 
         # If no update requested
         if update is None:
@@ -996,7 +1001,6 @@ class AlignakWebServices(BaseModule):
             timestamp = int(livestate.get('timestamp', 'ABC'))
         except ValueError:
             timestamp = None
-        print(timestamp)
 
         state_to_id = {
             "UP": 0,
