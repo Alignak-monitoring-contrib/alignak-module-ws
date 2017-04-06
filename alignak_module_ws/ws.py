@@ -913,8 +913,8 @@ class AlignakWebServices(BaseModule):
         ws_result.pop('_issues')
         return ws_result
 
-    # pylint: disable=too-many-arguments
     def buildPostComment(self, host_name, service_name, author, comment, timestamp):
+        # pylint: disable=too-many-arguments
         """Build the external command for an host comment
 
         ADD_HOST_COMMENT;<host_name>;<persistent>;<author>;<comment>
@@ -992,6 +992,11 @@ class AlignakWebServices(BaseModule):
         output = livestate.get('output', '')
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
+        try:
+            timestamp = int(livestate.get('timestamp', 'ABC'))
+        except ValueError:
+            timestamp = None
+        print(timestamp)
 
         state_to_id = {
             "UP": 0,
@@ -1008,7 +1013,9 @@ class AlignakWebServices(BaseModule):
             parameters = '%s|%s' % (parameters, perf_data)
 
         command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
-        if self.set_timestamp:
+        if timestamp is not None:
+            command_line = '[%d] %s' % (timestamp, command_line)
+        elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
@@ -1031,6 +1038,10 @@ class AlignakWebServices(BaseModule):
         output = livestate.get('output', '')
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
+        try:
+            timestamp = int(livestate.get('timestamp', 'ABC'))
+        except ValueError:
+            timestamp = None
 
         state_to_id = {
             "OK": 0,
@@ -1050,7 +1061,9 @@ class AlignakWebServices(BaseModule):
 
         command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
                        (host_name, service_name, parameters)
-        if self.set_timestamp:
+        if timestamp is not None:
+            command_line = '[%d] %s' % (timestamp, command_line)
+        elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
