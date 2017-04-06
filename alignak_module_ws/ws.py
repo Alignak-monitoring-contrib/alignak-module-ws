@@ -572,7 +572,7 @@ class AlignakWebServices(BaseModule):
             headers = {'If-Match': host['_etag']}
             logger.info("Updating host '%s': %s", host_name, data)
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
-                                              data=data, headers=headers)
+                                              data=data, headers=headers, inception=True)
             logger.debug("Backend patch, result: %s", patch_result)
             if patch_result['_status'] != 'OK':
                 logger.warning("Host patch, got a problem: %s", result)
