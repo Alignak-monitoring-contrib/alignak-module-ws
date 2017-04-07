@@ -428,6 +428,14 @@ For the host services states, use the same syntax as for an host:
     }' "http://demo.alignak.net:8888/host"
 
 
+The livestate data for an host or service may contain:
+- `state`: "ok","warning","critical","unknown","unreachable" for a service. "up","down","unreachable" for an host.
+- `output`: the host/service check output
+- `long_output`: the host/service long output (second part of tha output)
+- `perf_data`: the host/service check performance data
+- `timestamp`: timestamp for the host/service check
+
+
 Host custom variables
 ~~~~~~~~~~~~~~~~~~~~~
 To create/update host custom variables, PATCH on the `host` endpoint providing the host name and its variables:
