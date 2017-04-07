@@ -374,7 +374,7 @@ class WSInterface(object):
         """
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))
-        where = Helper.decode_search(cherrypy.request.params.get('search', ''), None)
+        where = Helper.decode_search(cherrypy.request.params.get('search', ''))
         search = {
             'page': (start // count) + 1,
             'max_results': count,

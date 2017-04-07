@@ -38,7 +38,7 @@ class Helper(object):
     """Helper functions"""
 
     @staticmethod
-    def decode_search(query, data_model=None):
+    def decode_search(query):
         # Not possible to do it clearly with simplification...
         # pylint: disable=too-many-nested-blocks, too-many-locals, redefined-variable-type
         """Decode a search string:
@@ -88,101 +88,56 @@ class Helper(object):
                 qualifiers[field].append(match.group('value'))
         logger.debug("decode_search, search patterns: %s", qualifiers)
 
-        if not data_model:
-            data_model = {
-                'host_name': {
-                    'searchable': True, 'type': 'string', 'regex': True,
-                    'title': 'Host name'
-                },
-                'service_name': {
-                    'searchable': True, 'type': 'string', 'regex': True,
-                    'title': 'Service name'
-                },
-                'user_name': {
-                    'searchable': True, 'type': 'string', 'regex': True,
-                    'title': 'User name'
-                },
-                'type': {
-                    'searchable': True, 'type': 'string', 'regex': True,
-                    'title': 'Event type',
-                    'allowed': 'webui.comment,check.result,check.request,check.requested,'
-                               'ack.add,ack.processed,ack.delete,'
-                               'downtime.add,downtime.processed,downtime.delete,'
-                               'monitoring.timeperiod_transition,'
-                               'monitoring.alert,monitoring.event_handler,'
-                               'monitoring.flapping_start,monitoring.flapping_stop,'
-                               'monitoring.downtime_start,monitoring.downtime_cancelled,'
-                               'monitoring.downtime_end,'
-                               'monitoring.acknowledge,'
-                               'monitoring.notification'
-                },
-                'message': {
-                    'searchable': True, 'type': 'string', 'regex': True,
-                    'title': 'Event message'
-                }
+        data_model = {
+            'host_name': {
+                'title': 'Host name'
+            },
+            'service_name': {
+                'title': 'Service name'
+            },
+            'user_name': {
+                'title': 'User name'
+            },
+            'type': {
+                'title': 'Event type',
+                'allowed': 'webui.comment,check.result,check.request,check.requested,'
+                           'ack.add,ack.processed,ack.delete,'
+                           'downtime.add,downtime.processed,downtime.delete,'
+                           'monitoring.timeperiod_transition,'
+                           'monitoring.alert,monitoring.event_handler,'
+                           'monitoring.flapping_start,monitoring.flapping_stop,'
+                           'monitoring.downtime_start,monitoring.downtime_cancelled,'
+                           'monitoring.downtime_end,'
+                           'monitoring.acknowledge,'
+                           'monitoring.notification'
+            },
+            'message': {
+                'title': 'Event message'
             }
+        }
 
         parameters = {}
         try:
             for field in qualifiers:
-                search_state = False
                 field = field.lower()
                 patterns = qualifiers[field]
                 logger.debug("decode_search, searching for '%s' '%s'", field, patterns)
 
                 # Get the column definition for the searched field
                 if field not in data_model:
-                    if 'ls_' + field not in data_model:
-                        logger.warning("decode_search, unknown column '%s' in table fields", field)
-                        continue
-                    # live state fields
-                    field = 'ls_' + field
+                    logger.warning("decode_search, unknown column '%s' in table fields", field)
+                    continue
 
                 c_def = data_model[field]
                 logger.debug("decode_search, found column: %s", c_def)
 
-                # Column is defined as searchable?
-                if c_def.get('searchable', None) is not None and not c_def.get('searchable', True):
-                    logger.warning("decode_search, field '%s' is not searchable", field)
-                    continue
-
-                field_type = c_def.get('type', 'string')
-                if search_state or field_type in ['integer', 'float', 'boolean']:
-                    regex = False
-                else:
-                    regex = c_def.get('regex', True)
+                regex = c_def.get('regex', True)
 
                 for pattern in patterns:
                     logger.info("decode_search, pattern: %s", pattern)
                     not_value = pattern.startswith('!')
                     if not_value:
                         pattern = pattern[1:]
-
-                    if search_state:
-                        allowed_values = c_def.get('allowed', '').split(',')
-                        logger.debug("decode_search, allowed values: %s", allowed_values)
-                        if pattern.lower() not in allowed_values:
-                            logger.warning("decode_search, ignoring unallowed "
-                                           "search pattern: %s = %s", field, pattern)
-                            continue
-                        field = '_overall_state_id'
-                        pattern = allowed_values.index(pattern.lower())
-                    else:
-                        try:
-                            # Specific field type
-                            if field_type == 'integer':
-                                pattern = int(pattern)
-                            if field_type == 'float':
-                                pattern = float(pattern)
-                            if field_type == 'boolean':
-                                if pattern in ['0', 'no', 'No', 'false', 'False']:
-                                    pattern = False
-                                else:
-                                    pattern = True
-                        except Exception as exp:
-                            logger.warning("decode_search, invalid "
-                                           "search pattern: %s = %s", field, pattern)
-                            continue
 
                     if field in parameters:
                         # We already have a field search pattern, let's build a list...
@@ -193,32 +148,22 @@ class Helper(object):
                                 parameters[field]['type'] = "$in"
                             parameters[field]['pattern'] = [parameters[field]['pattern']]
 
-                        if regex:
-                            if not_value:
-                                parameters[field]['pattern'].append(
-                                    {"$regex": "/^((?!%s).)*$/" % pattern})
-                            else:
-                                parameters[field]['pattern'].append(
-                                    {"$regex": ".*%s.*" % pattern})
+                        if not_value:
+                            parameters[field]['pattern'].append(
+                                {"$regex": "/^((?!%s).)*$/" % pattern})
                         else:
-                            if not_value:
-                                pattern = {"$ne": pattern}
-                            parameters[field]['pattern'].append(pattern)
+                            parameters[field]['pattern'].append(
+                                {"$regex": ".*%s.*" % pattern})
                         continue
 
-                    if regex:
-                        if not_value:
-                            parameters.update(
-                                {field: {'type': 'simple',
-                                         'pattern': {"$regex": "/^((?!%s).)*$/" % pattern}}})
-                        else:
-                            parameters.update(
-                                {field: {'type': 'simple',
-                                         'pattern': {"$regex": ".*%s.*" % pattern}}})
+                    if not_value:
+                        parameters.update(
+                            {field: {'type': 'simple',
+                                     'pattern': {"$regex": "/^((?!%s).)*$/" % pattern}}})
                     else:
-                        if not_value:
-                            pattern = {"$ne": pattern}
-                        parameters.update({field: {'type': 'simple', 'pattern': pattern}})
+                        parameters.update(
+                            {field: {'type': 'simple',
+                                     'pattern': {"$regex": ".*%s.*" % pattern}}})
 
                     logger.info("decode_search, - parameters: %s", parameters)
         except Exception as exp:

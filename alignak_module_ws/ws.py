@@ -518,16 +518,19 @@ class AlignakWebServices(BaseModule):
         if data['livestate']:
             if update is None:
                 update = False
-            if 'state' not in data['livestate']:
-                ws_result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = data['livestate'].get('state', 'UP').upper()
-                if state not in ['UP', 'DOWN', 'UNREACHABLE']:
-                    ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
-                                                ", and not '%s'." % (state))
+            if not isinstance(data['livestate'], list):
+                data['livestate'] = [data['livestate']]
+            for livestate in data['livestate']:
+                if 'state' not in livestate:
+                    ws_result['_issues'].append('Missing state in the livestate.')
                 else:
-                    ws_result['_result'].append(self.buildHostLivestate(host_name,
-                                                                        data['livestate']))
+                    state = livestate.get('state', 'UP').upper()
+                    if state not in ['UP', 'DOWN', 'UNREACHABLE']:
+                        ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
+                                                    ", and not '%s'." % (state))
+                    else:
+                        ws_result['_result'].append(self.buildHostLivestate(host_name,
+                                                                            livestate))
 
         # Update host services
         if data['services']:
@@ -799,19 +802,21 @@ class AlignakWebServices(BaseModule):
         if 'livestate' in data and data['livestate']:
             if update is None:
                 update = False
-            if 'state' not in data['livestate']:
-                ws_result['_issues'].append('Missing state in the livestate.')
-            else:
-                state = data['livestate'].get('state', 'OK').upper()
-                if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
-                    ws_result['_issues'].append("Service %s state must be OK, WARNING, CRITICAL, "
-                                                "UNKNOWN or UNREACHABLE, and not %s."
-                                                % (service_name, state))
+            if not isinstance(data['livestate'], list):
+                data['livestate'] = [data['livestate']]
+            for livestate in data['livestate']:
+                if 'state' not in livestate:
+                    ws_result['_issues'].append('Missing state in the livestate.')
                 else:
-                    ws_result['_result'].append(self.buildServiceLivestate(host['name'],
-                                                                           service_name,
-                                                                           data['livestate']))
-            data.pop('livestate')
+                    state = livestate.get('state', 'OK').upper()
+                    if state not in ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN', 'UNREACHABLE']:
+                        ws_result['_issues'].append("Service %s state must be OK, WARNING, "
+                                                    "CRITICAL, UNKNOWN or UNREACHABLE, and not %s."
+                                                    % (service_name, state))
+                    else:
+                        ws_result['_result'].append(self.buildServiceLivestate(host['name'],
+                                                                               service_name,
+                                                                               livestate))
 
         # If no update requested
         if update is None:
@@ -913,8 +918,8 @@ class AlignakWebServices(BaseModule):
         ws_result.pop('_issues')
         return ws_result
 
-    # pylint: disable=too-many-arguments
     def buildPostComment(self, host_name, service_name, author, comment, timestamp):
+        # pylint: disable=too-many-arguments
         """Build the external command for an host comment
 
         ADD_HOST_COMMENT;<host_name>;<persistent>;<author>;<comment>
@@ -992,6 +997,10 @@ class AlignakWebServices(BaseModule):
         output = livestate.get('output', '')
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
+        try:
+            timestamp = int(livestate.get('timestamp', 'ABC'))
+        except ValueError:
+            timestamp = None
 
         state_to_id = {
             "UP": 0,
@@ -1008,7 +1017,9 @@ class AlignakWebServices(BaseModule):
             parameters = '%s|%s' % (parameters, perf_data)
 
         command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
-        if self.set_timestamp:
+        if timestamp is not None:
+            command_line = '[%d] %s' % (timestamp, command_line)
+        elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
@@ -1031,6 +1042,10 @@ class AlignakWebServices(BaseModule):
         output = livestate.get('output', '')
         long_output = livestate.get('long_output', '')
         perf_data = livestate.get('perf_data', '')
+        try:
+            timestamp = int(livestate.get('timestamp', 'ABC'))
+        except ValueError:
+            timestamp = None
 
         state_to_id = {
             "OK": 0,
@@ -1050,7 +1065,9 @@ class AlignakWebServices(BaseModule):
 
         command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
                        (host_name, service_name, parameters)
-        if self.set_timestamp:
+        if timestamp is not None:
+            command_line = '[%d] %s' % (timestamp, command_line)
+        elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed

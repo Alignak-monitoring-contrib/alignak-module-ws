@@ -506,7 +506,6 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
@@ -875,7 +874,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {},
             u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not 'XXX'."]})
 
-        # Update host livestate (heartbeat / host is alive): livestate
+        # Update host livestate (heartbeat / host is alive): livestate, no timestamp
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
@@ -890,6 +889,136 @@ class TestModuleWs(AlignakTest):
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)',
+                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' unchanged."],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [46.60611, 1.87528],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+
+        # Update host livestate (heartbeat / host is alive): livestate, provided timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "timestamp": 123456789,
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)',
+                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         u"Output...|'counter'=1\nLong output..." % 123456789,
+                         u"Host 'test_host_0' unchanged."],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [46.60611, 1.87528],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+
+        # Update host livestate (heartbeat / host is alive): livestate may be a list
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": [
+                {
+                    "timestamp": 123456789,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                },
+                {
+                    "timestamp": 987654321,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)',
+                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         u"Output...|'counter'=1\nLong output..." % 123456789,
+                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         u"Output...|'counter'=1\nLong output..." % 987654321,
+                         u"Host 'test_host_0' unchanged."],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [46.60611, 1.87528],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+
+        # Update host livestate (heartbeat / host is alive): livestate, invalid provided timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "timestamp": "ABC", # Invalid!
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        # A timestamp is set because the module is configured to set a timestamp,
+        # even if the provided one is not valid!
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
@@ -1000,6 +1129,246 @@ class TestModuleWs(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [46.60611, 1.87528],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1,
+                u'services': {
+                    u'test_service': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': False,
+                        u'retry_interval': 1
+                    },
+                    u'test_service2': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': True,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    },
+                    u'test_service3': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    }
+                }
+            }
+        })
+
+        # Update host services livestate - provided timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "state": "up",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1"
+            },
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    "livestate": {
+                        "timestamp": 123456789,
+                        "state": "ok",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    "livestate": {
+                        "state": "warning",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "livestate": {
+                        "state": "critical",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+            },
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        now = time.time()
+        self.assertEqual(result, {
+            u'_status': u'OK', u'_result': [
+                u'test_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [46.60611, 1.87528],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1,
+                u'services': {
+                    u'test_service': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': False,
+                        u'retry_interval': 1
+                    },
+                    u'test_service2': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': True,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    },
+                    u'test_service3': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    }
+                }
+            }
+        })
+
+        # Update host services livestate - livestate may be a list
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "livestate": {
+                "state": "up",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1"
+            },
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    "livestate": [
+                        {
+                            "timestamp": 123456789,
+                            "state": "ok",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1"
+                        },
+                        {
+                            "timestamp": 987654321,
+                            "state": "ok",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1"
+                        }
+                    ]
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    "livestate": {
+                        "state": "warning",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "livestate": {
+                        "state": "critical",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+            },
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        now = time.time()
+        self.assertEqual(result, {
+            u'_status': u'OK', u'_result': [
+                u'test_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
                 u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_2' unchanged.",
