@@ -32,7 +32,7 @@ from cherrypy.lib import httpauth
 from alignak.external_command import ExternalCommand
 from alignak_module_ws.utils.helper import Helper
 
-logger = logging.getLogger('alignak.module')  # pylint: disable=invalid-name
+logger = logging.getLogger('alignak.module.web-services')  # pylint: disable=invalid-name
 
 SESSION_KEY = 'alignak_web_services'
 
@@ -59,7 +59,7 @@ def protect(*args, **kwargs):
             cherrypy.session.regenerate()
             token = cherrypy.request.login = cherrypy.session[SESSION_KEY]
             authenticated = True
-            logger.warning("Authenticated with session: %s", this_session)
+            logger.info("Authenticated with session: %s", this_session)
 
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
@@ -81,7 +81,7 @@ def protect(*args, **kwargs):
                     # This line of code is discussed in doc/sessions-and-auth.markdown
                     cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
                     authenticated = True
-                    logger.warning("Authenticated with backend")
+                    logger.info("Authenticated with backend")
                 else:
                     logger.warning("Failed attempt to log in with authorization header.")
             else:

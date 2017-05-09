@@ -346,7 +346,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         response2 = self.backend.get(field, params=field_params)
 
-                    if len(response2['_items']) > 0:
+                    if response2['_items']:
                         response2 = response2['_items'][0]
                         logger.info("Replaced %s = %s with found item _id",
                                     field, value)
@@ -553,7 +553,7 @@ class AlignakWebServices(BaseModule):
         # If no update requested
         if update is None:
             # Simple host alive without any required update
-            if len(ws_result['_issues']):
+            if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
@@ -580,7 +580,7 @@ class AlignakWebServices(BaseModule):
         if not update:
             # Simple host alive with updates required but no update needed
             ws_result['_result'].append("Host '%s' unchanged." % host['name'])
-            if len(ws_result['_issues']):
+            if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
@@ -646,7 +646,7 @@ class AlignakWebServices(BaseModule):
 
         ws_result['_result'].append("Host '%s' updated." % host['name'])
 
-        if len(ws_result['_issues']):
+        if ws_result['_issues']:
             ws_result['_status'] = 'ERR'
             return ws_result
 
@@ -821,7 +821,7 @@ class AlignakWebServices(BaseModule):
         # If no update requested
         if update is None:
             # Simple host alive without any required update
-            if len(ws_result['_issues']):
+            if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
@@ -848,7 +848,7 @@ class AlignakWebServices(BaseModule):
             # Simple host alive with updates required but no update needed
             ws_result['_result'].append("Service '%s/%s' unchanged."
                                         % (host['name'], service_name))
-            if len(ws_result['_issues']):
+            if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
@@ -911,7 +911,7 @@ class AlignakWebServices(BaseModule):
 
         ws_result['_result'].append("Service '%s/%s' updated" % (host['name'], service_name))
 
-        if len(ws_result['_issues']):
+        if ws_result['_issues']:
             ws_result['_status'] = 'ERR'
             return ws_result
 
@@ -977,7 +977,7 @@ class AlignakWebServices(BaseModule):
             result['_issues'] = str(exp) + ' - ' + exp.response
             self.backend_available = False
 
-        if len(result['_issues']):
+        if result['_issues']:
             result['_status'] = 'ERR'
             return result
 

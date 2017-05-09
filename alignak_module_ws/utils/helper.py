@@ -40,7 +40,7 @@ class Helper(object):
     @staticmethod
     def decode_search(query):
         # Not possible to do it clearly with simplification...
-        # pylint: disable=too-many-nested-blocks, too-many-locals, redefined-variable-type
+        # pylint: disable=too-many-nested-blocks, too-many-locals
         """Decode a search string:
 
         Convert string from:
