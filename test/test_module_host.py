@@ -536,7 +536,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -549,7 +549,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_1',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -562,7 +562,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service3': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_2',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1154,7 +1154,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1167,7 +1167,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_1',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1180,7 +1180,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service3': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_2',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1235,10 +1235,10 @@ class TestModuleWs(AlignakTest):
                 },
             },
         }
+        now = time.time()
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        now = time.time()
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
@@ -1269,7 +1269,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1282,7 +1282,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_1',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1295,7 +1295,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service3': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_2',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1394,7 +1394,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1407,7 +1407,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_1',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1420,7 +1420,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service3': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_2',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1626,7 +1626,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -1674,7 +1674,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -1723,7 +1723,7 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -1777,7 +1777,7 @@ class TestModuleWs(AlignakTest):
         #     u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified'
         # }
         expected = {
-            u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -1858,7 +1858,7 @@ class TestModuleWs(AlignakTest):
                     u'test_ok_0': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -1885,7 +1885,9 @@ class TestModuleWs(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
+            u'_ICON_IMAGE_ALT': u'icon alt string',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
@@ -2353,7 +2355,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_0',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -2366,7 +2368,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service2': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': False,
-                        u'alias': u'',
+                        u'alias': u'test_ok_1',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -2379,7 +2381,7 @@ class TestModuleWs(AlignakTest):
                     u'test_service3': {
                         u'_overall_state_id': 3,
                         u'active_checks_enabled': True,
-                        u'alias': u'',
+                        u'alias': u'test_ok_2',
                         u'check_freshness': False,
                         u'check_interval': 1,
                         u'freshness_state': u'x',
@@ -2484,24 +2486,26 @@ class TestModuleWs(AlignakTest):
                 u'location': {u'type': u'Point', u'coordinates': [46.60611, 1.87528]},
                 u'passive_checks_enabled': True, u'check_interval': 1,
                 u'services': {
-                    u'test_service': {u'active_checks_enabled': False, u'alias': u'',
+                    u'test_service': {u'active_checks_enabled': False, u'alias': u'test_ok_0',
                                       u'freshness_state': u'x', u'notes': u'just a notes string',
                                       u'retry_interval': 1, u'_overall_state_id': 3,
                                       u'freshness_threshold': -1, u'passive_checks_enabled': False,
                                       u'check_interval': 1, u'max_check_attempts': 2,
                                       u'check_freshness': False},
-                    u'test_service3': {u'active_checks_enabled': False, u'alias': u'',
+                    u'test_service2': {u'active_checks_enabled': True, u'alias': u'test_ok_1',
                                        u'freshness_state': u'x', u'notes': u'just a notes string',
                                        u'retry_interval': 1, u'_overall_state_id': 3,
                                        u'freshness_threshold': -1, u'passive_checks_enabled': True,
                                        u'check_interval': 1, u'max_check_attempts': 2,
-                                       u'check_freshness': False},
-                    u'test_service2': {u'active_checks_enabled': True, u'alias': u'',
+                                       u'check_freshness': False
+                                       },
+                    u'test_service3': {u'active_checks_enabled': False, u'alias': u'test_ok_2',
                                        u'freshness_state': u'x', u'notes': u'just a notes string',
                                        u'retry_interval': 1, u'_overall_state_id': 3,
                                        u'freshness_threshold': -1, u'passive_checks_enabled': True,
                                        u'check_interval': 1, u'max_check_attempts': 2,
-                                       u'check_freshness': False}}, u'max_check_attempts': 3,
+                                       u'check_freshness': False}
+                }, u'max_check_attempts': 3,
 
             }
         })
