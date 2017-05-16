@@ -1082,13 +1082,14 @@ class AlignakWebServices(BaseModule):
         :return: None
         """
         self.token = None
-        self.default_realm = None
-
+        
         if not password:
             # We consider that we received a backend token as login. The WS user is logged-in...
             self.token = username
             return self.token
-
+        
+        self.default_realm = None
+        
         try:
             if self.backend.login(username, password):
                 self.token = self.backend.token
