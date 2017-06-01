@@ -372,6 +372,62 @@ class AlignakWebServices(BaseModule):
         logger.info("post_data: %s", post_data)
         return post_data
 
+    def getHost(self, host_name):
+        """Get the specified host
+
+        Search the host in the backend with its name
+
+        If the host exists, the host data are returned back
+
+        :param host_name: host name
+        :param properties: dictionary of the host properties
+        :return: host properties
+        """
+        hosts = []
+
+        ws_result = {'_status': 'OK', '_result': [], '_issues': []}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend is not available currently. "
+                                            "Host information cannot be fetched.")
+                return ws_result
+
+            search = {
+                'where': json.dumps({'name': host_name}),
+                'embedded': json.dumps({
+                    '_realm': 1, '_templates': 1,
+                    'check_command': 1, 'snapshot_command': 1, 'event_handler': 1,
+                    'check_period': 1, 'notification_period': 1,
+                    'snapshot_period': 1, 'maintenance_period': 1,
+                    'parents': 1, 'hostgroups': 1, 'users': 1, 'usergroups': 1
+                })
+            }
+            logger.debug("Get host, parameters: %s", search)
+            result = self.backend.get_all('/host', params=search)
+            logger.debug("Get host, got: %s", result)
+            if not result['_items']:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Requested host '%s' does not exist" % host_name)
+                return ws_result
+
+            hosts = result['_items']
+        except BackendException as exp:  # pragma: no cover, should not happen
+            logger.warning("Alignak backend exception, updateHost.")
+            logger.warning("Exception: %s", exp)
+            logger.warning("Exception response: %s", exp.response)
+            ws_result['_status'] = 'ERR'
+            ws_result['_issues'].append("Alignak backend error. Exception, getHost: %s"
+                                        % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+            return ws_result
+
+        ws_result['_result'] = hosts
+        ws_result.pop('_issues')
+        return ws_result
+
     def updateHost(self, host_name, data):
         # pylint: disable=too-many-locals, too-many-return-statements
         """Create/update the specified host
@@ -384,7 +440,7 @@ class AlignakWebServices(BaseModule):
         If the host exists, it is updated with the provided data.
 
         :param host_name: host name
-        :param properties: dictionary of the host properties
+        :param data: dictionary of the host properties to be modified
         :return: command line
         """
         host = None
@@ -401,7 +457,7 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
-            logger.debug("Get host, got: %s", result)
+            logger.info("Get host, got: %s", result)
             if not result['_items'] and not self.allow_host_creation:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Requested host '%s' does not exist" % host_name)
@@ -661,7 +717,7 @@ class AlignakWebServices(BaseModule):
 
         :param host: host data
         :param service_name: service description
-        :param data: dictionary of the service data
+        :param data: dictionary of the service data to be modified
         :return: (status, message) tuple
         """
         service = None

@@ -195,14 +195,23 @@ class TestModuleWs(AlignakTest):
         assert response.status_code == 200
         resp = response.json()
 
+        # POST request on /host - forbidden to POST
+        response = session.post('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 415)
+
+        # PUT request on /host - forbidden to PUT
+        response = session.put('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 415)
+
         # Allowed GET request on /host - forbidden to GET
         response = session.get('http://127.0.0.1:8888/host')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
+        self.assertEqual(result['_result'], '')
+        self.assertEqual(result['_issues'], ['Missing targeted element.'])
 
-        # You must have parameters when POSTing on /host
+        # You must have parameters when PATCHing on /host
         headers = {'Content-Type': 'application/json'}
         data = {}
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -656,13 +665,6 @@ class TestModuleWs(AlignakTest):
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-
-        # Allowed GET request on /host - forbidden to GET
-        response = session.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
 
         # You must have parameters when POSTing on /host
         headers = {'Content-Type': 'application/json'}
@@ -1516,13 +1518,6 @@ class TestModuleWs(AlignakTest):
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-
-        # Do not allow GET request on /host
-        response = session.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_error'], 'You must only PATCH on this endpoint.')
 
         # You must have parameters when POSTing on /host
         headers = {'Content-Type': 'application/json'}
