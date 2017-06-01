@@ -1144,10 +1144,16 @@ class AlignakWebServices(BaseModule):
         if 'projection' not in search:
             search.update({
                 'projection': json.dumps({
-                    "host_name": 1, "service_name": 1, "user_name": 1, "type": 1, "message": 1
+                    "host_name": 1, "service_name": 1, "user_name": 1, "type": 1, "message": 1, "logcheckresult": 1
                 })
             })
-
+        # Include the logcheckresult into the history resultset.
+        search.update({
+            'embedded': json.dumps({
+                "logcheckresult": 1
+            })
+        })
+        
         try:
             if not self.backend_available:
                 self.backend_available = self.getBackendAvailability()
