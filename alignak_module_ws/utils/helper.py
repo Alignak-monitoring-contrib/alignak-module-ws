@@ -78,9 +78,9 @@ class Helper(object):
         qualifiers = {}
         for match in regex.finditer(query):
             if match.group('name'):
-                if 'name' not in qualifiers:
-                    qualifiers['name'] = []
-                qualifiers['name'].append(match.group('name'))
+                if 'host_name' not in qualifiers:
+                    qualifiers['host_name'] = []
+                qualifiers['host_name'].append(match.group('name'))
             elif match.group('key'):
                 field = match.group('key')
                 if field not in qualifiers:
@@ -121,7 +121,7 @@ class Helper(object):
             for field in qualifiers:
                 field = field.lower()
                 patterns = qualifiers[field]
-                logger.debug("decode_search, searching for '%s' '%s'", field, patterns)
+                logger.info("decode_search, searching for '%s' '%s'", field, patterns)
 
                 # Get the column definition for the searched field
                 if field not in data_model:

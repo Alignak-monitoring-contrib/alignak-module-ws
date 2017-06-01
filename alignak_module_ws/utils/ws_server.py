@@ -382,11 +382,13 @@ class WSInterface(object):
         """
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))
-        where = Helper.decode_search(cherrypy.request.params.get('search', ''))
+        sort = cherrypy.request.params.get('sort', '-_id')
         search = {
             'page': (start // count) + 1,
             'max_results': count,
+            'sort': sort
         }
+        where = Helper.decode_search(cherrypy.request.params.get('search', ''))
         if where:
             search.update({'where': json.dumps(where)})
 
