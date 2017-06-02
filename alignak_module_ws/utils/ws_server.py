@@ -247,7 +247,7 @@ class WSInterface(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     @require()
-    def host(self, host_name=None):
+    def host(self, name=None):
         """ Declare an host and its data
         :return:
         """
@@ -257,11 +257,11 @@ class WSInterface(object):
         # Get an host
         # ---
         if cherrypy.request.method == "GET":
-            if cherrypy.request.params.get('host_name', None) is not None:
-                host_name = cherrypy.request.params.get('host_name', None)
-            if not host_name:
+            if cherrypy.request.params.get('name', None) is not None:
+                name = cherrypy.request.params.get('name', None)
+            if not name:
                 return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
-            return self.app.getHost(host_name)
+            return self.app.getHost(name)
 
         # Update an host
         # ---
@@ -269,9 +269,9 @@ class WSInterface(object):
             return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
 
         if cherrypy.request.json.get('name', None) is not None:
-            host_name = cherrypy.request.json.get('name', None)
+            name = cherrypy.request.json.get('name', None)
 
-        if not host_name:
+        if not name:
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
         data = {
@@ -283,8 +283,32 @@ class WSInterface(object):
             'services': cherrypy.request.json.get('services', None)
         }
 
-        return self.app.updateHost(host_name, data)
+        return self.app.updateHost(name, data)
     host.method = 'patch'
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    @require()
+    def hostgroup(self, name=None, embedded=False):
+        """ Get an hosts group and its data and members
+
+        :param name: requested hosts group name
+        :param embedded: True to embed the hostgroup linked elements
+        :return:
+        """
+        if cherrypy.request.method not in ["GET"]:
+            return {'_status': 'ERR', '_error': 'You must only GET on this endpoint.'}
+
+        # Get an hostgroup
+        # ---
+        if cherrypy.request.params.get('name', None) is not None:
+            name = cherrypy.request.params.get('name', None)
+        if cherrypy.request.params.get('embedded', False):
+            embedded = cherrypy.request.params.get('embedded')
+
+        return self.app.getHostsGroup(name, embedded)
+    host.method = 'get'
 
     @cherrypy.expose
     @cherrypy.tools.json_in()

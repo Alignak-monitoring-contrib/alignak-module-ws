@@ -148,8 +148,7 @@ class TestModuleConnection(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
-    @classmethod
-    def setUp(cls):
+    def setUp(self):
         """Create resources in backend
 
         :return: None
