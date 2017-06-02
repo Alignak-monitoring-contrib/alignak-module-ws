@@ -251,16 +251,24 @@ class WSInterface(object):
         """ Declare an host and its data
         :return:
         """
-        if cherrypy.request.method != "PATCH":
-            return {'_status': 'ERR', '_error': 'You must only PATCH on this endpoint.'}
+        if cherrypy.request.method not in ["GET", "PATCH"]:
+            return {'_status': 'ERR', '_error': 'You must only GET or PATCH on this endpoint.'}
 
-        if cherrypy.request and not cherrypy.request.json:
+        # Get an host
+        # ---
+        if cherrypy.request.method == "GET":
+            if cherrypy.request.params.get('host_name', None) is not None:
+                host_name = cherrypy.request.params.get('host_name', None)
+            if not host_name:
+                return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
+            return self.app.getHost(host_name)
+
+        # Update an host
+        # ---
+        if not cherrypy.request.json:
             return {'_status': 'ERR', '_error': 'You must send parameters on this endpoint.'}
 
-        if host_name and cherrypy.request.json.get('name', None) is not None:
-            host_name = cherrypy.request.json.get('name', None)
-
-        if not host_name:
+        if cherrypy.request.json.get('name', None) is not None:
             host_name = cherrypy.request.json.get('name', None)
 
         if not host_name:
