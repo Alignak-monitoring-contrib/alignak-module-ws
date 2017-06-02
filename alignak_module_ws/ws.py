@@ -1200,11 +1200,17 @@ class AlignakWebServices(BaseModule):
         if 'projection' not in search:
             search.update({
                 'projection': json.dumps({
-                    "host_name": 1, "service_name": 1, "user_name": 1, "type": 1, "message": 1
+                    "host_name": 1, "service_name": 1, "user_name": 1,
+                    "type": 1, "message": 1, "logcheckresult": 1
                 })
             })
+        if 'embedded' not in search:
+            # Include the logcheckresult into the history resultset.
+            search.update({
+                'embedded': json.dumps({"logcheckresult": 1})
+            })
 
-        try:
+        try:  # pylint: disable=too-many-nested-blocks
             if not self.backend_available:
                 self.backend_available = self.getBackendAvailability()
             if not self.backend_available:
@@ -1214,16 +1220,27 @@ class AlignakWebServices(BaseModule):
             result = self.backend.get('history', search)
             logger.debug("Backend history, got: %s", result)
             if result['_status'] == 'OK':
-                logger.info("history, got %d items", len(result['_items']))
+                logger.debug("history, got %d items", len(result['_items']))
+                logger.debug("history, meta: %s", result['_meta'])
                 items = []
                 for item in result['_items']:
-                    item.pop('_id')
+                    # Remove some backend inner fields
+                    # item.pop('_id')
                     item.pop('_etag')
                     item.pop('_links')
                     item.pop('_updated')
+
+                    # Remove not interesting content from an existing logcheckresult...
+                    if 'logcheckresult' in item:
+                        for prop in item['logcheckresult'].keys():
+                            if prop in ['_id', '_etag', '_links', '_created', '_updated',
+                                        '_realm', '_sub_realm', 'user', 'user_name',
+                                        'host', 'host_name', 'service', 'service_name']:
+                                del item['logcheckresult'][prop]
+                        logger.debug("history, lcr: %s", item['logcheckresult'])
                     items.append(item)
                 logger.debug("history, return: %s", {'_status': 'OK', 'items': items})
-                return {'_status': 'OK', 'items': items}
+                return {'_status': 'OK', '_meta': result['_meta'], 'items': items}
 
             logger.warning("history request, got a problem: %s", result)
             return result
@@ -1249,9 +1266,9 @@ class AlignakWebServices(BaseModule):
         # finish
         try:
             self.http_daemon.run()
-        except Exception, exp:  # pylint: disable=W0703
+        except Exception as exp:  # pylint: disable=W0703
             logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            raise exp
+            raise Exception(exp)
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):

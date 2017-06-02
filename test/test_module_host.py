@@ -119,9 +119,16 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        cls.modulemanager = None
+
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
+
+    def tearDown(self):
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
 
     def test_module_zzz_host(self):
         """Test the module /host API
