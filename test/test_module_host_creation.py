@@ -393,7 +393,7 @@ class TestModuleWs(AlignakTest):
                 u'check_interval': 1,
                 u'freshness_state': u'x',
                 u'freshness_threshold': 0,
-                u'location': {u'coordinates': [46.60611, 1.87528],
+                u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
                 u'notes': u'',

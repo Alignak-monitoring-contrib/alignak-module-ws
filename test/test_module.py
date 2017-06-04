@@ -507,7 +507,7 @@ class TestModuleWs(AlignakTest):
         print("Response json: %s" % resp)
         assert resp ==  [
             u'alignak_logs', u'alignak_map', u'api', u'api_full', u'are_you_alive', u'command',
-            u'event', u'host', u'index', u'login', u'logout'
+            u'event', u'host', u'hostgroup', u'index', u'login', u'logout'
         ]
 
         # Login refused because of missing credentials

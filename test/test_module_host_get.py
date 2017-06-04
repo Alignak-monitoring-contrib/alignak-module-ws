@@ -201,7 +201,7 @@ class TestModuleWs(AlignakTest):
         # -----
         # Get a non-existing host - 1st: use parameters in the request
         response = session.get('http://127.0.0.1:8888/host', auth=self.auth,
-                                params={'host_name': 'new_host_2'})
+                                params={'name': 'new_host_2'})
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
@@ -259,7 +259,7 @@ class TestModuleWs(AlignakTest):
         # -----
         # Get new host to confirm creation - 1st: use parameters in the request
         response = session.get('http://127.0.0.1:8888/host', auth=self.auth,
-                                params={'host_name': 'new_host_0'})
+                                params={'name': 'new_host_0'})
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertIsNot(result['_result'], {})
@@ -364,7 +364,7 @@ class TestModuleWs(AlignakTest):
         # u'imported_from': u'unknown',
         # u'initial_state': u'x',
         # u'labels': [],
-        # u'location': {u'coordinates': [46.3613628, 6.5394704], u'type': u'Point'},
+        # u'location': {u'coordinates': [48.858293, 2.294601], u'type': u'Point'},
         # u'low_flap_threshold': 25,
         # u'ls_acknowledged': False,
         # u'ls_acknowledgement_type': 1,

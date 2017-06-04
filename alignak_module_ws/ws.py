@@ -372,6 +372,95 @@ class AlignakWebServices(BaseModule):
         logger.info("post_data: %s", post_data)
         return post_data
 
+    def getHostsGroup(self, name, embedded=False):
+        """Get the specified hostgroup
+
+        Search the hostgroup in the backend with its name
+
+        If the hosts group exists, the hosts group data and members are returned back
+
+        :param name: hosts group name
+        :param embedded: True to embed the linked resources
+        :return: hosts group properties
+        """
+        hostgroups = []
+
+        ws_result = {'_status': 'OK', '_result': [], '_issues': []}
+        try:
+            if not self.backend_available:
+                self.backend_available = self.getBackendAvailability()
+            if not self.backend_available:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend is not available currently. "
+                                            "Hosts group information cannot be fetched.")
+                return ws_result
+
+            search = {
+                'where': json.dumps({'name': name}),
+                'projection': json.dumps({
+                    "name": 1, "alias": 1, "notes": 1,
+                    "hostgroups": 1, "hosts": 1,
+                    "_level": 1, "_parent": 1, "_tree_parents": 1,
+                    '_realm': 1,
+                }),
+                'embedded': json.dumps({
+                    "hostgroups": 1, "hosts": 1,
+                    "_level": 1, "_parent": 1, "_tree_parents": 1,
+                    '_realm': 1,
+                })
+            }
+            if name is None:
+                del search['where']
+            if not embedded:
+                del search['embedded']
+            logger.debug("Get hostgroup, parameters: %s", search)
+            result = self.backend.get_all('/hostgroup', params=search)
+            logger.debug("Get hostgroup, got: %s", result)
+            if not result['_items']:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Requested hostgroup '%s' does not exist" % name)
+                return ws_result
+
+            hostgroups = []
+            for item in result['_items']:
+                # Remove some backend inner fields
+                # item.pop('_id')
+                item.pop('_etag')
+                item.pop('_links')
+                item.pop('_updated')
+
+                # Remove not interesting content from linked elements
+                if embedded and '_realm' in item and item['_realm']:
+                    for prop in item['_realm'].keys():
+                        if prop not in ['name', 'alias']:
+                            del item['_realm'][prop]
+                if embedded and 'hosts' in item and item['hosts']:
+                    for prop in item['hosts'].keys():
+                        if prop not in ['name', 'alias']:
+                            del item['hosts'][prop]
+                if embedded and 'hostgroups' in item and item['hostgroups']:
+                    for prop in item['hostgroups'].keys():
+                        if prop not in ['name', 'alias']:
+                            del item['hostgroups'][prop]
+                if embedded and '_tree_parents' in item and item['_tree_parents']:
+                    for prop in item['_tree_parents'].keys():
+                        if prop not in ['name', 'alias']:
+                            del item['_tree_parents'][prop]
+                hostgroups.append(item)
+        except BackendException as exp:  # pragma: no cover, should not happen
+            logger.warning("Alignak backend exception, getHostgroup.")
+            logger.warning("Exception: %s", exp)
+            logger.warning("Exception response: %s", exp.response)
+            ws_result['_status'] = 'ERR'
+            ws_result['_issues'].append("Alignak backend error. Exception, getHost: %s"
+                                        % str(exp))
+            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+            return ws_result
+
+        ws_result['_result'] = hostgroups
+        ws_result.pop('_issues')
+        return ws_result
+
     def getHost(self, host_name):
         """Get the specified host
 
@@ -380,7 +469,6 @@ class AlignakWebServices(BaseModule):
         If the host exists, the host data are returned back
 
         :param host_name: host name
-        :param properties: dictionary of the host properties
         :return: host properties
         """
         hosts = []
@@ -415,7 +503,7 @@ class AlignakWebServices(BaseModule):
 
             hosts = result['_items']
         except BackendException as exp:  # pragma: no cover, should not happen
-            logger.warning("Alignak backend exception, updateHost.")
+            logger.warning("Alignak backend exception, getHost.")
             logger.warning("Exception: %s", exp)
             logger.warning("Exception response: %s", exp.response)
             ws_result['_status'] = 'ERR'
