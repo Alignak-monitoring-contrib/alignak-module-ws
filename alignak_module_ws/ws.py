@@ -170,7 +170,7 @@ class AlignakWebServices(BaseModule):
             self.use_ssl = False
 
         self.server_cert = os.path.abspath(
-            getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.cert')
+            getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.crt')
         )
         if self.use_ssl and not os.path.exists(self.server_cert):
             logger.error("The SSL certificate '%s' is missing (server_cert). "
