@@ -11,17 +11,21 @@
 
 unittest2
 
+# Tests time freeze
+freezegun
+
 # Use py.test as test-runner
 pytest
 pytest-cov
-# Let coverage use the most recent version
+# Makes some coverage report for the tests
 coverage
 # Report coverage results to coveralls.io
 coveralls
 
-# Static code analysis libraries
+# Static code and doc analysis libraries
 pylint
 pep8
 pep257
 
+# UWSGI Pyphton Web application server
 uwsgi
