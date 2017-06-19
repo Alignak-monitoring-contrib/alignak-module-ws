@@ -369,7 +369,7 @@ class AlignakWebServices(BaseModule):
         if '_id' in post_data:
             post_data.pop('_id')
 
-        logger.info("post_data: %s", post_data)
+        logger.debug("post_data: %s", post_data)
         return post_data
 
     def getHostsGroup(self, name, embedded=False):
@@ -545,7 +545,7 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
-            logger.info("Get host, got: %s", result)
+            logger.debug("Get host, got: %s", result)
             if not result['_items'] and not self.allow_host_creation:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Requested host '%s' does not exist" % host_name)
@@ -610,7 +610,7 @@ class AlignakWebServices(BaseModule):
                     if self.set_timestamp:
                         command_line = '[%d] %s' % (time.time(), command_line)
                     ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.info("Sending command: %s", command_line)
+                    logger.debug("Sending command: %s", command_line)
                     self.to_q.put(ExternalCommand(command_line))
             else:
                 data.pop('active_checks_enabled')
@@ -636,7 +636,7 @@ class AlignakWebServices(BaseModule):
                     if self.set_timestamp:
                         command_line = '[%d] %s' % (time.time(), command_line)
                     ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.info("Sending command: %s", command_line)
+                    logger.debug("Sending command: %s", command_line)
                     self.to_q.put(ExternalCommand(command_line))
             else:
                 data.pop('passive_checks_enabled')
@@ -758,7 +758,7 @@ class AlignakWebServices(BaseModule):
             data.pop('services')
         try:
             headers = {'If-Match': host['_etag']}
-            logger.info("Updating host '%s': %s", host_name, data)
+            logger.debug("Updating host '%s': %s", host_name, data)
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
                                               data=data, headers=headers, inception=True)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -857,7 +857,7 @@ class AlignakWebServices(BaseModule):
                 ws_result['_result'].append("Requested service '%s/%s' created."
                                             % (host['name'], service_name))
                 service = self.backend.get('/'.join(['service', result['_id']]))
-                logger.info("Get service, got: %s", service)
+                logger.debug("Get service, got: %s", service)
             else:
                 service = result['_items'][0]
         except BackendException as exp:  # pragma: no cover, should not happen
@@ -893,7 +893,7 @@ class AlignakWebServices(BaseModule):
                     if self.set_timestamp:
                         command_line = '[%d] %s' % (time.time(), command_line)
                     ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.info("Sending command: %s", command_line)
+                    logger.debug("Sending command: %s", command_line)
                     self.to_q.put(ExternalCommand(command_line))
             else:
                 data.pop('active_checks_enabled')
@@ -920,7 +920,7 @@ class AlignakWebServices(BaseModule):
                     if self.set_timestamp:
                         command_line = '[%d] %s' % (time.time(), command_line)
                     ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.info("Sending command: %s", command_line)
+                    logger.debug("Sending command: %s", command_line)
                     self.to_q.put(ExternalCommand(command_line))
             else:
                 data.pop('passive_checks_enabled')
@@ -1023,7 +1023,7 @@ class AlignakWebServices(BaseModule):
             data.pop('variables')
         try:
             headers = {'If-Match': service['_etag']}
-            logger.info("Updating service '%s/%s': %s", host['name'], service_name, data)
+            logger.debug("Updating service '%s/%s': %s", host['name'], service_name, data)
             patch_result = self.backend.patch('/'.join(['service', service['_id']]),
                                               data=data, headers=headers, inception=True)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -1090,7 +1090,7 @@ class AlignakWebServices(BaseModule):
                                               author, comment)
 
         # Add a command to get managed
-        logger.info("Sending command: %s", command_line)
+        logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         result = {'_status': 'OK', '_result': [command_line], '_issues': []}
@@ -1108,7 +1108,7 @@ class AlignakWebServices(BaseModule):
                 "type": "webui.comment",
                 "message": comment
             }
-            logger.info("Posting an event: %s", data)
+            logger.debug("Posting an event: %s", data)
             post_result = self.backend.post('history', data)
             logger.debug("Backend post, result: %s", post_result)
             if post_result['_status'] != 'OK':
@@ -1167,7 +1167,7 @@ class AlignakWebServices(BaseModule):
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
-        logger.info("Sending command: %s", command_line)
+        logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         return command_line
@@ -1215,7 +1215,7 @@ class AlignakWebServices(BaseModule):
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
-        logger.info("Sending command: %s", command_line)
+        logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
         return command_line

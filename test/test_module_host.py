@@ -600,6 +600,199 @@ class TestModuleWs(AlignakTest):
 
         self.modulemanager.stop_all()
 
+    def test_module_simulate_host(self):
+        """Simulate an hos on the /host API
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Host name
+        host_name = 'test_host_0'
+
+        # Update host services livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": host_name,
+            "livestate": {
+                "state": "up",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1"
+            },
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    "livestate": {
+                        "state": "ok",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    "livestate": {
+                        "state": "warning",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "livestate": {
+                        "state": "critical",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+            },
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK', u'_result': [
+                u'test_host_0 is alive :)',
+                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': True,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [48.858293, 2.294601],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1,
+                u'services': {
+                    u'test_service': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'test_ok_0',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': False,
+                        u'retry_interval': 1
+                    },
+                    u'test_service2': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': True,
+                        u'alias': u'test_ok_1',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    },
+                    u'test_service3': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'test_ok_2',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    }
+                }
+            }
+        })
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
     @freeze_time("2017-06-01 18:30:00")
     def test_module_zzz_host_timestamp(self):
         """Test the module /host API

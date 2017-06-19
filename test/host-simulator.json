@@ -1,0 +1,34 @@
+{
+   "hosts": [
+      {
+         "name": "win-passive-[%02d-0-0]",
+
+         "services": {
+             "test_service": {
+                 "name": "nsca_uptime"
+             },
+             "test_service2": {
+                 "name": "nsca_cpu"
+             },
+             "test_service3": {
+                 "name": "nsca_memory",
+                 "livestate": {
+                     "state": "critical",
+                     "output": "Output...",
+                     "long_output": "Long output...",
+                     "perf_data": "'counter'=1"
+                 }
+             },
+             "test_service4": {
+                 "name": "nsca_disk",
+                 "livestate": {
+                     "state": "critical",
+                     "output": "Output...",
+                     "long_output": "Long output...",
+                     "perf_data": "'counter'=1"
+                 }
+             }
+         }
+      }
+   ]
+}
