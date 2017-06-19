@@ -15,7 +15,7 @@ unittest2
 freezegun
 
 # System monitor
-psutils
+psutil
 
 # Use py.test as test-runner
 pytest

@@ -394,7 +394,64 @@ class HostSimulator(object):
                             continue
                         logger.info(". found service: %s", service['name'])
 
-                        if service['name'] == 'nsca_cpu' and 'livestate' not in service:
+                        # Host disks
+                        if 'livestate' not in service and service['name'] in ['nsca_disk']:
+                            perfdatas = []
+                            disk_partitions = psutil.disk_partitions(all=False)
+                            for disk_partition in disk_partitions:
+                                logger.debug("  . disk partition: %s", disk_partition)
+
+                                disk = getattr(disk_partition, 'mountpoint')
+                                disk_usage = psutil.disk_usage(disk)
+                                logger.debug("  . disk usage: %s", disk_usage)
+                                for key in disk_usage._fields:
+                                    if 'percent' in key:
+                                        perfdatas.append("'disk_%s_percent_used'=%.2f%%"
+                                                         % (disk, getattr(disk_usage, key)))
+                                    else:
+                                        perfdatas.append("'disk_%s_%s'=%db"
+                                                         % (disk, key, getattr(disk_usage, key)))
+
+
+                            service["livestate"] = {
+                                "state": "ok",
+                                "output": "Host disks statistics",
+                                "perf_data": ", ".join(perfdatas)
+                            }
+                            logger.debug("  . built livestate: %s", service['livestate'])
+
+                        # Host memory
+                        if 'livestate' not in service and service['name'] in ['nsca_memory']:
+                            perfdatas = []
+                            virtual_memory = psutil.virtual_memory()
+                            logger.debug("  . memory: %s", virtual_memory)
+                            for key in virtual_memory._fields:
+                                if 'percent' in key:
+                                    perfdatas.append("'mem_percent_used_%s'=%.2f%%"
+                                                     % (key, getattr(virtual_memory, key)))
+                                else:
+                                    perfdatas.append("'mem_%s'=%db"
+                                                     % (key, getattr(virtual_memory, key)))
+
+                            swap_memory = psutil.swap_memory()
+                            logger.debug("  . memory: %s", swap_memory)
+                            for key in swap_memory._fields:
+                                if 'percent' in key:
+                                    perfdatas.append("'swap_used_%s'=%.2f%%"
+                                                     % (key, getattr(swap_memory, key)))
+                                else:
+                                    perfdatas.append("'swap_%s'=%db"
+                                                     % (key, getattr(swap_memory, key)))
+
+                            service["livestate"] = {
+                                "state": "ok",
+                                "output": "Host memory statistics",
+                                "perf_data": ", ".join(perfdatas)
+                            }
+                            logger.debug("  . built livestate: %s", service['livestate'])
+
+                        # Host CPU
+                        if 'livestate' not in service and service['name'] in ['nsca_cpu']:
                             perfdatas = []
                             cpu_count = psutil.cpu_count()
                             perfdatas.append("'cpu_count'=%d" % cpu_count)
@@ -404,26 +461,25 @@ class HostSimulator(object):
                             cpu = 1
                             for percent in cpu_percents:
                                 perfdatas.append("'cpu_%d_percent'=%.2f%%" % (cpu, percent))
-                                logger.debug("  . cpu %d %%: %s", cpu, percent)
                                 cpu += 1
 
                             cpu_times_percent = psutil.cpu_times_percent(percpu=True)
                             cpu = 1
                             for cpu_times_percent in cpu_times_percent:
-                                logger.info("  . cpu time percent: %s", cpu_times_percent)
+                                logger.debug("  . cpu time percent: %s", cpu_times_percent)
                                 for key in cpu_times_percent._fields:
                                     perfdatas.append("'cpu_%d_%s_percent'=%.2f%%" % (cpu, key, getattr(cpu_times_percent, key)))
-                                    logger.info("  . cpu %d time percent: %s = %.2f", cpu, key, getattr(cpu_times_percent, key))
                                 cpu += 1
 
                             service["livestate"] = {
                                 "state": "ok",
                                 "output": "Host CPU statistics",
-                                "perf_data": ";".join(perfdatas)
+                                "perf_data": ", ".join(perfdatas)
                             }
-                            logger.info("  . built livestate: %s", simulated_host['livestate'])
+                            logger.debug("  . built livestate: %s", service['livestate'])
 
-                        if service['name'] == 'nsca_uptime' and 'livestate' not in service:
+                        # Host uptime
+                        if 'livestate' not in service and service['name'] in ['nsca_uptime']:
                             uptime = psutil.boot_time()
                             str_uptime = datetime.fromtimestamp(uptime).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -432,7 +488,7 @@ class HostSimulator(object):
                                 "output": "Host is up since %s" % str_uptime,
                                 "perf_data": "'uptime'=%d" % uptime
                             }
-                            logger.info("  . built livestate: %s", simulated_host['livestate'])
+                            logger.debug("  . built livestate: %s", service['livestate'])
 
                 # Update host services livestate
                 headers = {'Content-Type': 'application/json'}
