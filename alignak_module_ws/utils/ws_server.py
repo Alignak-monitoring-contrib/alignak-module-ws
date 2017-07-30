@@ -67,7 +67,7 @@ def protect(*args, **kwargs):
             authorization = cherrypy.request.headers.get('Authorization')
             logger.debug("Authorization: %s", authorization)
             if authorization:
-                logger.warning("Got authorization header: %s", authorization)
+                logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
 
                 # Get module application from cherrypy request
