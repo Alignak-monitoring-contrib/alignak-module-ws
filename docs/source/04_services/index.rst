@@ -17,4 +17,8 @@ The application runs without any extra configuration file with its default param
 .. toctree::
    :maxdepth: 2
 
-   logs
+   01-authorization
+   02-alignak_map
+   03-alignak_history
+   04-host-data
+   05-host-report

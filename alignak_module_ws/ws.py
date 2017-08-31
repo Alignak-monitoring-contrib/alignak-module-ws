@@ -1468,7 +1468,9 @@ class AlignakWebServices(BaseModule):
                                 self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
                 time.sleep(0.1)
 
-            logger.debug("time to manage queue and Alignak state: %d seconds", time.time() - start)
+            # Really too verbose :(
+            # logger.debug("time to manage queue and Alignak state: %d seconds",
+            # time.time() - start)
             time.sleep(0.1)
 
         logger.info("stopping...")
