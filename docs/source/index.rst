@@ -13,11 +13,7 @@ Contents:
    01_introduction/index
    02_installation/index
    03_configuration/index
-   04_run/index
-   05_use/index
-   10_specific/index
-   20_routes_api/index
-   99_develop/index
+   04_services/index
 
 
 .. only:: html
