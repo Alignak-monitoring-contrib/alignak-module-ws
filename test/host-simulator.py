@@ -16,16 +16,16 @@
 # along with this script.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-alignak-backend-cli command line interface::
+host-simulator command line interface::
 
     Usage:
-        alignak-backend-cli [-h]
-        alignak-backend-cli [-V]
-        alignak-backend-cli [-v] [-q] [-c] [-l] [-m] [-e] [-i]
-                            [-b url] [-u username] [-p password]
-                            [-d data]
-                            [-f folder]
-                            [-T template] [-t type] [<action>] [<item>]
+        host-simulator [-h]
+        host-simulator [-V]
+        host-simulator [-v] [-q] [-c]
+                       [-n server] [-e encryption]
+                       [-w url] [-u username] [-p password]
+                       [-d data]
+                       [-f folder]
 
     Options:
         -h, --help                  Show this screen.
@@ -33,161 +33,31 @@ alignak-backend-cli command line interface::
         -v, --verbose               Run in verbose mode (more info to display)
         -q, --quiet                 Run in quiet mode (display nothing)
         -c, --check                 Check only (dry run), do not change the backend.
-        -l, --list                  Get an items list
-        -b, --ws url                Specify WS URL [default: http://127.0.0.1:8888]
-        -u, --username=username     Backend login username [default: admin]
-        -p, --password=password     Backend login password [default: admin]
+        -w, --ws url                Specify WS URL [default: http://127.0.0.1:8888]
+        -u, --username=username     WS login username [default: admin]
+        -p, --password=password     WS login (or NSCA) password [default: admin]
         -d, --data=data             Data for the new item to create [default: none]
         -f, --folder=folder         Folder where to read/write data files [default: none]
-        -i, --include-read-data     Do not use only the provided data, but append the one
-                                    read from he backend
-        -t, --type=host             Type of the provided item [default: host]
-        -e, --embedded              Do not embed linked objects
-        -m, --model                 Get only the templates
-        -T, --template=template     Template to use for the new item
+        -n, --nsca-server=server    Send NSCA notifications to the specified server address:port
+        -e, --encryption=0          NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
 
     Exit code:
         0 if required operation succeeded
-        1 if backend access is denied (check provided username/password)
+        1 if WS access is denied (check provided username/password)
         2 if element operation failed (missing template,...)
 
         64 if command line parameters are not used correctly
 
     Use cases:
         Display help message:
-            alignak-backend-cli (-h | --help)
+            host-simulator (-h | --help)
 
         Display current version:
-            alignak-backend-cli -V
-            alignak-backend-cli --version
+            host-simulator -V
+            host-simulator --version
 
-        Specify backend parameters if they are different from the default
-            alignak-backend-cli -b=http://127.0.0.1:5000 -u=admin -p=admin get host_name
-
-    Actions:
-        'get' to get an item in the backend
-        'list' (shortcut for 'get -l' to get the list of all items of a type
-        'add' to add an(some) item(s) in the backend
-        'update' to update an(some) item(s) in the backend
-        'delete' to delete an item (or all items of a type) in the backend
-
-    Use cases to get data:
-        Get an items list from the backend:
-            alignak-backend-cli get -l
-            Try to get the list of all hosts and copy the JSON dump in a file named
-            './alignak-object-list-hosts.json'
-
-            alignak-backend-cli get -l -t user
-            Try to get the list of all users and copy the JSON dump in a file named
-            './alignak-object-list-users.json'
-
-            alignak-backend-cli get -l -f /tmp -t user
-            Try to get the list of all users and copy the JSON dump in a file named
-            '/tmp/alignak-object-list-users.json'
-
-            alignak-backend-cli list -t user
-            Shortcut for 'alignak-backend-cli get -l -t user'
-
-        Get the hosts templates list from the backend:
-            alignak-backend-cli -l -m
-            Try to get the list of all hosts templates and copy the JSON dump in a
-            file named './alignak-object-list-hosts.json'
-
-        Get an item from the backend:
-            alignak-backend-cli get host_name
-            Try to get the definition of an host named 'host_name' and copy the JSON dump
-            in a file named './alignak-object-dump-host-host_name.json'
-
-            alignak-backend-cli -t user get contact_name
-            Try to get the definition of a user (contact) contact named 'contact_name' and
-            copy the JSON dump in a file named './alignak-object-dump-contact-contact_name.json'
-
-        Get a service from the backend:
-            alignak-backend-cli get -t service host_name/service_name
-            Try to get the definition of the service service_name for an host named 'host_name'
-            and copy the JSON dump in a file named
-            './alignak-object-dump-service-host_name_service_name.json'
-
-    Use cases to add data:
-        Add an item to the backend (without templating):
-            alignak-backend-cli new_host
-            This will add an host named new_host
-
-            alignak-backend-cli -t user new_contact
-            This will add a user named new_contact
-
-        Add an item to the backend (with some data):
-            alignak-backend-cli --data="/tmp/input_host.json" add new_host
-            This will add an host named new_host with the data that are read from the
-            JSON file /tmp/input_host.json
-
-            alignak-backend-cli -t user new_contact --data="stdin"
-            This will add a user named new_contact with the JSON data read from the
-            stdin. You can 'cat file > alignak-backend-cli -t user new_contact --data="stdin"'
-
-        Add an item to the backend based on a template:
-            alignak-backend-cli -T host_template add new_host
-            This will add an host named new_host with the data existing in the template
-            host_template
-
-        Add an item to the backend based on several templates:
-            alignak-backend-cli -T "host_template,host_template2" add new_host
-            This will add an host named new_host with the data existing in the templates
-            host_template and host_template2
-
-    Use cases to update data:
-        Update an item into the backend (with some data):
-            alignak-backend-cli --data "./update_host.json" update test_host
-            This will update an host named test_host with the data that are read from the
-            JSON file ./update_host.json
-
-    Use cases to delete data:
-        Delete an item from the backend:
-            alignak-backend-cli delete test_host
-            This will delete the host named test_host
-
-        Delete all items from the backend:
-            alignak-backend-cli delete -t retentionservice
-            This will delete all the retentionservice items
-
-        Delete all the services of an host from the backend:
-            alignak-backend-cli delete -t service test_host/*
-            This will delete all the services of the host named test_host
-
-    Hints and tips:
-        You can operate on any backend endpoint: user, host, service, graphite, ... see the
-        Alignak backend documentation (http://alignak-backend.readthedocs.io/) to get a full
-        list of the available endpoints and their data fields.
-
-        For a service specify the name as 'host_name/service_name' to get a service for a
-        specific host, else the script will return the first service with the required name
-
-        By default, the script embeds in the provided result all the possible embeddable data.
-        As such, when you get a service, you will also get its host, check period, ...
-        Unfortunately, the same embedding can not be used when adding or updating an item :(
-
-        Use the -m (--model) option to get the templates lists for the host, service or user
-        when you get a list. If not used, the list do not include the templates
-
-        Use the -e (--embedded) option to get the linked objects embedded in the output. For
-        an host, as an example, the result will include the linked check period, contacts,
-        check command,... If not used, the result will only include the linked objects identifier.
-
-        To get the list of all the services of an host, you can get the service list with
-        a wildcard in the host name. For all the services of the host named 'passive-01',
-        use 'passive-01/*' as in 'alignak-backend-cli get -l -t service passive-01/*'
-
-        To get all the information for an host, including the services, you can use
-        a wildcard in the host name. For all the information of the host named 'passive-01',
-        use 'passive-01/*' as in 'alignak-backend-cli get -t host passive-01/*'. Using the -e
-        option will include all the related objects of the host and its services in the
-        dump file.
-
-        If somehow you need to update an item and post all the data when updating, use the
-        `-i` option. This will use the data read from the backend and update this data with
-        the one provided in the data file specified in the `-d` option.
-
-        Use the -v option to have more information
+        Specify WS parameters if they are different from the default
+            host-simulator --ws=http://127.0.0.1:5000 -u=admin -p=admin get host_name
 
 """
 from __future__ import print_function
@@ -205,7 +75,7 @@ import requests
 
 from docopt import docopt, DocoptExit
 
-from alignak_backend_client.client import Backend, BackendException
+from pynsca import NSCANotifier, OK, WARNING, CRITICAL, UNKNOWN, UP, DOWN, UNREACHABLE
 
 # Configure logger
 logging.basicConfig(level=logging.DEBUG,
@@ -256,9 +126,10 @@ class HostSimulator(object):
         logger.debug("Dry-run mode (check only): %s", self.dry_run)
 
         # WS URL
+        self.no_ws = False
         self.session = None
         self.session_url = args['--ws']
-        logger.debug("Backend URL: %s", self.session_url)
+        logger.debug("Web service address: %s", self.session_url)
 
         # WS credentials
         self.username = args['--username']
@@ -291,8 +162,6 @@ class HostSimulator(object):
         if args['--data'] != 'none':
             self.data = args['--data']
         logger.debug("Item data provided: %s", self.data)
-        self.include_read_data = args['--include-read-data']
-        logger.debug("Use backend read data: %s", self.include_read_data)
 
     def initialize(self):
         # pylint: disable=attribute-defined-outside-init
@@ -300,6 +169,15 @@ class HostSimulator(object):
 
         :return: None
         """
+        if self.nsca_notifier:
+            logger.info("Initializing NSCA notifications: %s:%s.", self.nsca_notifier, self.port)
+            logger.info("Encryption: %s (%s).", self.encryption, self.nsca_password)
+            if self.encryption:
+                self.nsca_notifier = NSCANotifier(self.nsca_notifier, self.port, encryption_mode=self.encryption, password=self.nsca_password)
+            else:
+                self.nsca_notifier = NSCANotifier(self.nsca_notifier, self.port)
+            logger.info("NSCA notifier initialized.")
+
         try:
             logger.info("Authenticating...")
             self.session = requests.Session()
@@ -309,7 +187,6 @@ class HostSimulator(object):
             params = {'username': self.username, 'password': self.password}
             response = self.session.post(self.session_url + '/login', json=params, headers=headers)
             assert response.status_code == 200
-            resp = response.json()
         except Exception as exp:  # pragma: no cover, should never happen
             logger.error("Response: %s", str(exp))
             print("Access denied!")
@@ -317,7 +194,7 @@ class HostSimulator(object):
             print("Exiting with error code: 1")
             exit(1)
 
-        logger.info("Authenticated.")
+        logger.info("WS authenticated.")
 
     def simulate(self):
         """Simulate hosts in the configuration
@@ -391,7 +268,7 @@ class HostSimulator(object):
                 name = simulated_host['name']
 
                 # Define host livestate as uptime if no data is provided
-                if 'livestate' not in host:
+                if 'livestate' not in simulated_host:
                     uptime = psutil.boot_time()
                     str_uptime = datetime.fromtimestamp(uptime).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -400,7 +277,10 @@ class HostSimulator(object):
                         "output": "Host is up since %s" % str_uptime,
                         "perf_data": "'uptime'=%d" % uptime
                     }
-                    logger.info(". built livestate: %s", simulated_host['livestate'])
+                    logger.debug(". built livestate: %s", simulated_host['livestate'])
+
+                    if self.nsca_notifier and not self.dry_run:
+                        self.nsca_notifier.host_result(name, UP, simulated_host["livestate"]["output"])
 
                 if 'services' in host:
                     for service_id, service in host['services'].iteritems():
@@ -427,13 +307,15 @@ class HostSimulator(object):
                                         perfdatas.append("'disk_%s_%s'=%dB"
                                                          % (disk, key, getattr(disk_usage, key)))
 
-
                             service["livestate"] = {
                                 "state": "ok",
                                 "output": "Host disks statistics",
                                 "perf_data": ", ".join(perfdatas)
                             }
                             logger.debug("  . built livestate: %s", service['livestate'])
+                            if self.nsca_notifier and not self.dry_run:
+                                self.nsca_notifier.svc_result(name, service['name'], OK,
+                                                              service["livestate"]["output"])
 
                         # Host memory
                         if 'livestate' not in service and service['name'] in ['nsca_memory']:
@@ -464,6 +346,9 @@ class HostSimulator(object):
                                 "perf_data": ", ".join(perfdatas)
                             }
                             logger.debug("  . built livestate: %s", service['livestate'])
+                            if self.nsca_notifier and not self.dry_run:
+                                self.nsca_notifier.svc_result(name, service['name'], OK,
+                                                              service["livestate"]["output"])
 
                         # Host CPU
                         if 'livestate' not in service and service['name'] in ['nsca_cpu']:
@@ -492,6 +377,9 @@ class HostSimulator(object):
                                 "perf_data": ", ".join(perfdatas)
                             }
                             logger.debug("  . built livestate: %s", service['livestate'])
+                            if self.nsca_notifier and not self.dry_run:
+                                self.nsca_notifier.svc_result(name, service['name'], OK,
+                                                              service["livestate"]["output"])
 
                         # Host uptime
                         if 'livestate' not in service and service['name'] in ['nsca_uptime']:
@@ -504,6 +392,12 @@ class HostSimulator(object):
                                 "perf_data": "'uptime'=%d" % uptime
                             }
                             logger.debug("  . built livestate: %s", service['livestate'])
+                            if self.nsca_notifier and not self.dry_run:
+                                self.nsca_notifier.svc_result(name, service['name'], OK,
+                                                              service["livestate"]["output"])
+
+                if self.no_ws:
+                    continue
 
                 # Update host services livestate
                 headers = {'Content-Type': 'application/json'}
@@ -511,7 +405,7 @@ class HostSimulator(object):
                                               json=simulated_host, headers=headers)
                 if response.status_code != 200:
                     update = False
-                    logger.error("Host '%s' did not updated correctly!", name)
+                    logger.error("Host '%s' did not updated correctly: %s", name, response)
                 else:
                     result = response.json()
                     logger.info("Host '%s' update result: %s", name, result)
