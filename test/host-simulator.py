@@ -36,7 +36,7 @@ host-simulator command line interface::
         -w, --ws url                Specify WS URL [default: http://127.0.0.1:8888]
         -u, --username=username     WS login username [default: admin]
         -p, --password=password     WS login (or NSCA) password [default: admin]
-        -d, --data=data             Data for the new item to create [default: none]
+        -d, --data=data             Data for the simulation [default: none]
         -f, --folder=folder         Folder where to read/write data files [default: none]
         -n, --nsca-server=server    Send NSCA notifications to the specified server address:port
         -e, --encryption=0          NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
@@ -57,7 +57,25 @@ host-simulator command line interface::
             host-simulator --version
 
         Specify WS parameters if they are different from the default
-            host-simulator --ws=http://127.0.0.1:5000 -u=admin -p=admin get host_name
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin
+
+        Specify data file for simulation
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com
+
+        Send NSCA host/service checks
+            Without encryption:
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667
+
+            Xor encryption:
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667 -e 1:password
+
+    Hints and tips:
+        Use the -v option to have more information log
+        Use the -q option for the silent mode
+
+        If the Alignak WS is configured to create unknown hosts/services, using this script will create the unknown hosts/services.
+
+        Set the WS url parameter to 'none' will disable the Web Service. This is useful to only use the NSCA notifications else the script will send NSCA notifications AND Web Service notifications.
 
 """
 from __future__ import print_function
@@ -130,6 +148,8 @@ class HostSimulator(object):
         self.session = None
         self.session_url = args['--ws']
         logger.debug("Web service address: %s", self.session_url)
+        if self.session_url.lower() == 'none':
+            self.no_ws = True
 
         # WS credentials
         self.username = args['--username']
@@ -177,6 +197,9 @@ class HostSimulator(object):
             else:
                 self.nsca_notifier = NSCANotifier(self.nsca_notifier, self.port)
             logger.info("NSCA notifier initialized.")
+
+        if self.no_ws:
+            return
 
         try:
             logger.info("Authenticating...")
