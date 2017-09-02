@@ -428,7 +428,7 @@ class HostSimulator(object):
                                               json=simulated_host, headers=headers)
                 if response.status_code != 200:
                     update = False
-                    logger.error("Host '%s' did not updated correctly: %s", name, response)
+                    logger.error("Host '%s' did not updated correctly!", name)
                 else:
                     result = response.json()
                     logger.info("Host '%s' update result: %s", name, result)
