@@ -17,6 +17,24 @@
                  "name": "nsca_disk"
              }
          }
+      },
+      {
+         "name": "win-passive-bis-[%02d-0-9]",
+
+         "services": {
+             "test_service": {
+                 "name": "nsca_uptime"
+             },
+             "test_service2": {
+                 "name": "nsca_cpu"
+             },
+             "test_service3": {
+                 "name": "nsca_memory"
+             },
+             "test_service4": {
+                 "name": "nsca_disk"
+             }
+         }
       }
    ]
 }
