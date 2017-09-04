@@ -78,6 +78,16 @@ Command line interface
 
         Set the WS url parameter to 'none' will disable the Web Service. This is useful to only use the NSCA notifications else the script will send NSCA notifications AND Web Service notifications.
 
+   An example:
+      python host-simulator.py -v -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json
+       This will use the Alignak WS to report live state for the hosts/services defined in the file host-simulator.json
+
+      python host-simulator.py -v -w none -d host-simulator.json -n 127.0.0.1 -e 1:my-password
+       This will only send some NSCA checks for the hosts/services defined in the file host-simulator.json
+
+      python host-simulator.py -v -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1 -e 1:my-password
+       This will use the Alignak WS and send some NSCA checks for the hosts/services defined in the file host-simulator.json
+
 
 Data file
 ---------
