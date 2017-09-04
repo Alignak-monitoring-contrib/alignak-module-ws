@@ -350,6 +350,12 @@ class HostSimulator(object):
                         continue
                 logger.info("Simulating host: %s", name)
 
+                # If a template exists for the host creation...
+                if 'template' in host:
+                    # ...set an alias if none is set
+                    if "alias" not in simulated_host["template"]:
+                        simulated_host["template"]["alias"] = name
+
                 # Random sleep time
                 if self.random_hosts_sleep:
                     random_sleep = random.randint(1, self.random_hosts_sleep)
@@ -506,6 +512,8 @@ class HostSimulator(object):
                 if response.status_code != 200:
                     update = False
                     logger.error("Host '%s' did not updated correctly: %s", name, response)
+                    result = response.json()
+                    logger.error("Response: %s", result)
                 else:
                     result = response.json()
                     logger.info("Host '%s' update result: %s", name, result)

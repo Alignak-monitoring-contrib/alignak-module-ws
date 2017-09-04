@@ -25,22 +25,33 @@ Command line interface
         host-simulator [-v] [-q] [-c]
                        [-n server] [-e encryption]
                        [-w url] [-u username] [-p password]
-                       [-d data]
-                       [-f folder]
+                       [-d data] [-f folder]
+                       [--random-hosts count]
+                       [--random-services count]
+                       [--random-hosts-sleep delay]
+                       [--random-services-sleep delay]
+                       [--loop-count count]
+                       [--random-loop-sleep delay]
 
     Options:
-        -h, --help                  Show this screen.
-        -V, --version               Show application version.
-        -v, --verbose               Run in verbose mode (more info to display)
-        -q, --quiet                 Run in quiet mode (display nothing)
-        -c, --check                 Check only (dry run), do not change the backend.
-        -w, --ws url                Specify WS URL [default: http://127.0.0.1:8888]
-        -u, --username=username     WS login username [default: admin]
-        -p, --password=password     WS login (or NSCA) password [default: admin]
-        -d, --data=data             Data for the simulation [default: none]
-        -f, --folder=folder         Folder where to read/write data files [default: none]
-        -n, --nsca-server=server    Send NSCA notifications to the specified server address:port
-        -e, --encryption=0          NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
+        -h, --help                      Show this screen.
+        -V, --version                   Show application version.
+        -v, --verbose                   Run in verbose mode (more info to display)
+        -q, --quiet                     Run in quiet mode (display nothing)
+        -c, --check                     Check only (dry run), do not send notifications.
+        -w, --ws url                    Specify WS URL [default: http://127.0.0.1:8888]
+        -u, --username username         WS login username [default: admin]
+        -p, --password password         WS login (or NSCA) password [default: admin]
+        -d, --data data                 Data for the simulation [default: none]
+        -f, --folder folder             Folder where to read/write data files [default: none]
+        -n, --nsca-server server        Send NSCA notifications to the specified server address:port
+        -e, --encryption 0              NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
+        --random-hosts 2                Random hosts dice roll [default: 2]
+        --random-hosts-sleep 200        Random hosts sleep time in ms [default: 200]
+        --random-services 2             Random services dice roll [default: 2]
+        --random-services-sleep 100     Random services sleep time in ms [default: 100]
+        -l, --loop-count 1              Number of iterations to run for the simulation [default: 1]
+        --random-loop-sleep 5000        Random loop sleep time in ms [default: 5000]
 
     Exit code:
         0 if required operation succeeded
@@ -63,12 +74,23 @@ Command line interface
         Specify data file for simulation
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com
 
+        No random host/service selection (all hosts/services are simulated)
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com --random-hosts 0 --random-services 0
+
+        Execute 10 simulation loops
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com --loop-count 10
+
         Send NSCA host/service checks
             Without encryption:
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667
 
             Xor encryption:
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667 -e 1:password
+
+    Default behavior:
+        The default behavior of the simulator is to randomly decide whether to simulate or not an host/service. Each host, and each service of an host,  has a chance of 1 in 2 to be simulated. You can change this behavior with the --random-hosts-count and --random-services-count parameters.
+
+        By default, the simulation will be run once. Setting the loop count parameter to another value will allow simulation repetition with a random sleep time on each loop turn. Setting the loop count to 0 will create an infinite simulation.
 
     Hints and tips:
         Use the -v option to have more information log
@@ -77,6 +99,7 @@ Command line interface
         If the Alignak WS is configured to create unknown hosts/services, using this script will create the unknown hosts/services.
 
         Set the WS url parameter to 'none' will disable the Web Service. This is useful to only use the NSCA notifications else the script will send NSCA notifications AND Web Service notifications.
+
 
    An example:
       python host-simulator.py -v -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json
