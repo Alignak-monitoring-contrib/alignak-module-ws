@@ -403,7 +403,6 @@ class TestModuleWs(AlignakTest):
         # u'notification_interval': 60,
         # u'notification_options': [u'd', u'x', u'r', u'f', u's'],
         # u'notifications_enabled': True,
-        # u'obsess_over_host': False,
         # u'parents': [],
         # u'passive_checks_enabled': True,
         # u'poller_tag': u'',
