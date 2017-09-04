@@ -84,8 +84,7 @@ class TestModuleWs(AlignakTest):
 
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
-            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
-            stdout=fnull, stderr=fnull
+            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir)
         )
         assert exit_code == 0
         print("Fed")
