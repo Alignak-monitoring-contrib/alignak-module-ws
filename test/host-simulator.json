@@ -2,38 +2,67 @@
    "hosts": [
       {
          "name": "win-passive-[%02d-0-9]",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
 
          "services": {
-             "test_service": {
-                 "name": "nsca_uptime"
-             },
-             "test_service2": {
-                 "name": "nsca_cpu"
-             },
-             "test_service3": {
-                 "name": "nsca_memory"
-             },
-             "test_service4": {
-                 "name": "nsca_disk"
-             }
+            "fake_service": {
+               "name": "fake",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true,
+                "livestate": {
+                    "state": "OK",
+                    "output": "WS output - I am ok!"
+                }
+            },
+            "test_service": {
+               "name": "nsca_uptime",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service2": {
+               "name": "nsca_cpu",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service3": {
+               "name": "nsca_memory",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service4": {
+               "name": "nsca_disk",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            }
          }
       },
       {
          "name": "win-passive-bis-[%02d-0-9]",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
 
          "services": {
-             "test_service": {
-                 "name": "nsca_uptime"
-             },
-             "test_service2": {
-                 "name": "nsca_cpu"
-             },
-             "test_service3": {
-                 "name": "nsca_memory"
-             },
-             "test_service4": {
-                 "name": "nsca_disk"
-             }
+            "test_service": {
+               "name": "nsca_uptime",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service2": {
+               "name": "nsca_cpu",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service3": {
+               "name": "nsca_memory",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service4": {
+               "name": "nsca_disk",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            }
          }
       }
    ]

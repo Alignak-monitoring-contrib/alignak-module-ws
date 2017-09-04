@@ -24,22 +24,33 @@ host-simulator command line interface::
         host-simulator [-v] [-q] [-c]
                        [-n server] [-e encryption]
                        [-w url] [-u username] [-p password]
-                       [-d data]
-                       [-f folder]
+                       [-d data] [-f folder]
+                       [--random-hosts count]
+                       [--random-services count]
+                       [--random-hosts-sleep delay]
+                       [--random-services-sleep delay]
+                       [--loop-count count]
+                       [--random-loop-sleep delay]
 
     Options:
-        -h, --help                  Show this screen.
-        -V, --version               Show application version.
-        -v, --verbose               Run in verbose mode (more info to display)
-        -q, --quiet                 Run in quiet mode (display nothing)
-        -c, --check                 Check only (dry run), do not change the backend.
-        -w, --ws url                Specify WS URL [default: http://127.0.0.1:8888]
-        -u, --username=username     WS login username [default: admin]
-        -p, --password=password     WS login (or NSCA) password [default: admin]
-        -d, --data=data             Data for the simulation [default: none]
-        -f, --folder=folder         Folder where to read/write data files [default: none]
-        -n, --nsca-server=server    Send NSCA notifications to the specified server address:port
-        -e, --encryption=0          NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
+        -h, --help                      Show this screen.
+        -V, --version                   Show application version.
+        -v, --verbose                   Run in verbose mode (more info to display)
+        -q, --quiet                     Run in quiet mode (display nothing)
+        -c, --check                     Check only (dry run), do not send notifications.
+        -w, --ws url                    Specify WS URL [default: http://127.0.0.1:8888]
+        -u, --username username         WS login username [default: admin]
+        -p, --password password         WS login (or NSCA) password [default: admin]
+        -d, --data data                 Data for the simulation [default: none]
+        -f, --folder folder             Folder where to read/write data files [default: none]
+        -n, --nsca-server server        Send NSCA notifications to the specified server address:port
+        -e, --encryption 0              NSCA encryption mode (0 for none, 1 for Xor) [default: 0]
+        --random-hosts 2                Random hosts dice roll [default: 2]
+        --random-hosts-sleep 200        Random hosts sleep time in ms [default: 200]
+        --random-services 2             Random services dice roll [default: 2]
+        --random-services-sleep 100     Random services sleep time in ms [default: 100]
+        -l, --loop-count 1              Number of iterations to run for the simulation [default: 1]
+        --random-loop-sleep 5000        Random loop sleep time in ms [default: 5000]
 
     Exit code:
         0 if required operation succeeded
@@ -62,12 +73,23 @@ host-simulator command line interface::
         Specify data file for simulation
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com
 
+        No random host/service selection (all hosts/services are simulated)
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com --random-hosts 0 --random-services 0
+
+        Execute 10 simulation loops
+            host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n alignak-fdj.kiosks.ipmfrance.com --loop-count 10
+
         Send NSCA host/service checks
             Without encryption:
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667
 
             Xor encryption:
             host-simulator -w http://127.0.0.1:8888 -u admin -p admin -d host-simulator.json -n 127.0.0.1:5667 -e 1:password
+
+    Default behavior:
+        The default behavior of the simulator is to randomly decide whether to simulate or not an host/service. Each host, and each service of an host,  has a chance of 1 in 2 to be simulated. You can change this behavior with the --random-hosts-count and --random-services-count parameters.
+
+        By default, the simulation will be run once. Setting the loop count parameter to another value will allow simulation repetition with a random sleep time on each loop turn. Setting the loop count to 0 will create an infinite simulation.
 
     Hints and tips:
         Use the -v option to have more information log
@@ -84,6 +106,9 @@ import os
 import sys
 import json
 import logging
+
+import time
+import random
 
 import copy
 from datetime import datetime
@@ -135,9 +160,9 @@ class HostSimulator(object):
             logger.setLevel('NOTSET')
             self.quiet = True
 
-        logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        logger.debug("host-simulator, version: %s", __version__)
-        logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        logger.info("host-simulator, version: %s", __version__)
+        logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Dry-run mode?
         self.dry_run = args['--check']
@@ -183,6 +208,22 @@ class HostSimulator(object):
             self.data = args['--data']
         logger.debug("Item data provided: %s", self.data)
 
+        # Iteration behavior
+        self.loop_count = int(args['--loop-count'])
+        logger.debug("Loop count: %s", self.loop_count)
+        self.random_loop_sleep = int(args['--random-loop-sleep'])
+        logger.debug("Random loop sleep: %s ms", self.random_loop_sleep)
+
+        # Random behavior
+        self.random_host = int(args['--random-hosts'])
+        logger.debug("Random hosts count: %s", self.random_host)
+        self.random_service = int(args['--random-services'])
+        logger.debug("Random services count: %s", self.random_service)
+        self.random_hosts_sleep = int(args['--random-hosts-sleep'])
+        logger.debug("Random hosts sleep: %s ms", self.random_hosts_sleep)
+        self.random_services_sleep = int(args['--random-services-sleep'])
+        logger.debug("Random services sleep: %s ms", self.random_services_sleep )
+
     def initialize(self):
         # pylint: disable=attribute-defined-outside-init
         """Login on backend with username and password
@@ -218,6 +259,18 @@ class HostSimulator(object):
             exit(1)
 
         logger.info("WS authenticated.")
+
+    def send_service_check(self, host_name, service, status, output):
+        if self.nsca_notifier and not self.dry_run:
+            # Random sleep time
+            if self.random_services_sleep:
+                random_sleep = random.randint(1, self.random_services_sleep)
+                logger.info("-> randomly sleeping for %d milliseconds.",
+                            random_sleep)
+                if not self.dry_run:
+                    time.sleep(random_sleep / 1000)
+
+            self.nsca_notifier.svc_result(host_name, service, status, output)
 
     def simulate(self):
         """Simulate hosts in the configuration
@@ -262,9 +315,8 @@ class HostSimulator(object):
         update = True
         for host in json_data['hosts']:
             if 'name' not in host:
-                logger.error("-> missing host name in: %s", host)
+                logger.warning("-> missing host name in: %s, ignoring this host.", host)
                 continue
-            logger.info("Found host: %s", host['name'])
 
             simulated_hosts = [host]
             # If host name is a pattern...
@@ -282,13 +334,29 @@ class HostSimulator(object):
 
                         simulated_hosts = []
                         for index in range(int(limits[1]), int(limits[2]) + 1):
-                            logger.info("Host: %s", new_name.replace('***', limits[0] % index))
-                            new_host = copy.copy(host)
+                            logger.info(". created an host: %s", new_name.replace('***', limits[0] % index))
+                            new_host = copy.deepcopy(host)
                             new_host['name'] = new_name.replace('***', limits[0] % index)
                             simulated_hosts.append(new_host)
 
             for simulated_host in simulated_hosts:
                 name = simulated_host['name']
+
+                # Randomly select an host
+                if self.random_host:
+                    random_value = random.randint(1, self.random_host)
+                    if random_value != self.random_host:
+                        logger.debug("-> randomly ignoring the host: %s", name)
+                        continue
+                logger.info("Simulating host: %s", name)
+
+                # Random sleep time
+                if self.random_hosts_sleep:
+                    random_sleep = random.randint(1, self.random_hosts_sleep)
+                    logger.info("-> randomly sleeping for %d milliseconds.",
+                                random_sleep)
+                    if not self.dry_run:
+                        time.sleep(random_sleep / 1000)
 
                 # Define host livestate as uptime if no data is provided
                 if 'livestate' not in simulated_host:
@@ -300,17 +368,24 @@ class HostSimulator(object):
                         "output": "Host is up since %s" % str_uptime,
                         "perf_data": "'uptime'=%d" % uptime
                     }
-                    logger.debug(". built livestate: %s", simulated_host['livestate'])
+                    logger.debug(". built host livestate: %s", simulated_host['livestate'])
 
                     if self.nsca_notifier and not self.dry_run:
                         self.nsca_notifier.host_result(name, UP, simulated_host["livestate"]["output"])
 
-                if 'services' in host:
-                    for service_id, service in host['services'].iteritems():
+                if 'services' in simulated_host:
+                    for service_id, service in simulated_host['services'].iteritems():
                         if 'name' not in service:
-                            logger.error("-> missing service name in: %s", service)
+                            logger.warning("-> missing service name in: %s, ignoring this service.", service)
                             continue
-                        logger.info(". found service: %s", service['name'])
+
+                        # Randomly select a service
+                        if self.random_service:
+                            random_value = random.randint(1, self.random_service)
+                            if random_value != self.random_service:
+                                logger.debug("-> randomly ignoring the service: %s", service)
+                                continue
+                        logger.info(". simulating service: %s/%s", name, service['name'])
 
                         # Host disks
                         if 'livestate' not in service and service['name'] in ['nsca_disk']:
@@ -336,9 +411,9 @@ class HostSimulator(object):
                                 "perf_data": ", ".join(perfdatas)
                             }
                             logger.debug("  . built livestate: %s", service['livestate'])
-                            if self.nsca_notifier and not self.dry_run:
-                                self.nsca_notifier.svc_result(name, service['name'], OK,
-                                                              service["livestate"]["output"])
+                            self.send_service_check(name, service['name'], OK,
+                                                    service["livestate"]["output"])
+                            continue
 
                         # Host memory
                         if 'livestate' not in service and service['name'] in ['nsca_memory']:
@@ -368,10 +443,10 @@ class HostSimulator(object):
                                 "output": "Host memory statistics",
                                 "perf_data": ", ".join(perfdatas)
                             }
-                            logger.debug("  . built livestate: %s", service['livestate'])
-                            if self.nsca_notifier and not self.dry_run:
-                                self.nsca_notifier.svc_result(name, service['name'], OK,
-                                                              service["livestate"]["output"])
+                            logger.debug("  . built service livestate: %s", service['livestate'])
+                            self.send_service_check(name, service['name'], OK,
+                                                    service["livestate"]["output"])
+                            continue
 
                         # Host CPU
                         if 'livestate' not in service and service['name'] in ['nsca_cpu']:
@@ -399,10 +474,10 @@ class HostSimulator(object):
                                 "output": "Host CPU statistics",
                                 "perf_data": ", ".join(perfdatas)
                             }
-                            logger.debug("  . built livestate: %s", service['livestate'])
-                            if self.nsca_notifier and not self.dry_run:
-                                self.nsca_notifier.svc_result(name, service['name'], OK,
-                                                              service["livestate"]["output"])
+                            logger.debug("  . built service livestate: %s", service['livestate'])
+                            self.send_service_check(name, service['name'], OK,
+                                                    service["livestate"]["output"])
+                            continue
 
                         # Host uptime
                         if 'livestate' not in service and service['name'] in ['nsca_uptime']:
@@ -414,10 +489,12 @@ class HostSimulator(object):
                                 "output": "Host is up since %s" % str_uptime,
                                 "perf_data": "'uptime'=%d" % uptime
                             }
-                            logger.debug("  . built livestate: %s", service['livestate'])
-                            if self.nsca_notifier and not self.dry_run:
-                                self.nsca_notifier.svc_result(name, service['name'], OK,
-                                                              service["livestate"]["output"])
+                            logger.debug("  . built service livestate: %s", service['livestate'])
+                            self.send_service_check(name, service['name'], OK,
+                                                    service["livestate"]["output"])
+                            continue
+
+                        # if 'livestate' in service:
 
                 if self.no_ws:
                     continue
@@ -449,14 +526,30 @@ def main():
     """
     Main function
     """
-    bc = HostSimulator()
-    bc.initialize()
+    hs = HostSimulator()
+    hs.initialize()
 
-    success = bc.simulate()
+    success = True
+    count = 1
+    infinite = False if hs.loop_count > 0 else True
+
+    while success and (infinite or count < hs.loop_count + 1):
+        logger.info("--- Simulation loop: %d / %s", count, hs.loop_count)
+        success = hs.simulate()
+
+        # Random sleep time
+        if hs.random_loop_sleep:
+            random_sleep = random.randint(1, hs.random_loop_sleep)
+            logger.info("-> randomly sleeping for %d milliseconds.",
+                        random_sleep)
+            if not hs.dry_run:
+                time.sleep(random_sleep / 1000)
+
+        count = count + 1
 
     if not success:
         logger.error("Simulation failed. See the log for more details.")
-        if not bc.verbose:
+        if not hs.verbose:
             logger.warning("Set verbose mode to have more information (-v)")
         exit(2)
 
