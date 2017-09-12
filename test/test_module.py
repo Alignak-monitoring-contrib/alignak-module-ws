@@ -25,6 +25,12 @@ Test the module
 import os
 import re
 import time
+import json
+
+import shlex
+import subprocess
+
+import logging
 
 import requests
 
@@ -38,11 +44,84 @@ os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
 
+# # Activate debug logs for the alignak backend client library
+# logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
+#
+# # Activate debug logs for the module
+# logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
-class TestModules(AlignakTest):
-    """
-    This class contains the tests for the module
-    """
+
+class TestModuleWs(AlignakTest):
+    """This class contains the tests for the module"""
+
+    @classmethod
+    def setUpClass(cls):
+
+        # Set test mode for alignak backend
+        os.environ['TEST_ALIGNAK_BACKEND'] = '1'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+
+        # Delete used mongo DBs
+        print ("Deleting Alignak backend DB...")
+        exit_code = subprocess.call(
+            shlex.split(
+                'mongo %s --eval "db.dropDatabase()"' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
+        )
+        assert exit_code == 0
+
+        fnull = open(os.devnull, 'w')
+        cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
+                                  '--socket', '0.0.0.0:5000',
+                                  '--protocol=http', '--enable-threads', '--pidfile',
+                                  '/tmp/uwsgi.pid'],
+                                 stdout=fnull, stderr=fnull)
+        time.sleep(3)
+
+        endpoint = 'http://127.0.0.1:5000'
+
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        print("Current test directory: %s" % test_dir)
+
+        print("Feeding Alignak backend... %s" % test_dir)
+        exit_code = subprocess.call(
+            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
+            stdout=fnull, stderr=fnull
+        )
+        assert exit_code == 0
+        print("Fed")
+
+        # Backend authentication
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # Get admin user token (force regenerate)
+        response = requests.post(endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        cls.token = resp['token']
+        cls.auth = requests.auth.HTTPBasicAuth(cls.token, '')
+
+        # Get admin user
+        response = requests.get(endpoint + '/user', auth=cls.auth)
+        resp = response.json()
+        cls.user_admin = resp['_items'][0]
+
+        # Get realms
+        response = requests.get(endpoint + '/realm', auth=cls.auth)
+        resp = response.json()
+        cls.realmAll_id = resp['_items'][0]['_id']
+
+        # Add a user
+        data = {'name': 'test', 'password': 'test', 'back_role_super_admin': False,
+                'host_notification_period': cls.user_admin['host_notification_period'],
+                'service_notification_period': cls.user_admin['service_notification_period'],
+                '_realm': cls.realmAll_id}
+        response = requests.post(endpoint + '/user', json=data, headers=headers,
+                                 auth=cls.auth)
+        resp = response.json()
+        print("Created a new user: %s" % resp)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.p.kill()
 
     def test_module_loading(self):
         """
@@ -275,12 +354,25 @@ class TestModules(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("configuration, Alignak Arbiter: 127.0.0.1:7770"), 1)
+            re.escape("Alignak host creation allowed: False"), 1)
         self.assert_log_match(
-            re.escape("configuration, listening on: 0.0.0.0:8888"), 2)
+            re.escape("Alignak service creation allowed: False"), 2)
+        self.assert_log_match(
+            re.escape("Alignak external commands, set timestamp: True"), 3)
+        self.assert_log_match(
+            re.escape("Alignak Backend is not configured. "
+                      "Some module features will not be available."), 4)
+        self.assert_log_match(
+            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 5)
+        self.assert_log_match(
+            re.escape("Alignak Arbiter polling period: 5"), 6)
+        self.assert_log_match(
+            re.escape("Alignak daemons get status period: 10"), 7)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 3)
+                      "You should consider enabling SSL!"), 8)
+        self.assert_log_match(
+            re.escape("configuration, listening on: http://0.0.0.0:8888"), 9)
 
     def test_module_start_parameters(self):
         """
@@ -306,6 +398,8 @@ class TestModules(AlignakTest):
             'use_ssl': '1',
             'alignak_host': 'my_host',
             'alignak_port': 80,
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
             'host': 'me',
             'port': 8080,
         })
@@ -317,19 +411,32 @@ class TestModules(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("configuration, Alignak Arbiter: my_host:80"), 1)
+            re.escape("Alignak host creation allowed: False"), 1)
         self.assert_log_match(
-            re.escape("configuration, listening on: me:8080"), 2)
+            re.escape("Alignak service creation allowed: False"), 2)
         self.assert_log_match(
-            re.escape("Error : the CA certificate /usr/local/etc/alignak/certs/ca.pem is "
-                      "missing (ca_cert).Please fix it in your configuration"), 3)
+            re.escape("Alignak external commands, set timestamp: False"), 3)
+        self.assert_log_match(
+            re.escape("Alignak Backend is not configured. "
+                      "Some module features will not be available."), 4)
+        self.assert_log_match(
+            re.escape("Alignak Arbiter configuration: my_host:80"), 5)
+        self.assert_log_match(
+            re.escape("Alignak Arbiter polling period: 5"), 6)
+        self.assert_log_match(
+            re.escape("Alignak daemons get status period: 10"), 7)
+        self.assert_log_match(
+            re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
+                      "(ca_cert). Please fix it in your configuration"), 8)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 4)
+                      "You should consider enabling SSL!"), 9)
+        self.assert_log_match(
+            re.escape("configuration, listening on: http://me:8080"), 10)
 
-    def test_module_zzz_run(self):
-        """
-        Test the module API
+    def test_module_zzz_basic_ws(self):
+        """Test the module basic API - authorization enabled
+
         :return:
         """
         self.print_header()
@@ -348,6 +455,10 @@ class TestModules(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -381,8 +492,163 @@ class TestModules(AlignakTest):
 
         time.sleep(1)
 
+        # Get the WS root endpoint
+        # Unauthorized because no authentication!
+        response = requests.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        print("Response: %s" % response.__dict__)
+        assert response.status_code == 401
+
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.get('http://127.0.0.1:8888', auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp ==  [
+            u'alignak_logs', u'alignak_map', u'api', u'api_full', u'are_you_alive', u'command',
+            u'event', u'host', u'hostgroup', u'index', u'login', u'logout'
+        ]
+
+        # Login refused because of missing credentials
+        print("- Login refused")
+        headers = {'Content-Type': 'application/json'}
+        params = {}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
+        params = {'username': None, 'password': None}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['Missing username parameter.']}
+
+        # Login refused because of bad username/password (real backend login)
+        params = {'username': 'admin', 'password': 'fake'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'ERR', '_issues': ['Access denied.']}
+
+        # Login with username/password (real backend login)
+        print("- Login accepted")
+        params = {'username': 'admin', 'password': 'admin'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert '_result' in resp
+        token = resp['_result'][0]
+
+        # Login with existing token as a username
+        params = {'username': token, 'password': None}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+
+        # Login with basic authentication
+        print("- Login with basic authentication")
+        headers = {'Content-Type': 'application/json'}
+        params = {}
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers, auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+        params = {}
+        auth = requests.auth.HTTPBasicAuth(token, '')
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers, auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        resp = response.json()
+        print("Response json: %s" % resp)
+        assert resp == {'_status': 'OK', '_result': [token]}
+
+        # Get the module API list and request on each endpoint
+        auth = requests.auth.HTTPBasicAuth('admin', 'admin')
+        response = requests.get('http://127.0.0.1:8888', auth=auth)
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = requests.get('http://127.0.0.1:8888/' + endpoint, auth=auth)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_unauthorized(self):
+        """Test the module basic API - authorization disabled
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Disable authorization
+            'authorization': '0'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
         # Get the module API list and request on each endpoint
         response = requests.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
             print("Trying %s" % (endpoint))
@@ -394,106 +660,259 @@ class TestModules(AlignakTest):
             else:
                 print("Error %s: %s" % (response.status_code, response.content))
 
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_authorization(self):
+        """Test the module basic API - authorization login logout
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
         time.sleep(1)
 
-        # Do not allow GET request on /command
-        response = requests.get('http://127.0.0.1:8888/command')
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ko')
-        self.assertEqual(result['_result'], 'You must only POST on this endpoint.')
-
-        self.assertEqual(my_module.received_commands, 0)
-
-        # You must have parameters when POSTing on /command
+        # Login with username/password - bad credentials
         headers = {'Content-Type': 'application/json'}
-        data = {}
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
+        params = {'username': 'fake', 'password': 'fake'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
         result = response.json()
-        self.assertEqual(result['_status'], 'ko')
-        self.assertEqual(result['_result'], 'You must POST parameters on this endpoint.')
+        assert result == {u'_status': u'ERR', u'_issues': [u'Access denied.']}
 
-        self.assertEqual(my_module.received_commands, 0)
-
-        # Request to execute an external command
+        # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "Command",
-            "element": "test_host",
-            "parameters": "abc;1"
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        params = {'username': 'admin', 'password': 'admin'}
+        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], [self.user_admin['token']])
+
+        # Logout
+        response = requests.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result['_status'], 'ok')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_result'], 'COMMAND;test_host;abc;1')
-
-        # Not during unit tests ... because module queues are not functional!
-        # time.sleep(1)
-        # self.assertEqual(my_module.received_commands, 1)
-
-        # Request to execute an external command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "element": "test_host;test_service",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ok')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "element": "test_host/test_service",    # Accept / as an host/service separator
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ok')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command (Alignak modern syntax)
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "host": "test_host",
-            "service": "test_service",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ok')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_result'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
-
-        # Request to execute an external command (Alignak modern syntax)
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "command": "command_command",
-            "host": "test_host",
-            "service": "test_service",
-            "user": "test_user",
-            "parameters": "1;abc;2"
-        }
-        response = requests.post('http://127.0.0.1:8888/command', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result['_status'], 'ok')
-        # Result is uppercase command, parameters are ordered
-        self.assertEqual(result['_result'],
-                         'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
 
         self.modulemanager.stop_all()
 
+    def test_module_zzz_authorized(self):
+        """Test the module basic API - authorization enabled
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Get the module API list and request on each endpoint
+        response = session.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = session.get('http://127.0.0.1:8888/' + endpoint)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_authorized_bis(self):
+        """Test the module basic API - authorization enabled even if no credentials are configured
+
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            # No credentials nor token configured !
+            # 'username': 'admin',
+            # 'password': 'admin',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Ensable authorization
+            'authorization': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Get the module API list and request on each endpoint
+        response = session.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = session.get('http://127.0.0.1:8888/' + endpoint)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()

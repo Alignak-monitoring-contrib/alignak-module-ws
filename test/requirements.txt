@@ -3,11 +3,32 @@
 # alignak
 -e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
 
+# alignak backend
+-e git+https://github.com/Alignak-monitoring-contrib/alignak-backend.git@develop#egg=alignak-backend
+
+# alignak backend import
+-e git+https://github.com/Alignak-monitoring-contrib/alignak-backend-import.git@develop#egg=alignak-backend-import
+
 unittest2
+
+# Tests time freeze
+freezegun
+
+# System monitor
+psutil
+
+# Use py.test as test-runner
+pytest
+pytest-cov
+# Makes some coverage report for the tests
+coverage
+# Report coverage results to coveralls.io
 coveralls
-nose-cov
-coverage==4.0
-nose
+
+# Static code and doc analysis libraries
 pylint
 pep8
 pep257
+
+# UWSGI Pyphton Web application server
+uwsgi
