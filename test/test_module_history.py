@@ -125,7 +125,7 @@ class TestModuleConnection(AlignakTest):
             "_realm": cls.realmAll_id
         }
         response = requests.post(cls.endpoint + '/host', json=data, headers=headers, auth=cls.auth)
-        response = requests.get(cls.endpoint + '/host', auth=cls.auth)
+        response = requests.get(cls.endpoint + '/host?where={"name":"srv001"}', auth=cls.auth)
         resp = response.json()
         cls.rh = resp['_items']
 
@@ -315,7 +315,7 @@ class TestModuleConnection(AlignakTest):
         # Add a check result for an host
         data = {
             "last_check": 1496332753,
-            "host": self.rh[1]['_id'],
+            "host": self.rh[0]['_id'],
             "service": None,
             'acknowledged': False,
             'state_id': 0,
@@ -342,7 +342,7 @@ class TestModuleConnection(AlignakTest):
         # Add a check result for a service
         data = {
             "last_check": 1496332754,
-            "host": self.rh[1]['_id'],
+            "host": self.rh[0]['_id'],
             "service": self.rs[0]['_id'],
             'acknowledged': False,
             'state_id': 0,

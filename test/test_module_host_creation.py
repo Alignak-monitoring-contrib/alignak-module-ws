@@ -216,7 +216,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -255,7 +255,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -333,7 +333,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_2',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -388,7 +388,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'generic-host',  # TODO: check this because it looks fuzzy...
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
@@ -519,7 +519,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_for_services_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -577,7 +577,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_for_services_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -590,7 +590,7 @@ class TestModuleWs(AlignakTest):
                 u'retry_interval': 0,
                 u'services': {u'new_service': {u'_overall_state_id': 3,
                                                u'active_checks_enabled': True,
-                                               u'alias': u'',
+                                               u'alias': u'test_empty_0',
                                                u'check_freshness': False,
                                                u'check_interval': 5,
                                                u'freshness_state': u'x',
@@ -671,7 +671,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_for_services_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -762,7 +762,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_for_services_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
@@ -775,7 +775,7 @@ class TestModuleWs(AlignakTest):
                 u'retry_interval': 0,
                 u'services': {u'new_service': {u'_overall_state_id': 3,
                                                u'active_checks_enabled': True,
-                                               u'alias': u'',
+                                               u'alias': u'generic-service',  #TODO: check this
                                                u'check_freshness': False,
                                                u'check_interval': 1,
                                                u'freshness_state': u'x',

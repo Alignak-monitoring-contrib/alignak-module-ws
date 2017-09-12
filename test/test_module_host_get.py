@@ -241,7 +241,7 @@ class TestModuleWs(AlignakTest):
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
-                u'alias': u'',
+                u'alias': u'new_host_0',
                 u'check_freshness': False,
                 u'check_interval': 5,
                 u'freshness_state': u'x',
