@@ -146,6 +146,7 @@ The livestate data for an host or service may contain:
 - `perf_data`: the host/service check performance data
 - `timestamp`: timestamp for the host/service check
 
+**Note** that the `livestate` for the host or for any service may be an array if more than one result is to be reported to the Web Service.
 
 Host custom variables
 ~~~~~~~~~~~~~~~~~~~~~
