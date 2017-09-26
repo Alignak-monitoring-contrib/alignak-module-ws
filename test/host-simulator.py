@@ -409,7 +409,7 @@ class HostSimulator(object):
                                         perfdatas.append("'disk_%s_percent_used'=%.2f%%"
                                                          % (disk, getattr(disk_usage, key)))
                                     else:
-                                        perfdatas.append("'disk_%s_%s'=%db"
+                                        perfdatas.append("'disk_%s_%s'=%dB"
                                                          % (disk, key, getattr(disk_usage, key)))
 
 
@@ -430,7 +430,7 @@ class HostSimulator(object):
                                     perfdatas.append("'mem_percent_used_%s'=%.2f%%"
                                                      % (key, getattr(virtual_memory, key)))
                                 else:
-                                    perfdatas.append("'mem_%s'=%db"
+                                    perfdatas.append("'mem_%s'=%dB"
                                                      % (key, getattr(virtual_memory, key)))
 
                             swap_memory = psutil.swap_memory()
@@ -440,7 +440,7 @@ class HostSimulator(object):
                                     perfdatas.append("'swap_used_%s'=%.2f%%"
                                                      % (key, getattr(swap_memory, key)))
                                 else:
-                                    perfdatas.append("'swap_%s'=%db"
+                                    perfdatas.append("'swap_%s'=%dB"
                                                      % (key, getattr(swap_memory, key)))
 
                             service["livestate"] = {
