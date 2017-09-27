@@ -579,6 +579,7 @@ class AlignakWebServices(BaseModule):
                 ws_result['_result'].append("Requested host '%s' created." % host_name)
                 host = self.backend.get('/'.join(['host', result['_id']]))
                 logger.debug("Get host, got: %s", host)
+                logger.info("Created a new host: %s", host_name)
             else:
                 host = result['_items'][0]
         except BackendException as exp:  # pragma: no cover, should not happen
@@ -1386,7 +1387,8 @@ class AlignakWebServices(BaseModule):
             logger.debug("Checking backend availability, token: %s, authenticated: %s",
                          self.backend.token, self.backend.authenticated)
             result = self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
-            logger.debug("Backend availability, got: %s", result)
+            self.default_realm = result['_items'][0]
+            logger.debug("Backend availability, got default realm: %s", self.default_realm)
             self.backend_available = True
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
