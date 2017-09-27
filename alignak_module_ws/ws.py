@@ -652,14 +652,20 @@ class AlignakWebServices(BaseModule):
                 update = False
             customs = host['customs']
             for prop in data['variables']:
+                value = data['variables'][prop]
                 custom = '_' + prop.upper()
-                if custom in customs and data['variables'][prop] == "__delete__":
-                    update = True
-                    customs.pop(custom)
-                else:
-                    if custom not in customs or customs[custom] != data['variables'][prop]:
+                if isinstance(value, list):
+                    if custom not in customs or cmp(customs[custom], value) == 0:
                         update = True
-                        customs[custom] = data['variables'][prop]
+                        customs[custom] = value
+                else:
+                    if custom in customs and value == "__delete__":
+                        update = True
+                        customs.pop(custom)
+                    else:
+                        if custom not in customs or customs[custom] != value:
+                            update = True
+                            customs[custom] = value
             if update:
                 data['customs'] = customs
 
