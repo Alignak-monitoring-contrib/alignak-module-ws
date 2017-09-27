@@ -424,7 +424,7 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak Backend is not configured. "
                       "Some module features will not be available."), 5)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 6)
+            re.escape("Alignak Arbiter configuration: my_host:80"), 6)
         self.assert_log_match(
             re.escape("Alignak Arbiter polling period: 5"), 7)
         self.assert_log_match(
@@ -433,7 +433,7 @@ class TestModuleWs(AlignakTest):
             re.escape("SSL is not enabled, this is not recommended. "
                       "You should consider enabling SSL!"), 9)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://0.0.0.0:8888"), 10)
+            re.escape("configuration, listening on: http://me:8080"), 10)
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled
