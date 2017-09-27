@@ -601,7 +601,7 @@ class TestModuleWs(AlignakTest):
         self.modulemanager.stop_all()
 
     def test_module_simulate_host(self):
-        """Simulate an hos on the /host API
+        """Simulate an host on the /host API
         :return:
         """
         self.print_header()
@@ -723,6 +723,146 @@ class TestModuleWs(AlignakTest):
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"Host 'test_host_0' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': True,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [48.858293, 2.294601],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1,
+                u'services': {
+                    u'test_service': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'test_ok_0',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': False,
+                        u'retry_interval': 1
+                    },
+                    u'test_service2': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': True,
+                        u'alias': u'test_ok_1',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    },
+                    u'test_service3': {
+                        u'_overall_state_id': 3,
+                        u'active_checks_enabled': False,
+                        u'alias': u'test_ok_2',
+                        u'check_freshness': False,
+                        u'check_interval': 1,
+                        u'freshness_state': u'x',
+                        u'freshness_threshold': -1,
+                        u'max_check_attempts': 2,
+                        u'notes': u'just a notes string',
+                        u'passive_checks_enabled': True,
+                        u'retry_interval': 1
+                    }
+                }
+            }
+        })
+
+        # Update host services livestate - several checks in the livestate
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": host_name,
+            "livestate": [
+                {
+                    "timestamp": 123456789,
+                    "state": "up",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1"
+                },
+                {
+                    "timestamp": 123456789 + 3600,
+                    "state": "up",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1"
+                }
+            ],
+            "services": {
+                "test_service": {
+                    "name": "test_ok_0",
+                    # An array with one item
+                    "livestate": [
+                        {
+                            "timestamp": 123456789,
+                            "state": "ok",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1"
+                        }
+                    ]
+                },
+                "test_service2": {
+                    "name": "test_ok_1",
+                    # An array with one item
+                    "livestate": [
+                        {
+                            "timestamp": 123456789,
+                            "state": "warning",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1"
+                        },
+                        {
+                            "timestamp": 123456789 + 3600,
+                            "state": "ok",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=2"
+                        }
+                    ]
+                },
+                "test_service3": {
+                    "name": "test_ok_2",
+                    "livestate": {
+                        "state": "critical",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+            },
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK', u'_result': [
+                u'test_host_0 is alive :)',
+                u"[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_0' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
+                u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
                 u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"Host 'test_host_0' unchanged."
             ],
