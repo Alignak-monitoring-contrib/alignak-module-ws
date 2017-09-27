@@ -102,6 +102,10 @@ class AlignakWebServices(BaseModule):
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
         logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
 
+        # Give some feedback when updating the livestate
+        self.give_feedback = getattr(mod_conf, 'give_feedback', '1') == '1'
+        logger.info("Alignak update livestate, set give_feedback: %s", self.give_feedback)
+
         # Alignak Backend part
         # ---
         self.backend_available = False
@@ -673,7 +677,7 @@ class AlignakWebServices(BaseModule):
                         ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
                                                     ", and not '%s'." % (state))
                     else:
-                        ws_result['_result'].append(self.buildHostLivestate(host_name,
+                        ws_result['_result'].append(self.buildHostLivestate(host,
                                                                             livestate))
 
         # Update host services
@@ -701,21 +705,24 @@ class AlignakWebServices(BaseModule):
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            host = self.backend.get('/'.join(['host', host['_id']]))
-            ws_result['_feedback'].update({
-                'alias': host['alias'],
-                'notes': host['notes'],
-                'location': host['location'],
-                'active_checks_enabled': host['active_checks_enabled'],
-                'max_check_attempts': host['max_check_attempts'],
-                'check_interval': host['check_interval'],
-                'retry_interval': host['retry_interval'],
-                'passive_checks_enabled': host['passive_checks_enabled'],
-                'check_freshness': host['check_freshness'],
-                'freshness_state': host['freshness_state'],
-                'freshness_threshold': host['freshness_threshold'],
-                '_overall_state_id': host['_overall_state_id']
-            })
+            if self.give_feedback:
+                host = self.backend.get('/'.join(['host', host['_id']]))
+                ws_result['_feedback'].update({
+                    'alias': host['alias'],
+                    'notes': host['notes'],
+                    'location': host['location'],
+                    'active_checks_enabled': host['active_checks_enabled'],
+                    'max_check_attempts': host['max_check_attempts'],
+                    'check_interval': host['check_interval'],
+                    'retry_interval': host['retry_interval'],
+                    'passive_checks_enabled': host['passive_checks_enabled'],
+                    'check_freshness': host['check_freshness'],
+                    'freshness_state': host['freshness_state'],
+                    'freshness_threshold': host['freshness_threshold'],
+                    '_overall_state_id': host['_overall_state_id']
+                })
+            else:
+                ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -728,21 +735,24 @@ class AlignakWebServices(BaseModule):
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            host = self.backend.get('/'.join(['host', host['_id']]))
-            ws_result['_feedback'].update({
-                'alias': host['alias'],
-                'notes': host['notes'],
-                'location': host['location'],
-                'active_checks_enabled': host['active_checks_enabled'],
-                'max_check_attempts': host['max_check_attempts'],
-                'check_interval': host['check_interval'],
-                'retry_interval': host['retry_interval'],
-                'passive_checks_enabled': host['passive_checks_enabled'],
-                'check_freshness': host['check_freshness'],
-                'freshness_state': host['freshness_state'],
-                'freshness_threshold': host['freshness_threshold'],
-                '_overall_state_id': host['_overall_state_id']
-            })
+            if self.give_feedback:
+                host = self.backend.get('/'.join(['host', host['_id']]))
+                ws_result['_feedback'].update({
+                    'alias': host['alias'],
+                    'notes': host['notes'],
+                    'location': host['location'],
+                    'active_checks_enabled': host['active_checks_enabled'],
+                    'max_check_attempts': host['max_check_attempts'],
+                    'check_interval': host['check_interval'],
+                    'retry_interval': host['retry_interval'],
+                    'passive_checks_enabled': host['passive_checks_enabled'],
+                    'check_freshness': host['check_freshness'],
+                    'freshness_state': host['freshness_state'],
+                    'freshness_threshold': host['freshness_threshold'],
+                    '_overall_state_id': host['_overall_state_id']
+                })
+            else:
+                ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -766,21 +776,24 @@ class AlignakWebServices(BaseModule):
                 logger.warning("Host patch, got a problem: %s", result)
                 return ('ERR', patch_result['_issues'])
 
-            host = self.backend.get('/'.join(['host', host['_id']]))
-            ws_result['_feedback'].update({
-                'alias': host['alias'],
-                'notes': host['notes'],
-                'location': host['location'],
-                'active_checks_enabled': host['active_checks_enabled'],
-                'max_check_attempts': host['max_check_attempts'],
-                'check_interval': host['check_interval'],
-                'retry_interval': host['retry_interval'],
-                'passive_checks_enabled': host['passive_checks_enabled'],
-                'check_freshness': host['check_freshness'],
-                'freshness_state': host['freshness_state'],
-                'freshness_threshold': host['freshness_threshold'],
-                '_overall_state_id': host['_overall_state_id']
-            })
+            if self.give_feedback:
+                host = self.backend.get('/'.join(['host', host['_id']]))
+                ws_result['_feedback'].update({
+                    'alias': host['alias'],
+                    'notes': host['notes'],
+                    'location': host['location'],
+                    'active_checks_enabled': host['active_checks_enabled'],
+                    'max_check_attempts': host['max_check_attempts'],
+                    'check_interval': host['check_interval'],
+                    'retry_interval': host['retry_interval'],
+                    'passive_checks_enabled': host['passive_checks_enabled'],
+                    'check_freshness': host['check_freshness'],
+                    'freshness_state': host['freshness_state'],
+                    'freshness_threshold': host['freshness_threshold'],
+                    '_overall_state_id': host['_overall_state_id']
+                })
+            else:
+                ws_result.pop('_feedback')
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
@@ -958,58 +971,59 @@ class AlignakWebServices(BaseModule):
                                                     "CRITICAL, UNKNOWN or UNREACHABLE, and not %s."
                                                     % (service_name, state))
                     else:
-                        ws_result['_result'].append(self.buildServiceLivestate(host['name'],
-                                                                               service_name,
+                        ws_result['_result'].append(self.buildServiceLivestate(host, service,
                                                                                livestate))
 
         # If no update requested
         if update is None:
-            # Simple host alive without any required update
+            # Simple service alive without any required update
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            service = self.backend.get('/'.join(['service', service['_id']]))
-            ws_result['_feedback'] = {
-                'alias': service['alias'],
-                'notes': service['notes'],
-                'active_checks_enabled': service['active_checks_enabled'],
-                'max_check_attempts': service['max_check_attempts'],
-                'check_interval': service['check_interval'],
-                'retry_interval': service['retry_interval'],
-                'passive_checks_enabled': service['passive_checks_enabled'],
-                'check_freshness': service['check_freshness'],
-                'freshness_state': service['freshness_state'],
-                'freshness_threshold': service['freshness_threshold'],
-                '_overall_state_id': service['_overall_state_id']
-            }
+            if self.give_feedback:
+                service = self.backend.get('/'.join(['service', service['_id']]))
+                ws_result['_feedback'] = {
+                    'alias': service['alias'],
+                    'notes': service['notes'],
+                    'active_checks_enabled': service['active_checks_enabled'],
+                    'max_check_attempts': service['max_check_attempts'],
+                    'check_interval': service['check_interval'],
+                    'retry_interval': service['retry_interval'],
+                    'passive_checks_enabled': service['passive_checks_enabled'],
+                    'check_freshness': service['check_freshness'],
+                    'freshness_state': service['freshness_state'],
+                    'freshness_threshold': service['freshness_threshold'],
+                    '_overall_state_id': service['_overall_state_id']
+                }
 
             ws_result.pop('_issues')
             return ws_result
 
         # If no update needed
         if not update:
-            # Simple host alive with updates required but no update needed
+            # Simple service alive with updates required but no update needed
             ws_result['_result'].append("Service '%s/%s' unchanged."
                                         % (host['name'], service_name))
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            service = self.backend.get('/'.join(['service', service['_id']]))
-            ws_result['_feedback'] = {
-                'alias': service['alias'],
-                'notes': service['notes'],
-                'active_checks_enabled': service['active_checks_enabled'],
-                'max_check_attempts': service['max_check_attempts'],
-                'check_interval': service['check_interval'],
-                'retry_interval': service['retry_interval'],
-                'passive_checks_enabled': service['passive_checks_enabled'],
-                'check_freshness': service['check_freshness'],
-                'freshness_state': service['freshness_state'],
-                'freshness_threshold': service['freshness_threshold'],
-                '_overall_state_id': service['_overall_state_id']
-            }
+            if self.give_feedback:
+                service = self.backend.get('/'.join(['service', service['_id']]))
+                ws_result['_feedback'] = {
+                    'alias': service['alias'],
+                    'notes': service['notes'],
+                    'active_checks_enabled': service['active_checks_enabled'],
+                    'max_check_attempts': service['max_check_attempts'],
+                    'check_interval': service['check_interval'],
+                    'retry_interval': service['retry_interval'],
+                    'passive_checks_enabled': service['passive_checks_enabled'],
+                    'check_freshness': service['check_freshness'],
+                    'freshness_state': service['freshness_state'],
+                    'freshness_threshold': service['freshness_threshold'],
+                    '_overall_state_id': service['_overall_state_id']
+                }
 
             ws_result.pop('_issues')
             return ws_result
@@ -1031,20 +1045,21 @@ class AlignakWebServices(BaseModule):
                 logger.warning("Service patch, got a problem: %s", result)
                 return ('ERR', patch_result['_issues'])
 
-            service = self.backend.get('/'.join(['service', service['_id']]))
-            ws_result['_feedback'] = {
-                'alias': service['alias'],
-                'notes': service['notes'],
-                'active_checks_enabled': service['active_checks_enabled'],
-                'max_check_attempts': service['max_check_attempts'],
-                'check_interval': service['check_interval'],
-                'retry_interval': service['retry_interval'],
-                'passive_checks_enabled': service['passive_checks_enabled'],
-                'check_freshness': service['check_freshness'],
-                'freshness_state': service['freshness_state'],
-                'freshness_threshold': service['freshness_threshold'],
-                '_overall_state_id': service['_overall_state_id']
-            }
+            if self.give_feedback:
+                service = self.backend.get('/'.join(['service', service['_id']]))
+                ws_result['_feedback'] = {
+                    'alias': service['alias'],
+                    'notes': service['notes'],
+                    'active_checks_enabled': service['active_checks_enabled'],
+                    'max_check_attempts': service['max_check_attempts'],
+                    'check_interval': service['check_interval'],
+                    'retry_interval': service['retry_interval'],
+                    'passive_checks_enabled': service['passive_checks_enabled'],
+                    'check_freshness': service['check_freshness'],
+                    'freshness_state': service['freshness_state'],
+                    'freshness_threshold': service['freshness_threshold'],
+                    '_overall_state_id': service['_overall_state_id']
+                }
 
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
@@ -1128,12 +1143,14 @@ class AlignakWebServices(BaseModule):
         result.pop('_issues')
         return result
 
-    def buildHostLivestate(self, host_name, livestate):
+    def buildHostLivestate(self, host, livestate):
         """Build and notify the external command for an host livestate
 
         PROCESS_HOST_CHECK_RESULT;<host_name>;<status_code>;<plugin_output>
 
-        :param host_name: host name
+        Create and post a logcheckresult to the backend if the timestamp is in the past
+
+        :param host: host from the Alignak backend
         :param livestate: livestate dictionary
         :return: command line
         """
@@ -1160,7 +1177,7 @@ class AlignakWebServices(BaseModule):
         elif perf_data:
             parameters = '%s|%s' % (parameters, perf_data)
 
-        command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host_name, parameters)
+        command_line = 'PROCESS_HOST_CHECK_RESULT;%s;%s' % (host['name'], parameters)
         if timestamp is not None:
             command_line = '[%d] %s' % (timestamp, command_line)
         elif self.set_timestamp:
@@ -1170,15 +1187,66 @@ class AlignakWebServices(BaseModule):
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
 
+        # -------------------------------------------
+        # Add a check result for an host if we got a timestamp in the past
+        # A passive check with a timestamp older than the host last check data will not be
+        # managed by Alignak but we may track this event in the backend logcheckresult
+        if timestamp and (not host['ls_last_check'] or timestamp < host['ls_last_check']):
+            logger.info("Recording a check result from the past...")
+            # Assume data are in the host livestate
+            data = {
+                "last_check": timestamp,
+                "host": host['_id'],
+                "service": None,
+                'acknowledged': host['ls_acknowledged'],
+                'acknowledgement_type': host['ls_acknowledgement_type'],
+                'downtimed': host['ls_downtimed'],
+                'state_id': state_to_id[state],
+                'state': state,
+                'state_type': host['ls_state_type'],
+                'last_state': host['ls_last_state'],
+                'last_state_type': host['ls_last_state_type'],
+                'latency': 0,
+                'execution_time': 0,
+                'output': output,
+                'long_output': long_output,
+                'perf_data': perf_data,
+                "_realm": host['_realm']
+            }
+            result = self.backend.get('/logcheckresult',
+                                      {'max_results': 1,
+                                       'where': json.dumps({'host_name': host['name'],
+                                                            'last_check': {"$lte": timestamp}})})
+            logger.debug("Get logcheckresult, got: %s", result)
+            if result['_items']:
+                lcr = result['_items'][0]
+                logger.info("Updating data from an existing logcheckresult: %s", lcr)
+                # Assume some data are in the most recent check result
+                data.update({
+                    'acknowledged': lcr['acknowledged'],
+                    'acknowledgement_type': lcr['acknowledgement_type'],
+                    'downtimed': lcr['downtimed'],
+                    'state_type': lcr['state_type'],
+                    'last_state': lcr['last_state'],
+                    'last_state_type': lcr['last_state_type'],
+                    'state_changed': lcr['state_changed']
+                })
+
+            result = self.backend.post('/logcheckresult', data)
+            if result['_status'] != 'OK':
+                logger.warning("Post logcheckresult, error: %s", result)
+
         return command_line
 
-    def buildServiceLivestate(self, host_name, service_name, livestate):
+    def buildServiceLivestate(self, host, service, livestate):
         """Build and notify the external command for a service livestate
 
         PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<return_code>;<plugin_output>
 
-        :param host_name: host name
-        :param service_name: service description
+        Create and post a logcheckresult to the backend if the timestamp is in the past
+
+        :param host: host from the Alignak backend
+        :param service: service from the Alignak backend
         :param livestate: livestate dictionary
         :return: command line
         """
@@ -1208,7 +1276,7 @@ class AlignakWebServices(BaseModule):
             parameters = '%s|%s' % (parameters, perf_data)
 
         command_line = 'PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s' % \
-                       (host_name, service_name, parameters)
+                       (host['name'], service['name'], parameters)
         if timestamp is not None:
             command_line = '[%d] %s' % (timestamp, command_line)
         elif self.set_timestamp:
@@ -1217,6 +1285,56 @@ class AlignakWebServices(BaseModule):
         # Add a command to get managed
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
+
+        # -------------------------------------------
+        # Add a check result for a service if we got a timestamp in the past
+        # A passive check with a timestamp older than the service last check data will not be
+        # managed by Alignak but we may track this event in the backend logcheckresult
+        if timestamp and (not service['ls_last_check'] or timestamp < service['ls_last_check']):
+            logger.info("Recording a check result from the past...")
+            # Assume data are in the host livestate
+            data = {
+                "last_check": timestamp,
+                "host": host['_id'],
+                "service": service['_id'],
+                'acknowledged': service['ls_acknowledged'],
+                'acknowledgement_type': service['ls_acknowledgement_type'],
+                'downtimed': service['ls_downtimed'],
+                'state_id': state_to_id[state],
+                'state': state,
+                'state_type': service['ls_state_type'],
+                'last_state': service['ls_last_state'],
+                'last_state_type': service['ls_last_state_type'],
+                'latency': 0,
+                'execution_time': 0,
+                'output': output,
+                'long_output': long_output,
+                'perf_data': perf_data,
+                "_realm": service['_realm']
+            }
+            result = self.backend.get('/logcheckresult',
+                                      {'max_results': 1,
+                                       'where': json.dumps({'host_name': host['name'],
+                                                            'service_name': service['name'],
+                                                            'last_check': {"$lte": timestamp}})})
+            logger.debug("Get logcheckresult, got: %s", result)
+            if result['_items']:
+                lcr = result['_items'][0]
+                logger.info("Updating data from an existing logcheckresult: %s", lcr)
+                # Assume some data are in the most recent check result
+                data.update({
+                    'acknowledged': lcr['acknowledged'],
+                    'acknowledgement_type': lcr['acknowledgement_type'],
+                    'downtimed': lcr['downtimed'],
+                    'state_type': lcr['state_type'],
+                    'last_state': lcr['last_state'],
+                    'last_state_type': lcr['last_state_type'],
+                    'state_changed': lcr['state_changed']
+                })
+
+            result = self.backend.post('/logcheckresult', data)
+            if result['_status'] != 'OK':
+                logger.warning("Post logcheckresult, error: %s", result)
 
         return command_line
 

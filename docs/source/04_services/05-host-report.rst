@@ -155,10 +155,10 @@ To create/update host custom variables, PATCH on the `host` endpoint providing t
     $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "variables": {
-            'test1': 'string',
-            'test2': 12,
-            'test3': 15055.0,
-            'test4': "new!"
+            "test1": "string",
+            "test2": 12,
+            "test3": 15055.0,
+            "test4": "new!"
         }
     }' "http://demo.alignak.net:8888/host"
 
