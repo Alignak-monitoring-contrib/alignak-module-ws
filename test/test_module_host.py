@@ -76,7 +76,7 @@ class TestModuleWs(AlignakTest):
                                  stdout=fnull, stderr=fnull)
         time.sleep(3)
 
-        endpoint = 'http://127.0.0.1:5000'
+        cls.endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
         print("Current test directory: %s" % test_dir)
@@ -93,18 +93,18 @@ class TestModuleWs(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
         # Get admin user token (force regenerate)
-        response = requests.post(endpoint + '/login', json=params, headers=headers)
+        response = requests.post(cls.endpoint + '/login', json=params, headers=headers)
         resp = response.json()
         cls.token = resp['token']
         cls.auth = requests.auth.HTTPBasicAuth(cls.token, '')
 
         # Get admin user
-        response = requests.get(endpoint + '/user', auth=cls.auth)
+        response = requests.get(cls.endpoint + '/user', auth=cls.auth)
         resp = response.json()
         cls.user_admin = resp['_items'][0]
 
         # Get realms
-        response = requests.get(endpoint + '/realm', auth=cls.auth)
+        response = requests.get(cls.endpoint + '/realm', auth=cls.auth)
         resp = response.json()
         cls.realmAll_id = resp['_items'][0]['_id']
 
@@ -113,7 +113,7 @@ class TestModuleWs(AlignakTest):
                 'host_notification_period': cls.user_admin['host_notification_period'],
                 'service_notification_period': cls.user_admin['service_notification_period'],
                 '_realm': cls.realmAll_id}
-        response = requests.post(endpoint + '/user', json=data, headers=headers,
+        response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
         print("Created a new user: %s" % resp)
@@ -124,10 +124,14 @@ class TestModuleWs(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
-    def tearDown(self):
-        if self.modulemanager:
+    @classmethod
+    def tearDown(cls):
+        for resource in ['host', 'service']:
+            requests.delete(cls.endpoint + '/' + resource, auth=cls.auth)
+
+        if cls.modulemanager:
             time.sleep(1)
-            self.modulemanager.stop_all()
+            cls.modulemanager.stop_all()
 
     def test_module_zzz_host(self):
         """Test the module /host API
@@ -1840,7 +1844,7 @@ class TestModuleWs(AlignakTest):
 
         # Get host data to confirm backend update
         # ---
-        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -1883,7 +1887,7 @@ class TestModuleWs(AlignakTest):
             u'_result': [u'test_host_0 is alive :)'],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -1937,10 +1941,10 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' unchanged."],
+                         u"Host 'test_host_0' updated."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -1956,7 +1960,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -1988,7 +1992,7 @@ class TestModuleWs(AlignakTest):
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -2004,7 +2008,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm there was not update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -2037,7 +2041,7 @@ class TestModuleWs(AlignakTest):
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -2053,7 +2057,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -2086,7 +2090,7 @@ class TestModuleWs(AlignakTest):
             u'_result': [u"test_host_0 is alive :)", u"Host 'test_host_0' updated."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -2102,7 +2106,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -2155,7 +2159,7 @@ class TestModuleWs(AlignakTest):
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -2171,7 +2175,79 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        expected = {
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
+            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
+            u'_MY_ARRAY': [
+                {u'id': u'identifier', u'name': u'my name', u'other': 1},
+                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            ],
+            u'_PACKAGES': [
+                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
+                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            ],
+        }
+        self.assertEqual(expected, test_host_0['customs'])
+        # ----------
+
+        # ----------
+        # New host variables as an array - array order is not the same but not update!
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": {
+                'test1': 'string modified',
+                'test2': 12,
+                'test3': 15055.0,
+                'my_array': [
+                    {
+                        "id": "identifier", "name": "my name", "other": 1
+                    },
+                    {
+                        "id": "identifier", "name": "my name", "other": 1
+                    }
+                ],
+                'packages': [
+                    {
+                        "id": "identifier", "name": "Package 2", "other": 1
+                    },
+                    {
+                        "id": "identifier", "name": "Package 1", "other": 1
+                    }
+                ]
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': True,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [48.858293, 2.294601],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+
+        # Get host data to confirm update
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -2249,7 +2325,7 @@ class TestModuleWs(AlignakTest):
                          u"Host 'test_host_0' unchanged."],
             u'_feedback': {
                 u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
+                u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
                 u'check_interval': 1,
@@ -2280,7 +2356,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         host = resp['_items'][0]
@@ -2477,7 +2553,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
@@ -2518,7 +2594,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
@@ -2566,7 +2642,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
@@ -2612,7 +2688,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
@@ -2660,7 +2736,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         dummy_host = resp['_items'][0]
@@ -2803,7 +2879,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         host = resp['_items'][0]
@@ -3025,7 +3101,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -3078,7 +3154,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
@@ -3119,7 +3195,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Get host data to confirm update
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         host = resp['_items'][0]
