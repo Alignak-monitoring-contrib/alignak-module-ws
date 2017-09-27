@@ -1,7 +1,7 @@
 {
    "hosts": [
       {
-         "name": "win-passive-[%02d-0-9]",
+         "name": "win-passive-[%02d-0-2]",
          "active_checks_enabled": false,
          "passive_checks_enabled": true,
          "_sub_realm": false,
@@ -39,7 +39,7 @@
          }
       },
       {
-         "name": "win-passive-bis-[%02d-0-9]",
+         "name": "win-passive-bis-[%02d-0-1]",
          "active_checks_enabled": false,
          "passive_checks_enabled": true,
          "_sub_realm": false,

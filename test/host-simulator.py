@@ -265,6 +265,21 @@ class HostSimulator(object):
         self.password = args['--password']
         logger.debug("WS login with credentials: %s/%s", self.username, self.password)
 
+        # NSCA mode
+        self.nsca_notifier = args['--nsca-server']
+        self.port = 5667
+        if self.nsca_notifier and ':' in self.nsca_notifier:
+            data = self.nsca_notifier.split(':')
+            self.nsca_notifier = data[0]
+            self.port = int(data[1])
+        self.encryption = args['--encryption']
+        self.nsca_password = None
+        if ':' in self.encryption:
+            data = self.encryption.split(':')
+            self.encryption = int(data[0])
+            self.nsca_password = data[1]
+        logger.debug("NSCA notifications: %s, port: %s", self.nsca_notifier, self.port)
+
         # Get the data files folder
         self.folder = None
         if args['--folder'] != 'none':
