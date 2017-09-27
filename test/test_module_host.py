@@ -1937,7 +1937,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' updated."],
+                         u"Host 'test_host_0' unchanged."],
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': False,
@@ -2120,6 +2120,78 @@ class TestModuleWs(AlignakTest):
         # ----------
 
         # ----------
+        # New host variables as an array
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": {
+                'test1': 'string modified',
+                'test2': 12,
+                'test3': 15055.0,
+                'my_array': [
+                    {
+                        "id": "identifier", "name": "my name", "other": 1
+                    },
+                    {
+                        "id": "identifier", "name": "my name", "other": 1
+                    }
+                ],
+                'packages': [
+                    {
+                        "id": "identifier", "name": "Package 1", "other": 1
+                    },
+                    {
+                        "id": "identifier", "name": "Package 2", "other": 1
+                    }
+                ]
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': False,
+                u'alias': u'up_0',
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': -1,
+                u'location': {u'coordinates': [48.858293, 2.294601],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        expected = {
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
+            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
+            u'_MY_ARRAY': [
+                {u'id': u'identifier', u'name': u'my name', u'other': 1},
+                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            ],
+            u'_PACKAGES': [
+                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
+                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            ],
+        }
+        self.assertEqual(expected, test_host_0['customs'])
+        # ----------
+
+        # ----------
         # Create host service variables - unknown service
         headers = {'Content-Type': 'application/json'}
         data = {
@@ -2225,6 +2297,14 @@ class TestModuleWs(AlignakTest):
             u'_ICON_IMAGE_ALT': u'icon alt string',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
+            u'_MY_ARRAY': [
+                {u'id': u'identifier', u'name': u'my name', u'other': 1},
+                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            ],
+            u'_PACKAGES': [
+                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
+                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            ],
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
             u'_TEST4': u'new!',
             u'_TEST5': u'service specific'
@@ -2843,3 +2923,231 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result['_result'], 'Logged out')
 
         self.modulemanager.stop_all()
+
+    def test_module_zzz_host_no_feedback(self):
+        """Test the module /host API * create/update custom variables * no feedback in the response
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        # ---
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # You must have parameters when POSTing on /host
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
+
+        # Update host variables - empty variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": "",
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)']
+        })
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        expected = {
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux'
+        }
+        self.assertEqual(expected, test_host_0['customs'])
+
+        # ----------
+        # Host does not exist
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "unknown_host",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'unknown_host is alive :)'],
+                                  u'_feedback': {},
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+
+
+        # ----------
+        # Create host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u"test_host_0 is alive :)",
+                         u"Host 'test_host_0' updated."]
+        })
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        expected = {
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+        }
+        self.assertEqual(expected, test_host_0['customs'])
+
+        # ----------
+        # Create host service variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+
+            "services": {
+                "test_ok_0": {
+                    "name": "test_ok_0",
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0,
+                        'test5': 'service specific'
+                    },
+                },
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'test_host_0 is alive :)',
+                         u"Service 'test_host_0/test_ok_0' updated",
+                         u"Host 'test_host_0' unchanged."]
+        })
+
+        # Get host data to confirm update
+        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        host = resp['_items'][0]
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        # The service still had a variable _CUSTNAME and it inherits from the host variables
+        expected = {
+            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
+            u'_ICON_IMAGE_ALT': u'icon alt string',
+            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
+            u'_CUSTNAME': u'custvalue',
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
+            u'_TEST5': u'service specific'
+        }
+        self.assertEqual(expected, service['customs'])
+        # ----------
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
