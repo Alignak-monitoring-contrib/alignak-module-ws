@@ -1797,7 +1797,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' updated."],
+                         u"Host 'test_host_0' unchanged."],
             u'_feedback': {
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': False,
@@ -2157,6 +2157,14 @@ class TestModuleWs(AlignakTest):
             u'_ICON_IMAGE_ALT': u'icon alt string',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
+            u'_MY_ARRAY': [
+                {u'id': u'identifier', u'name': u'my name', u'other': 1},
+                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            ],
+            u'_PACKAGES': [
+                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
+                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            ],
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
             u'_TEST4': u'new!',
             u'_TEST5': u'service specific'
