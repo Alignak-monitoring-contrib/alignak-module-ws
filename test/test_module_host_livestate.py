@@ -51,7 +51,7 @@ import alignak_module_ws
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
-class TestModuleWs(AlignakTest):
+class TestModuleWsHostLivestate(AlignakTest):
     """This class contains the tests for the module"""
 
     @classmethod
