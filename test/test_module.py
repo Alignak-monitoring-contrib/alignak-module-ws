@@ -430,10 +430,13 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak daemons get status period: 10"), 8)
         self.assert_log_match(
-            re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 9)
+            re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
+                      "(ca_cert). Please fix it in your configuration"), 9)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://me:8080"), 10)
+            re.escape("SSL is not enabled, this is not recommended. "
+                      "You should consider enabling SSL!"), 10)
+        self.assert_log_match(
+            re.escape("configuration, listening on: http://me:8080"), 11)
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled
