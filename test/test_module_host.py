@@ -50,7 +50,7 @@ import alignak_module_ws
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
-class TestModuleWs(AlignakTest):
+class TestModuleWsHost(AlignakTest):
     """This class contains the tests for the module"""
 
     @classmethod
@@ -76,8 +76,6 @@ class TestModuleWs(AlignakTest):
                                  stdout=fnull, stderr=fnull)
         time.sleep(3)
 
-        cls.endpoint = 'http://127.0.0.1:5000'
-
         test_dir = os.path.dirname(os.path.realpath(__file__))
         print("Current test directory: %s" % test_dir)
 
@@ -88,6 +86,8 @@ class TestModuleWs(AlignakTest):
         )
         assert exit_code == 0
         print("Fed")
+
+        cls.endpoint = 'http://127.0.0.1:5000'
 
         # Backend authentication
         headers = {'Content-Type': 'application/json'}
@@ -126,9 +126,6 @@ class TestModuleWs(AlignakTest):
 
     @classmethod
     def tearDown(cls):
-        for resource in ['host', 'service']:
-            requests.delete(cls.endpoint + '/' + resource, auth=cls.auth)
-
         if cls.modulemanager:
             time.sleep(1)
             cls.modulemanager.stop_all()
@@ -1809,6 +1806,8 @@ class TestModuleWs(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # No feedback
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -1885,21 +1884,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # ----------
@@ -1941,22 +1925,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' updated."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -1990,21 +1959,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # Get host data to confirm there was not update
@@ -2039,21 +1993,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # Get host data to confirm update
@@ -2088,21 +2027,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)", u"Host 'test_host_0' updated."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # Get host data to confirm update
@@ -2157,21 +2081,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # Get host data to confirm update
@@ -2229,21 +2138,6 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
         })
 
         # Get host data to confirm update
@@ -2323,36 +2217,6 @@ class TestModuleWs(AlignakTest):
             u'_result': [u'test_host_0 is alive :)',
                          u"Service 'test_host_0/test_ok_0' updated",
                          u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_ok_0': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                }
-            }
         })
 
         # Get host data to confirm update

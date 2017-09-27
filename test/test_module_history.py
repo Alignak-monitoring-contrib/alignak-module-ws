@@ -178,62 +178,6 @@ class TestModuleConnection(AlignakTest):
             assert False
         return None
 
-    def test_connection_accepted(self):
-        """ Test module backend connection accepted """
-        # admin user login
-        mod = get_instance(Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
-        }))
-        self.assertTrue(mod.backend_available)
-
-        # test user login
-        mod = get_instance(Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'test',
-            'password': 'test',
-        }))
-        self.assertTrue(mod.backend_available)
-
-    def test_connection_refused(self):
-        """ Test module backend connection refused """
-        # No backend data defined
-        mod = get_instance(Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-        }))
-        self.assertFalse(mod.backend_available)
-
-        # Backend bad URL
-        mod = get_instance(Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            'alignak_backend': 'http://bad_url',
-            'username': 'admin',
-            'password': 'admin',
-        }))
-        self.assertFalse(mod.backend_available)
-
-        # Backend refused login
-        mod = get_instance(Module({
-            'module_alias': 'web-services',
-            'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'fake',
-            'password': 'fake',
-        }))
-        self.assertFalse(mod.backend_available)
-
     def test_module_zzz_get_ws(self):
         """Test the module log collection functions
         :return:
