@@ -77,7 +77,7 @@ class TestModuleWs(AlignakTest):
                                  stdout=fnull, stderr=fnull)
         time.sleep(3)
 
-        endpoint = 'http://127.0.0.1:5000'
+        cls.endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
         print("Current test directory: %s" % test_dir)
@@ -94,18 +94,18 @@ class TestModuleWs(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
         # Get admin user token (force regenerate)
-        response = requests.post(endpoint + '/login', json=params, headers=headers)
+        response = requests.post(cls.endpoint + '/login', json=params, headers=headers)
         resp = response.json()
         cls.token = resp['token']
         cls.auth = requests.auth.HTTPBasicAuth(cls.token, '')
 
         # Get admin user
-        response = requests.get(endpoint + '/user', auth=cls.auth)
+        response = requests.get(cls.endpoint + '/user', auth=cls.auth)
         resp = response.json()
         cls.user_admin = resp['_items'][0]
 
         # Get realms
-        response = requests.get(endpoint + '/realm', auth=cls.auth)
+        response = requests.get(cls.endpoint + '/realm', auth=cls.auth)
         resp = response.json()
         cls.realmAll_id = resp['_items'][0]['_id']
 
@@ -114,7 +114,7 @@ class TestModuleWs(AlignakTest):
                 'host_notification_period': cls.user_admin['host_notification_period'],
                 'service_notification_period': cls.user_admin['service_notification_period'],
                 '_realm': cls.realmAll_id}
-        response = requests.post(endpoint + '/user', json=data, headers=headers,
+        response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
         print("Created a new user: %s" % resp)
@@ -122,6 +122,15 @@ class TestModuleWs(AlignakTest):
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
+
+    @classmethod
+    def tearDown(cls):
+        """Delete resources in backend
+
+        :return: None
+        """
+        for resource in ['host', 'service']:
+            requests.delete(cls.endpoint + '/' + resource, auth=cls.auth)
 
     def test_module_zzz_host_creation(self):
         """Test the module /host API - host creation
@@ -232,7 +241,7 @@ class TestModuleWs(AlignakTest):
         # Host created with default check_command and in default user realm
 
         # Get new host to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_0'})})
         resp = response.json()
         new_host_0 = resp['_items'][0]
@@ -349,7 +358,7 @@ class TestModuleWs(AlignakTest):
         # No errors!
 
         # Get new host to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_2'})})
         resp = response.json()
         new_host_2 = resp['_items'][0]
@@ -404,13 +413,66 @@ class TestModuleWs(AlignakTest):
         # No errors!
 
         # Get new host to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_3'})})
         resp = response.json()
         new_host_3 = resp['_items'][0]
         self.assertEqual('new_host_3', new_host_3['name'])
         self.assertNotEqual([], new_host_3['_templates'])
         self.assertEqual({'_TEMPLATE': 'generic'}, new_host_3['customs'])
+
+        # Create a new host with a template and no _realm and Update host livestate (heartbeat / host is alive): livestate
+        data = {
+            "name": "new_host_4",
+            "template": {
+                "_templates": ["generic-host"]
+            },
+            "livestate": {
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_4 is alive :)',
+                u"Requested host 'new_host_4' does not exist.",
+                u"Requested host 'new_host_4' created.",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_4;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_4' unchanged."
+            ],
+            u'_feedback': {
+                u'_overall_state_id': 3,
+                u'active_checks_enabled': True,
+                u'alias': u'generic-host',  # TODO: check this because it looks fuzzy...
+                u'check_freshness': False,
+                u'check_interval': 1,
+                u'freshness_state': u'x',
+                u'freshness_threshold': 0,
+                u'location': {u'coordinates': [48.858293, 2.294601],
+                              u'type': u'Point'},
+                u'max_check_attempts': 3,
+                u'notes': u'',
+                u'passive_checks_enabled': True,
+                u'retry_interval': 1
+            }
+        })
+        # No errors!
+
+        # Get new host to confirm creation
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_4'})})
+        resp = response.json()
+        new_host_4 = resp['_items'][0]
+        self.assertEqual('new_host_4', new_host_4['name'])
+        self.assertNotEqual([], new_host_4['_templates'])
+        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_4['customs'])
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
@@ -605,7 +667,7 @@ class TestModuleWs(AlignakTest):
         # No errors!
 
         # Get new host to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_for_services_0'})})
         resp = response.json()
         new_host_for_services_0 = resp['_items'][0]
@@ -614,7 +676,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual({}, new_host_for_services_0['customs'])
 
         # Get services data to confirm update
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+        response = requests.get(self.endpoint + '/service', auth=self.auth,
                                 params={'where': json.dumps({'host': new_host_for_services_0['_id'],
                                                              'name': 'test_empty_0'})})
         resp = response.json()
@@ -699,7 +761,7 @@ class TestModuleWs(AlignakTest):
         # No errors!
 
         # Get new host to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
                                 params={'where': json.dumps({'name': 'new_host_for_services_0'})})
         resp = response.json()
         new_host_for_services_0 = resp['_items'][0]
@@ -708,7 +770,7 @@ class TestModuleWs(AlignakTest):
         self.assertEqual({}, new_host_for_services_0['customs'])
 
         # Get services data to confirm update
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+        response = requests.get(self.endpoint + '/service', auth=self.auth,
                                 params={'where': json.dumps({'host': new_host_for_services_0['_id'],
                                                              'name': 'test_ok_0'})})
         resp = response.json()
@@ -775,15 +837,15 @@ class TestModuleWs(AlignakTest):
                 u'retry_interval': 0,
                 u'services': {u'new_service': {u'_overall_state_id': 3,
                                                u'active_checks_enabled': True,
-                                               u'alias': u'generic-service',  #TODO: check this
+                                               u'alias': u'test_ok_1',
                                                u'check_freshness': False,
-                                               u'check_interval': 1,
+                                               u'check_interval': 5,
                                                u'freshness_state': u'x',
                                                u'freshness_threshold': 0,
-                                               u'max_check_attempts': 2,
+                                               u'max_check_attempts': 1,
                                                u'notes': u'',
                                                u'passive_checks_enabled': True,
-                                               u'retry_interval': 1}
+                                               u'retry_interval': 0}
                               }
             }
         })
@@ -806,7 +868,7 @@ class TestModuleWs(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEMPLATE': u'generic', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
         self.assertEqual(expected, service['customs'])
         # Logout
