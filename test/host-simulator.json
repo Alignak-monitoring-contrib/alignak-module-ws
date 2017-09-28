@@ -10,6 +10,8 @@
             "alias": "My host...",
             "_templates": ["windows-passive-host", "important"]
          },
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
 
          "services": {
             "fake_service": {
