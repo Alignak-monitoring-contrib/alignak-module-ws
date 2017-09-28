@@ -51,7 +51,7 @@ from alignak_module_ws.utils.helper import Helper
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
-class TestModuleConnection(AlignakTest):
+class TestModuleHistory(AlignakTest):
 
     @classmethod
     def setUpClass(cls):
@@ -114,6 +114,7 @@ class TestModuleConnection(AlignakTest):
         requests.post(cls.endpoint + '/command', json=data, headers=headers, auth=cls.auth)
         response = requests.get(cls.endpoint + '/command', auth=cls.auth)
         resp = response.json()
+        print("Created a new command: %s" % resp)
         cls.rc = resp['_items']
 
         # Add an host
@@ -127,6 +128,7 @@ class TestModuleConnection(AlignakTest):
         response = requests.post(cls.endpoint + '/host', json=data, headers=headers, auth=cls.auth)
         response = requests.get(cls.endpoint + '/host?where={"name":"srv001"}', auth=cls.auth)
         resp = response.json()
+        print("Created a new host: %s" % resp)
         cls.rh = resp['_items']
 
         # Add a service
@@ -140,7 +142,9 @@ class TestModuleConnection(AlignakTest):
         response = requests.post(cls.endpoint + '/service', json=data, headers=headers, auth=cls.auth)
         response = requests.get(cls.endpoint + '/service', auth=cls.auth)
         resp = response.json()
+        print("Created a new service: %s" % resp)
         cls.rs = resp['_items']
+        print(cls.rs)
 
         cls.modulemanager = None
 
