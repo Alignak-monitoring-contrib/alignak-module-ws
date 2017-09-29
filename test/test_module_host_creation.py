@@ -712,7 +712,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEMPLATE': u'generic', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
         self.assertEqual(expected, service['customs'])
         # Logout
