@@ -156,6 +156,10 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Give some feedback about host and services
+            'give_feedback': '2',
+            'feedback_host': 'alias,notes,location,active_checks_enabled,max_check_attempts,check_interval,retry_interval,passive_checks_enabled,check_freshness,freshness_state,freshness_threshold,_overall_state_id',
+            'feedback_service': 'alias,notes,active_checks_enabled,max_check_attempts,check_interval,retry_interval,passive_checks_enabled,check_freshness,freshness_state,freshness_threshold,_overall_state_id',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -236,7 +240,6 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host is alive :)'],
-                                  u'_feedback': {},
                                   u'_issues': [u"Requested host 'test_host' does not exist"]})
 
         # Host name may be the last part of the URI
@@ -250,6 +253,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)'],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -277,6 +281,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)'],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -304,6 +309,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)'],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -345,6 +351,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)'],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -378,7 +385,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"Host 'test_host_0' unchanged."],
-                                  u'_feedback': {},
                                   u'_issues': [u'Missing state in the livestate.']})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
@@ -399,7 +405,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host_0 is alive :)',
                                                u"Host 'test_host_0' unchanged."],
-                                  u'_feedback': {},
                                   u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
                                                u"and not ''."]})
 
@@ -425,6 +430,7 @@ class TestModuleWsHost(AlignakTest):
                          u"Output...|'counter'=1\nLong output...",
                          u"Host 'test_host_0' unchanged."],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -463,6 +469,7 @@ class TestModuleWsHost(AlignakTest):
                          u"Output...|'counter'=1\nLong output...",
                          u"Host 'test_host_0' unchanged."],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -489,35 +496,35 @@ class TestModuleWsHost(AlignakTest):
                 "long_output": "Long output...",
                 "perf_data": "'counter'=1"
             },
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "livestate": {
                         "state": "ok",
-                        "output": "Output...",
-                        "long_output": "Long output...",
-                        "perf_data": "'counter'=1"
+                        "output": "Output 0",
+                        "long_output": "Long output 0",
+                        "perf_data": "'counter'=0"
                     }
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
-                        "output": "Output...",
-                        "long_output": "Long output...",
+                        "output": "Output 1",
+                        "long_output": "Long output 1",
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
-                        "output": "Output...",
-                        "long_output": "Long output...",
-                        "perf_data": "'counter'=1"
+                        "output": "Output 2",
+                        "long_output": "Long output 2",
+                        "perf_data": "'counter'=2"
                     }
                 },
-            },
+            ]
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -526,15 +533,16 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
             ],
             u'_feedback': {
+                u'name': u'test_host_0',
                 u'_overall_state_id': 3,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
@@ -548,47 +556,23 @@ class TestModuleWsHost(AlignakTest):
                 u'notes': u'',
                 u'passive_checks_enabled': True,
                 u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
+                u'services': [
+                    {u'active_checks_enabled': False, u'alias': u'test_ok_0',
+                     u'freshness_state': u'x', u'notes': u'just a notes string',
+                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'passive_checks_enabled': False, u'check_interval': 1,
+                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_0'},
+                    {u'active_checks_enabled': True, u'alias': u'test_ok_1',
+                     u'freshness_state': u'x', u'notes': u'just a notes string',
+                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'passive_checks_enabled': True, u'check_interval': 1,
+                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_1'},
+                    {u'active_checks_enabled': False, u'alias': u'test_ok_2',
+                     u'freshness_state': u'x', u'notes': u'just a notes string',
+                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'passive_checks_enabled': True, u'check_interval': 1,
+                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_2'}
+                ]
             }
         })
 
@@ -601,8 +585,8 @@ class TestModuleWsHost(AlignakTest):
 
         self.modulemanager.stop_all()
 
-    def test_module_simulate_host(self):
-        """Simulate an host on the /host API
+    def test_module_zzz_simulate_host(self):
+        """Simulate an host on the /host API - no feedback
         :return:
         """
         self.print_header()
@@ -627,6 +611,8 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # No feedback
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -682,8 +668,8 @@ class TestModuleWsHost(AlignakTest):
                 "long_output": "Long output...",
                 "perf_data": "'counter'=1"
             },
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "livestate": {
                         "state": "ok",
@@ -692,7 +678,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
@@ -701,7 +687,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
@@ -710,7 +696,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-            },
+            ],
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -721,68 +707,12 @@ class TestModuleWsHost(AlignakTest):
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
-            }
+            ]
         })
 
         # Update host services livestate - several checks in the livestate
@@ -805,8 +735,8 @@ class TestModuleWsHost(AlignakTest):
                     "perf_data": "'counter'=1"
                 }
             ],
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     # An array with one item
                     "livestate": [
@@ -819,7 +749,7 @@ class TestModuleWsHost(AlignakTest):
                         }
                     ]
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     # An array with one item
                     "livestate": [
@@ -839,7 +769,7 @@ class TestModuleWsHost(AlignakTest):
                         }
                     ]
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
@@ -848,7 +778,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-            },
+            ],
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -860,69 +790,13 @@ class TestModuleWsHost(AlignakTest):
                 u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
-            }
+            ]
         })
 
         # Logout
@@ -961,6 +835,8 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Timestamp
             'set_timestamp': '1',
+            # No feedback
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -1026,7 +902,6 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host is alive :)'],
-                                  u'_feedback': {},
                                   u'_issues': [u"Requested host 'test_host' does not exist"]})
 
         # Host name may be the last part of the URI
@@ -1039,22 +914,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)']
         })
 
         # Host name may be in the POSTed data
@@ -1067,22 +927,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)']
         })
 
         # Host name in the POSTed data takes precedence over URI
@@ -1095,22 +940,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)']
         })
 
         # Host name must be somewhere !
@@ -1136,22 +966,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)']
         })
 
         # Update host livestate (heartbeat / host is alive): missing state in the livestate
@@ -1171,7 +986,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {},
             u'_issues': [u'Missing state in the livestate.']
         })
 
@@ -1193,7 +1007,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {},
             u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not ''."]})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
@@ -1214,7 +1027,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {},
             u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not 'XXX'."]})
 
         # Update host livestate (heartbeat / host is alive): livestate, no timestamp
@@ -1237,22 +1049,7 @@ class TestModuleWsHost(AlignakTest):
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, provided timestamp
@@ -1276,22 +1073,7 @@ class TestModuleWsHost(AlignakTest):
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % 123456789,
-                         u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate may be a list
@@ -1326,22 +1108,7 @@ class TestModuleWsHost(AlignakTest):
                          u"Output...|'counter'=1\nLong output..." % 123456789,
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % 987654321,
-                         u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, invalid provided timestamp
@@ -1367,22 +1134,7 @@ class TestModuleWsHost(AlignakTest):
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -1405,22 +1157,7 @@ class TestModuleWsHost(AlignakTest):
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
                          u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+                         u"Host 'test_host_0' unchanged."]
         })
 
         # Update host services livestate
@@ -1433,8 +1170,8 @@ class TestModuleWsHost(AlignakTest):
                 "long_output": "Long output...",
                 "perf_data": "'counter'=1"
             },
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "livestate": {
                         "state": "ok",
@@ -1443,7 +1180,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
@@ -1452,7 +1189,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
@@ -1461,7 +1198,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-            },
+            ],
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -1473,68 +1210,12 @@ class TestModuleWsHost(AlignakTest):
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
-            }
+            ]
         })
 
         # Update host services livestate - provided timestamp
@@ -1547,8 +1228,8 @@ class TestModuleWsHost(AlignakTest):
                 "long_output": "Long output...",
                 "perf_data": "'counter'=1"
             },
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "livestate": {
                         "timestamp": 123456789,
@@ -1558,7 +1239,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
@@ -1567,7 +1248,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
@@ -1576,7 +1257,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-            },
+            ],
         }
         now = time.time()
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -1588,68 +1269,12 @@ class TestModuleWsHost(AlignakTest):
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
-            }
+            ]
         })
 
         # Update host services livestate - livestate may be a list
@@ -1662,8 +1287,8 @@ class TestModuleWsHost(AlignakTest):
                 "long_output": "Long output...",
                 "perf_data": "'counter'=1"
             },
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "livestate": [
                         {
@@ -1682,7 +1307,7 @@ class TestModuleWsHost(AlignakTest):
                         }
                     ]
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "livestate": {
                         "state": "warning",
@@ -1691,7 +1316,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "livestate": {
                         "state": "critical",
@@ -1700,7 +1325,7 @@ class TestModuleWsHost(AlignakTest):
                         "perf_data": "'counter'=1"
                     }
                 },
-            },
+            ],
         }
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
@@ -1713,68 +1338,12 @@ class TestModuleWsHost(AlignakTest):
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
                 u"Service 'test_host_0/test_ok_0' unchanged.",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 u"Service 'test_host_0/test_ok_1' unchanged.",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' unchanged.",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_0',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': False,
-                        u'retry_interval': 1
-                    },
-                    u'test_service2': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': True,
-                        u'alias': u'test_ok_1',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    },
-                    u'test_service3': {
-                        u'_overall_state_id': 3,
-                        u'active_checks_enabled': False,
-                        u'alias': u'test_ok_2',
-                        u'check_freshness': False,
-                        u'check_interval': 1,
-                        u'freshness_state': u'x',
-                        u'freshness_threshold': -1,
-                        u'max_check_attempts': 2,
-                        u'notes': u'just a notes string',
-                        u'passive_checks_enabled': True,
-                        u'retry_interval': 1
-                    }
-                }
-            }
+            ]
         })
 
         # Logout
@@ -1903,7 +1472,6 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'unknown_host is alive :)'],
-                                  u'_feedback': {},
                                   u'_issues': [u"Requested host 'unknown_host' does not exist"]})
 
 
@@ -2064,6 +1632,215 @@ class TestModuleWsHost(AlignakTest):
                         "id": "identifier", "name": "my name", "other": 1
                     }
                 ],
+                "Kiosk_Packages": [
+                    {
+                        "id": "adobereader"
+                        , "version": "3.0.0"
+                        , "service": "soft_adobereader"
+                    }, {
+                        "id": "AudioRealtek"
+                        , "version": "3.1.5"
+                        , "service": "dev_SoundPanelPC"
+                    }, {
+                        "id": "Bea"
+                        , "version": "1.0.7"
+                        , "service": "Bea"
+                    }, {
+                        "id": "cwrsync"
+                        , "version": "3.1.2"
+                        , "service": "soft_cwrsync"
+                    }, {
+                        "id": "Display"
+                        , "version": "3.1.5"
+                        , "service": "dev_DisplayPanelPC"
+                    }, {
+                        "id": "eLiberty"
+                        , "version": "1.5.15"
+                        , "service": "eLiberty"
+                    }, {
+                        "id": "HomeMaison"
+                        , "version": "0.1.0"
+                        , "service": "HomeMaison"
+                    }, {
+                        "id": "ImagerDocumentSimu"
+                        , "version": "4.1.1"
+                        , "service": "dev_DocumentImager"
+                        , "disabled": True
+                    }, {
+                        "id": "ImagerPhotoVideoSimu"
+                        , "version": "4.1.1"
+                        , "service": "dev_PhotoVideoImager"
+                        , "disabled": True
+                    }, {
+                        "id": "ImagerPhotoVideoWebcam"
+                        , "version": "4.1.1"
+                        , "service": "dev_PhotoVideoImager_2"
+                        , "disabled": True
+                    }, {
+                        "id": "Inventory"
+                        , "version": "4.0.4"
+                        , "service": "soft_Inventory"
+                    }, {
+                        "id": "ioKiosk"
+                        , "version": "3.1.2"
+                        , "service": "dev_IOPanelPC"
+                    }, {
+                        "id": "Kiosk"
+                        , "version": "3.5.0"
+                        , "service": "soft_Kiosk"
+                    }, {
+                        "id": "KioskShell"
+                        , "version": "3.9.6.1000"
+                        , "service": "soft_KioskShell"
+                    }, {
+                        "id": "Maintenance"
+                        , "version": "1.5.0"
+                        , "service": "Maintenance"
+                    }, {
+                        "id": "Master"
+                        , "version": "2.0.0"
+                        , "service": "soft_Master"
+                    }, {
+                        "id": "NSClient"
+                        , "version": "4.0.2"
+                        , "service": "soft_NSClient"
+                    }, {
+                        "id": "NetworkLan"
+                        , "version": "3.0.7"
+                        , "service": "dev_Network"
+                    }, {
+                        "id": "NetworkWifi"
+                        , "version": "3.1.2"
+                        , "service": "dev_Network"
+                    }, {
+                        "id": "ParionsSport"
+                        , "version": "2.0.11"
+                        , "service": "ParionsSport"
+                    }, {
+                        "id": "PaymentSimu"
+                        , "version": "4.18.1"
+                        , "service": "dev_CBPayment"
+                        , "disabled": True
+                    }, {
+                        "id": "PaymentVerifoneUX"
+                        , "version": "4.6.3"
+                        , "service": "dev_CBPayment_2"
+                        , "disabled": True
+                    }, {
+                        "id": "Printer"
+                        , "version": "4.0.0"
+                        , "service": "dev_ReceiptPrinter"
+                    }, {
+                        "id": "PrinterKalypso60_64b"
+                        , "version": "4.7.6"
+                        , "service": "dev_ReceiptPrinter_2"
+                    }, {
+                        "id": "PrinterKPM180"
+                        , "version": "4.6.2.4"
+                        , "service": "dev_TicketPrinter_"
+                        , "disabled": True
+                    }, {
+                        "id": "PrinterM506"
+                        , "version": "4.6.1"
+                        , "service": "dev_DocumentPrinter"
+                        , "disabled": True
+                    }, {
+                        "id": "PrinterM506_2"
+                        , "version": "4.6.1"
+                        , "service": "dev_Document2Printer"
+                    }, {
+                        "id": "PrinterM506_3"
+                        , "version": "4.6.1"
+                        , "service": "dev_Document3Printer"
+                    }, {
+                        "id": "PrinterTG1260H"
+                        , "version": "4.6.2.5"
+                        , "service": "dev_ReceiptPrinter_"
+                        , "disabled": True
+                    }, {
+                        "id": "radiusFdj"
+                        , "version": "4.0.1"
+                        , "service": "soft_radiusFdj"
+                    }, {
+                        "id": "ReaderBluetooth"
+                        , "version": "3.5.0"
+                        , "service": "soft_ReaderBluetooth"
+                        , "disabled": True
+                    }, {
+                        "id": "ReaderGemalto"
+                        , "version": "3.5.0"
+                        , "service": "dev_ContactReader"
+                        , "disabled": True
+                    }, {
+                        "id": "ReaderGFS4470"
+                        , "version": "4.6.3"
+                        , "service": "dev_BarcodeReader"
+                    }, {
+                        "id": "ReaderProxNRoll"
+                        , "version": "3.5.0"
+                        , "service": "dev_ContactlessReader"
+                    }, {
+                        "id": "ReaderSesamVitale"
+                        , "version": "3.7.0"
+                        , "service": "dev_SesamVitaleReader"
+                    }, {
+                        "id": "setKiosk"
+                        , "version": "4.0.1"
+                        , "service": "soft_setKiosk"
+                    }, {
+                        "id": "SoftKiosk"
+                        , "version": "3.8.2"
+                        , "service": "svc_SoftKiosk"
+                    }, {
+                        "id": "Touchscreen"
+                        , "version": "3.2.3"
+                        , "service": "dev_TouchPanelPC"
+                    }, {
+                        "id": "UPS"
+                        , "version": "3.0.0"
+                        , "service": "dev_UPSEnergy"
+                    }, {
+                        "id": "Monitoring"
+                        , "version": "4.0.2"
+                        , "service": "svc_Monitoring"
+                    }, {
+                        "id": "Management"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Management"
+                    }, {
+                        "id": "Session"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Session"
+                    }, {
+                        "id": "Screensaver"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Screensaver"
+                    }, {
+                        "id": "Disk"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Disk"
+                    }, {
+                        "id": "TagReading_A"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_TagReading_A"
+                    }, {
+                        "id": "TagReading_F"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_TagReading_F"
+                    }, {
+                        "id": "TagReading_B"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_TagReading_B"
+                    }, {
+                        "id": "Alarm"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Alarm"
+                    }, {
+                        "id": "Activity"
+                        , "version": "3.9.6.1000"
+                        , "service": "svc_Activity"
+                    }
+                ],
                 'packages': [
                     {
                         "id": "identifier", "name": "Package 1", "other": 1
@@ -2096,6 +1873,165 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'my name', u'other': 1},
                 {u'id': u'identifier', u'name': u'my name', u'other': 1}
             ],
+            u'_KIOSK_PACKAGES': [
+                {u'id': u'adobereader',
+                 u'service': u'soft_adobereader',
+                 u'version': u'3.0.0'},
+                {u'id': u'AudioRealtek',
+                 u'service': u'dev_SoundPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'Bea',
+                 u'service': u'Bea',
+                 u'version': u'1.0.7'},
+                {u'id': u'cwrsync',
+                 u'service': u'soft_cwrsync',
+                 u'version': u'3.1.2'},
+                {u'id': u'Display',
+                 u'service': u'dev_DisplayPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'eLiberty',
+                 u'service': u'eLiberty',
+                 u'version': u'1.5.15'},
+                {u'id': u'HomeMaison',
+                 u'service': u'HomeMaison',
+                 u'version': u'0.1.0'},
+                {u'disabled': True,
+                 u'id': u'ImagerDocumentSimu',
+                 u'service': u'dev_DocumentImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoSimu',
+                 u'service': u'dev_PhotoVideoImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoWebcam',
+                 u'service': u'dev_PhotoVideoImager_2',
+                 u'version': u'4.1.1'},
+                {u'id': u'Inventory',
+                 u'service': u'soft_Inventory',
+                 u'version': u'4.0.4'},
+                {u'id': u'ioKiosk',
+                 u'service': u'dev_IOPanelPC',
+                 u'version': u'3.1.2'},
+                {u'id': u'Kiosk',
+                 u'service': u'soft_Kiosk',
+                 u'version': u'3.5.0'},
+                {u'id': u'KioskShell',
+                 u'service': u'soft_KioskShell',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Maintenance',
+                 u'service': u'Maintenance',
+                 u'version': u'1.5.0'},
+                {u'id': u'Master',
+                 u'service': u'soft_Master',
+                 u'version': u'2.0.0'},
+                {u'id': u'NSClient',
+                 u'service': u'soft_NSClient',
+                 u'version': u'4.0.2'},
+                {u'id': u'NetworkLan',
+                 u'service': u'dev_Network',
+                 u'version': u'3.0.7'},
+                {u'id': u'NetworkWifi',
+                 u'service': u'dev_Network',
+                 u'version': u'3.1.2'},
+                {u'id': u'ParionsSport',
+                 u'service': u'ParionsSport',
+                 u'version': u'2.0.11'},
+                {u'disabled': True,
+                 u'id': u'PaymentSimu',
+                 u'service': u'dev_CBPayment',
+                 u'version': u'4.18.1'},
+                {u'disabled': True,
+                 u'id': u'PaymentVerifoneUX',
+                 u'service': u'dev_CBPayment_2',
+                 u'version': u'4.6.3'},
+                {u'id': u'Printer',
+                 u'service': u'dev_ReceiptPrinter',
+                 u'version': u'4.0.0'},
+                {u'id': u'PrinterKalypso60_64b',
+                 u'service': u'dev_ReceiptPrinter_2',
+                 u'version': u'4.7.6'},
+                {u'disabled': True,
+                 u'id': u'PrinterKPM180',
+                 u'service': u'dev_TicketPrinter_',
+                 u'version': u'4.6.2.4'},
+                {u'disabled': True,
+                 u'id': u'PrinterM506',
+                 u'service': u'dev_DocumentPrinter',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_2',
+                 u'service': u'dev_Document2Printer',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_3',
+                 u'service': u'dev_Document3Printer',
+                 u'version': u'4.6.1'},
+                {u'disabled': True,
+                 u'id': u'PrinterTG1260H',
+                 u'service': u'dev_ReceiptPrinter_',
+                 u'version': u'4.6.2.5'},
+                {u'id': u'radiusFdj',
+                 u'service': u'soft_radiusFdj',
+                 u'version': u'4.0.1'},
+                {u'disabled': True,
+                 u'id': u'ReaderBluetooth',
+                 u'service': u'soft_ReaderBluetooth',
+                 u'version': u'3.5.0'},
+                {u'disabled': True,
+                 u'id': u'ReaderGemalto',
+                 u'service': u'dev_ContactReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderGFS4470',
+                 u'service': u'dev_BarcodeReader',
+                 u'version': u'4.6.3'},
+                {u'id': u'ReaderProxNRoll',
+                 u'service': u'dev_ContactlessReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderSesamVitale',
+                 u'service': u'dev_SesamVitaleReader',
+                 u'version': u'3.7.0'},
+                {u'id': u'setKiosk',
+                 u'service': u'soft_setKiosk',
+                 u'version': u'4.0.1'},
+                {u'id': u'SoftKiosk',
+                 u'service': u'svc_SoftKiosk',
+                 u'version': u'3.8.2'},
+                {u'id': u'Touchscreen',
+                 u'service': u'dev_TouchPanelPC',
+                 u'version': u'3.2.3'},
+                {u'id': u'UPS',
+                 u'service': u'dev_UPSEnergy',
+                 u'version': u'3.0.0'},
+                {u'id': u'Monitoring',
+                 u'service': u'svc_Monitoring',
+                 u'version': u'4.0.2'},
+                {u'id': u'Management',
+                 u'service': u'svc_Management',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Session',
+                 u'service': u'svc_Session',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Screensaver',
+                 u'service': u'svc_Screensaver',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Disk',
+                 u'service': u'svc_Disk',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_A',
+                 u'service': u'svc_TagReading_A',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_F',
+                 u'service': u'svc_TagReading_F',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_B',
+                 u'service': u'svc_TagReading_B',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Alarm',
+                 u'service': u'svc_Alarm',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Activity',
+                 u'service': u'svc_Activity',
+                 u'version': u'3.9.6.1000'}
+            ],
             u'_PACKAGES': [
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
                 {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
@@ -2119,6 +2055,25 @@ class TestModuleWsHost(AlignakTest):
                     },
                     {
                         "id": "identifier", "name": "my name", "other": 1
+                    }
+                ],
+                "Kiosk_Packages": [
+                    {
+                    "id": "Bea"
+                    , "version": "1.0.7"
+                    , "service": "Bea"
+                    }, {
+                    "id": "adobereader"
+                    , "version": "3.0.0"
+                    , "service": "soft_adobereader"
+                    }, {
+                    "id": "AudioRealtek"
+                    , "version": "3.1.5"
+                    , "service": "dev_SoundPanelPC"
+                    }, {
+                    "id": "cwrsync"
+                    , "version": "3.1.2"
+                    , "service": "soft_cwrsync"
                     }
                 ],
                 'packages': [
@@ -2157,6 +2112,165 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
                 {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
             ],
+            u'_KIOSK_PACKAGES': [
+                {u'id': u'adobereader',
+                 u'service': u'soft_adobereader',
+                 u'version': u'3.0.0'},
+                {u'id': u'AudioRealtek',
+                 u'service': u'dev_SoundPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'Bea',
+                 u'service': u'Bea',
+                 u'version': u'1.0.7'},
+                {u'id': u'cwrsync',
+                 u'service': u'soft_cwrsync',
+                 u'version': u'3.1.2'},
+                {u'id': u'Display',
+                 u'service': u'dev_DisplayPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'eLiberty',
+                 u'service': u'eLiberty',
+                 u'version': u'1.5.15'},
+                {u'id': u'HomeMaison',
+                 u'service': u'HomeMaison',
+                 u'version': u'0.1.0'},
+                {u'disabled': True,
+                 u'id': u'ImagerDocumentSimu',
+                 u'service': u'dev_DocumentImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoSimu',
+                 u'service': u'dev_PhotoVideoImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoWebcam',
+                 u'service': u'dev_PhotoVideoImager_2',
+                 u'version': u'4.1.1'},
+                {u'id': u'Inventory',
+                 u'service': u'soft_Inventory',
+                 u'version': u'4.0.4'},
+                {u'id': u'ioKiosk',
+                 u'service': u'dev_IOPanelPC',
+                 u'version': u'3.1.2'},
+                {u'id': u'Kiosk',
+                 u'service': u'soft_Kiosk',
+                 u'version': u'3.5.0'},
+                {u'id': u'KioskShell',
+                 u'service': u'soft_KioskShell',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Maintenance',
+                 u'service': u'Maintenance',
+                 u'version': u'1.5.0'},
+                {u'id': u'Master',
+                 u'service': u'soft_Master',
+                 u'version': u'2.0.0'},
+                {u'id': u'NSClient',
+                 u'service': u'soft_NSClient',
+                 u'version': u'4.0.2'},
+                {u'id': u'NetworkLan',
+                 u'service': u'dev_Network',
+                 u'version': u'3.0.7'},
+                {u'id': u'NetworkWifi',
+                 u'service': u'dev_Network',
+                 u'version': u'3.1.2'},
+                {u'id': u'ParionsSport',
+                 u'service': u'ParionsSport',
+                 u'version': u'2.0.11'},
+                {u'disabled': True,
+                 u'id': u'PaymentSimu',
+                 u'service': u'dev_CBPayment',
+                 u'version': u'4.18.1'},
+                {u'disabled': True,
+                 u'id': u'PaymentVerifoneUX',
+                 u'service': u'dev_CBPayment_2',
+                 u'version': u'4.6.3'},
+                {u'id': u'Printer',
+                 u'service': u'dev_ReceiptPrinter',
+                 u'version': u'4.0.0'},
+                {u'id': u'PrinterKalypso60_64b',
+                 u'service': u'dev_ReceiptPrinter_2',
+                 u'version': u'4.7.6'},
+                {u'disabled': True,
+                 u'id': u'PrinterKPM180',
+                 u'service': u'dev_TicketPrinter_',
+                 u'version': u'4.6.2.4'},
+                {u'disabled': True,
+                 u'id': u'PrinterM506',
+                 u'service': u'dev_DocumentPrinter',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_2',
+                 u'service': u'dev_Document2Printer',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_3',
+                 u'service': u'dev_Document3Printer',
+                 u'version': u'4.6.1'},
+                {u'disabled': True,
+                 u'id': u'PrinterTG1260H',
+                 u'service': u'dev_ReceiptPrinter_',
+                 u'version': u'4.6.2.5'},
+                {u'id': u'radiusFdj',
+                 u'service': u'soft_radiusFdj',
+                 u'version': u'4.0.1'},
+                {u'disabled': True,
+                 u'id': u'ReaderBluetooth',
+                 u'service': u'soft_ReaderBluetooth',
+                 u'version': u'3.5.0'},
+                {u'disabled': True,
+                 u'id': u'ReaderGemalto',
+                 u'service': u'dev_ContactReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderGFS4470',
+                 u'service': u'dev_BarcodeReader',
+                 u'version': u'4.6.3'},
+                {u'id': u'ReaderProxNRoll',
+                 u'service': u'dev_ContactlessReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderSesamVitale',
+                 u'service': u'dev_SesamVitaleReader',
+                 u'version': u'3.7.0'},
+                {u'id': u'setKiosk',
+                 u'service': u'soft_setKiosk',
+                 u'version': u'4.0.1'},
+                {u'id': u'SoftKiosk',
+                 u'service': u'svc_SoftKiosk',
+                 u'version': u'3.8.2'},
+                {u'id': u'Touchscreen',
+                 u'service': u'dev_TouchPanelPC',
+                 u'version': u'3.2.3'},
+                {u'id': u'UPS',
+                 u'service': u'dev_UPSEnergy',
+                 u'version': u'3.0.0'},
+                {u'id': u'Monitoring',
+                 u'service': u'svc_Monitoring',
+                 u'version': u'4.0.2'},
+                {u'id': u'Management',
+                 u'service': u'svc_Management',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Session',
+                 u'service': u'svc_Session',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Screensaver',
+                 u'service': u'svc_Screensaver',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Disk',
+                 u'service': u'svc_Disk',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_A',
+                 u'service': u'svc_TagReading_A',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_F',
+                 u'service': u'svc_TagReading_F',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_B',
+                 u'service': u'svc_TagReading_B',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Alarm',
+                 u'service': u'svc_Alarm',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Activity',
+                 u'service': u'svc_Activity',
+                 u'version': u'3.9.6.1000'}
+            ],
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
@@ -2167,8 +2281,8 @@ class TestModuleWsHost(AlignakTest):
         data = {
             "name": "test_host_0",
 
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_service",
                     "variables": {
                         'test1': 'string',
@@ -2176,7 +2290,7 @@ class TestModuleWsHost(AlignakTest):
                         'test3': 5.0
                     },
                 },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -2185,7 +2299,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {u'services': {}},
             u'_issues': [u"Requested service 'test_host_0/test_service' does not exist"]
         })
         # ----------
@@ -2196,8 +2309,8 @@ class TestModuleWsHost(AlignakTest):
         data = {
             "name": "test_host_0",
 
-            "services": {
-                "test_ok_0": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "variables": {
                         'test1': 'string',
@@ -2206,7 +2319,7 @@ class TestModuleWsHost(AlignakTest):
                         'test5': 'service specific'
                     },
                 },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -2245,6 +2358,165 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
                 {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
             ],
+            u'_KIOSK_PACKAGES': [
+                {u'id': u'adobereader',
+                 u'service': u'soft_adobereader',
+                 u'version': u'3.0.0'},
+                {u'id': u'AudioRealtek',
+                 u'service': u'dev_SoundPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'Bea',
+                 u'service': u'Bea',
+                 u'version': u'1.0.7'},
+                {u'id': u'cwrsync',
+                 u'service': u'soft_cwrsync',
+                 u'version': u'3.1.2'},
+                {u'id': u'Display',
+                 u'service': u'dev_DisplayPanelPC',
+                 u'version': u'3.1.5'},
+                {u'id': u'eLiberty',
+                 u'service': u'eLiberty',
+                 u'version': u'1.5.15'},
+                {u'id': u'HomeMaison',
+                 u'service': u'HomeMaison',
+                 u'version': u'0.1.0'},
+                {u'disabled': True,
+                 u'id': u'ImagerDocumentSimu',
+                 u'service': u'dev_DocumentImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoSimu',
+                 u'service': u'dev_PhotoVideoImager',
+                 u'version': u'4.1.1'},
+                {u'disabled': True,
+                 u'id': u'ImagerPhotoVideoWebcam',
+                 u'service': u'dev_PhotoVideoImager_2',
+                 u'version': u'4.1.1'},
+                {u'id': u'Inventory',
+                 u'service': u'soft_Inventory',
+                 u'version': u'4.0.4'},
+                {u'id': u'ioKiosk',
+                 u'service': u'dev_IOPanelPC',
+                 u'version': u'3.1.2'},
+                {u'id': u'Kiosk',
+                 u'service': u'soft_Kiosk',
+                 u'version': u'3.5.0'},
+                {u'id': u'KioskShell',
+                 u'service': u'soft_KioskShell',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Maintenance',
+                 u'service': u'Maintenance',
+                 u'version': u'1.5.0'},
+                {u'id': u'Master',
+                 u'service': u'soft_Master',
+                 u'version': u'2.0.0'},
+                {u'id': u'NSClient',
+                 u'service': u'soft_NSClient',
+                 u'version': u'4.0.2'},
+                {u'id': u'NetworkLan',
+                 u'service': u'dev_Network',
+                 u'version': u'3.0.7'},
+                {u'id': u'NetworkWifi',
+                 u'service': u'dev_Network',
+                 u'version': u'3.1.2'},
+                {u'id': u'ParionsSport',
+                 u'service': u'ParionsSport',
+                 u'version': u'2.0.11'},
+                {u'disabled': True,
+                 u'id': u'PaymentSimu',
+                 u'service': u'dev_CBPayment',
+                 u'version': u'4.18.1'},
+                {u'disabled': True,
+                 u'id': u'PaymentVerifoneUX',
+                 u'service': u'dev_CBPayment_2',
+                 u'version': u'4.6.3'},
+                {u'id': u'Printer',
+                 u'service': u'dev_ReceiptPrinter',
+                 u'version': u'4.0.0'},
+                {u'id': u'PrinterKalypso60_64b',
+                 u'service': u'dev_ReceiptPrinter_2',
+                 u'version': u'4.7.6'},
+                {u'disabled': True,
+                 u'id': u'PrinterKPM180',
+                 u'service': u'dev_TicketPrinter_',
+                 u'version': u'4.6.2.4'},
+                {u'disabled': True,
+                 u'id': u'PrinterM506',
+                 u'service': u'dev_DocumentPrinter',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_2',
+                 u'service': u'dev_Document2Printer',
+                 u'version': u'4.6.1'},
+                {u'id': u'PrinterM506_3',
+                 u'service': u'dev_Document3Printer',
+                 u'version': u'4.6.1'},
+                {u'disabled': True,
+                 u'id': u'PrinterTG1260H',
+                 u'service': u'dev_ReceiptPrinter_',
+                 u'version': u'4.6.2.5'},
+                {u'id': u'radiusFdj',
+                 u'service': u'soft_radiusFdj',
+                 u'version': u'4.0.1'},
+                {u'disabled': True,
+                 u'id': u'ReaderBluetooth',
+                 u'service': u'soft_ReaderBluetooth',
+                 u'version': u'3.5.0'},
+                {u'disabled': True,
+                 u'id': u'ReaderGemalto',
+                 u'service': u'dev_ContactReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderGFS4470',
+                 u'service': u'dev_BarcodeReader',
+                 u'version': u'4.6.3'},
+                {u'id': u'ReaderProxNRoll',
+                 u'service': u'dev_ContactlessReader',
+                 u'version': u'3.5.0'},
+                {u'id': u'ReaderSesamVitale',
+                 u'service': u'dev_SesamVitaleReader',
+                 u'version': u'3.7.0'},
+                {u'id': u'setKiosk',
+                 u'service': u'soft_setKiosk',
+                 u'version': u'4.0.1'},
+                {u'id': u'SoftKiosk',
+                 u'service': u'svc_SoftKiosk',
+                 u'version': u'3.8.2'},
+                {u'id': u'Touchscreen',
+                 u'service': u'dev_TouchPanelPC',
+                 u'version': u'3.2.3'},
+                {u'id': u'UPS',
+                 u'service': u'dev_UPSEnergy',
+                 u'version': u'3.0.0'},
+                {u'id': u'Monitoring',
+                 u'service': u'svc_Monitoring',
+                 u'version': u'4.0.2'},
+                {u'id': u'Management',
+                 u'service': u'svc_Management',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Session',
+                 u'service': u'svc_Session',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Screensaver',
+                 u'service': u'svc_Screensaver',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Disk',
+                 u'service': u'svc_Disk',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_A',
+                 u'service': u'svc_TagReading_A',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_F',
+                 u'service': u'svc_TagReading_F',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'TagReading_B',
+                 u'service': u'svc_TagReading_B',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Alarm',
+                 u'service': u'svc_Alarm',
+                 u'version': u'3.9.6.1000'},
+                {u'id': u'Activity',
+                 u'service': u'svc_Activity',
+                 u'version': u'3.9.6.1000'}
+            ],
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
             u'_TEST4': u'new!',
             u'_TEST5': u'service specific'
@@ -2281,6 +2553,8 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # No feedback
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -2348,22 +2622,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)']
         })
 
         # ----------
@@ -2381,7 +2640,6 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'unknown_host is alive :)'],
-            u'_feedback': {},
             u'_issues': [u"Requested host 'unknown_host' does not exist"]})
 
         # ----------
@@ -2398,22 +2656,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."]
         })
 
         # Get host data to confirm update
@@ -2439,22 +2682,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."]
         })
 
         # Get host data to confirm update
@@ -2487,22 +2715,7 @@ class TestModuleWsHost(AlignakTest):
                 u'Host test_host_0 passive checks will be disabled.',
                 u'Sent external command: DISABLE_PASSIVE_HOST_CHECKS;test_host_0.',
                 u"Host 'test_host_0' updated."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': False,
-                u'retry_interval': 1
-            }
+            ]
         })
 
         # Get host data to confirm update
@@ -2533,22 +2746,7 @@ class TestModuleWsHost(AlignakTest):
                 u'Host test_host_0 active checks will be enabled.',
                 u'Sent external command: ENABLE_HOST_CHECK;test_host_0.',
                 u"Host 'test_host_0' updated."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': False,
-                u'retry_interval': 1
-            }
+            ]
         })
 
         # Get host data to confirm update
@@ -2581,22 +2779,7 @@ class TestModuleWsHost(AlignakTest):
                 u'Host test_host_0 passive checks will be enabled.',
                 u'Sent external command: ENABLE_PASSIVE_HOST_CHECKS;test_host_0.',
                 u"Host 'test_host_0' updated."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
-            }
+            ]
         })
 
         # Get host data to confirm update
@@ -2615,23 +2798,23 @@ class TestModuleWsHost(AlignakTest):
             "name": "test_host_0",
             "active_checks_enabled": False,
             "passive_checks_enabled": True,
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_service",
                     "active_checks_enabled": True,
                     "passive_checks_enabled": True,
                 },
-                "test_service2": {
+                {
                     "name": "test_service2",
                     "active_checks_enabled": False,
                     "passive_checks_enabled": False,
                 },
-                "test_service3": {
+                {
                     "name": "test_service3",
                     "active_checks_enabled": True,
                     "passive_checks_enabled": False,
                 },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -2641,10 +2824,9 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)',
                          u"Host 'test_host_0' unchanged."],
-            u'_feedback': {u'services': {}},
             u'_issues': [u"Requested service 'test_host_0/test_service' does not exist",
-                         u"Requested service 'test_host_0/test_service3' does not exist",
-                         u"Requested service 'test_host_0/test_service2' does not exist"]
+                         u"Requested service 'test_host_0/test_service2' does not exist",
+                         u"Requested service 'test_host_0/test_service3' does not exist"]
         })
         # ----------
 
@@ -2655,23 +2837,23 @@ class TestModuleWsHost(AlignakTest):
             "name": "test_host_0",
             "active_checks_enabled": False,
             "passive_checks_enabled": True,
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "active_checks_enabled": True,
                     "passive_checks_enabled": True,
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
                     "active_checks_enabled": False,
                     "passive_checks_enabled": False,
                 },
-                "test_service3": {
+                {
                     "name": "test_ok_2",
                     "active_checks_enabled": True,
                     "passive_checks_enabled": False,
                 },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -2687,59 +2869,18 @@ class TestModuleWsHost(AlignakTest):
                 u'Service test_host_0/test_ok_0 passive checks will be enabled.',
                 u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
                 u"Service 'test_host_0/test_ok_0' updated",
-                u'Service test_host_0/test_ok_2 active checks will be enabled.',
-                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_2.',
-                u'Service test_host_0/test_ok_2 passive checks will be disabled.',
-                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
-                u"Service 'test_host_0/test_ok_2' updated",
                 u'Service test_host_0/test_ok_1 active checks will be disabled.',
                 u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_1.',
                 u'Service test_host_0/test_ok_1 passive checks will be disabled.',
                 u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
                 u"Service 'test_host_0/test_ok_1' updated",
+                u'Service test_host_0/test_ok_2 active checks will be enabled.',
+                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                u'Service test_host_0/test_ok_2 passive checks will be disabled.',
+                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                u"Service 'test_host_0/test_ok_2' updated",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': False,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': -1,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1,
-                u'services': {
-                    u'test_service': {
-                        u'active_checks_enabled': True, u'alias': u'test_ok_0',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
-                        u'freshness_threshold': -1, u'passive_checks_enabled': True,
-                        u'check_interval': 1, u'max_check_attempts': 2,
-                        u'check_freshness': False
-                    },
-                    u'test_service3': {
-                        u'active_checks_enabled': True, u'alias': u'test_ok_2',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
-                        u'freshness_threshold': -1, u'passive_checks_enabled': False,
-                        u'check_interval': 1, u'max_check_attempts': 2,
-                        u'check_freshness': False
-                    },
-                    u'test_service2': {
-                        u'active_checks_enabled': False, u'alias': u'test_ok_1',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
-                        u'freshness_threshold': -1, u'passive_checks_enabled': False,
-                        u'check_interval': 1, u'max_check_attempts': 2,
-                        u'check_freshness': False
-                    }
-                },
-            }
+            ]
         })
 
         # Get host data to confirm update
@@ -2780,23 +2921,23 @@ class TestModuleWsHost(AlignakTest):
             "name": "test_host_0",
             "active_checks_enabled": False,
             "passive_checks_enabled": True,
-            "services": {
-                "test_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "active_checks_enabled": False,
                     "passive_checks_enabled": False,
                 },
-                "test_service2": {
+                {
                     "name": "test_ok_1",
+                    "active_checks_enabled": True,
+                    "passive_checks_enabled": False,
+                },
+                {
+                    "name": "test_ok_2",
                     "active_checks_enabled": True,
                     "passive_checks_enabled": True,
                 },
-                "test_service3": {
-                    "name": "test_ok_2",
-                    "active_checks_enabled": False,
-                    "passive_checks_enabled": True,
-                },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -2812,48 +2953,18 @@ class TestModuleWsHost(AlignakTest):
                 u'Service test_host_0/test_ok_0 passive checks will be disabled.',
                 u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
                 u"Service 'test_host_0/test_ok_0' updated",
-                u'Service test_host_0/test_ok_2 active checks will be disabled.',
-                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                u'Service test_host_0/test_ok_1 active checks will be enabled.',
+                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
+                # u'Service test_host_0/test_ok_1 passive checks will be enabled.',
+                # u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                u"Service 'test_host_0/test_ok_1' updated",
+                # u'Service test_host_0/test_ok_2 active checks will be disabled.',
+                # u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
                 u'Service test_host_0/test_ok_2 passive checks will be enabled.',
                 u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
                 u"Service 'test_host_0/test_ok_2' updated",
-                u'Service test_host_0/test_ok_1 active checks will be enabled.',
-                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
-                u'Service test_host_0/test_ok_1 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
-                u"Service 'test_host_0/test_ok_1' updated",
                 u"Host 'test_host_0' unchanged."
-            ],
-            u'_feedback': {
-                u'active_checks_enabled': False, u'_overall_state_id': 3,
-                u'freshness_state': u'x', u'notes': u'', u'retry_interval': 1,
-                u'alias': u'up_0', u'freshness_threshold': -1,
-                u'check_freshness': False,
-                u'location': {u'type': u'Point', u'coordinates': [48.858293, 2.294601]},
-                u'passive_checks_enabled': True, u'check_interval': 1,
-                u'services': {
-                    u'test_service': {u'active_checks_enabled': False, u'alias': u'test_ok_0',
-                                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                                      u'retry_interval': 1, u'_overall_state_id': 3,
-                                      u'freshness_threshold': -1, u'passive_checks_enabled': False,
-                                      u'check_interval': 1, u'max_check_attempts': 2,
-                                      u'check_freshness': False},
-                    u'test_service2': {u'active_checks_enabled': True, u'alias': u'test_ok_1',
-                                       u'freshness_state': u'x', u'notes': u'just a notes string',
-                                       u'retry_interval': 1, u'_overall_state_id': 3,
-                                       u'freshness_threshold': -1, u'passive_checks_enabled': True,
-                                       u'check_interval': 1, u'max_check_attempts': 2,
-                                       u'check_freshness': False
-                                       },
-                    u'test_service3': {u'active_checks_enabled': False, u'alias': u'test_ok_2',
-                                       u'freshness_state': u'x', u'notes': u'just a notes string',
-                                       u'retry_interval': 1, u'_overall_state_id': 3,
-                                       u'freshness_threshold': -1, u'passive_checks_enabled': True,
-                                       u'check_interval': 1, u'max_check_attempts': 2,
-                                       u'check_freshness': False}
-                }, u'max_check_attempts': 3,
-
-            }
+            ]
         })
 
         response = session.get('http://127.0.0.1:8888/logout')
@@ -2992,7 +3103,6 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'unknown_host is alive :)'],
-                                  u'_feedback': {},
                                   u'_issues': [u"Requested host 'unknown_host' does not exist"]})
 
 
@@ -3035,8 +3145,8 @@ class TestModuleWsHost(AlignakTest):
         data = {
             "name": "test_host_0",
 
-            "services": {
-                "test_ok_0": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "variables": {
                         'test1': 'string',
@@ -3045,7 +3155,7 @@ class TestModuleWsHost(AlignakTest):
                         'test5': 'service specific'
                     },
                 },
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)

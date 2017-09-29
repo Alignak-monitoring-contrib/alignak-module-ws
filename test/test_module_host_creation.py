@@ -223,19 +223,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_0' does not exist.",
                 u"Requested host 'new_host_0' created."],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
+                u'name': u'new_host_0'
             }
         })
         # Host created with default check_command and in default user realm
@@ -262,19 +250,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'new_host_0 is alive :)'],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
+                u'name': u'new_host_0'
             }
         })
         # The host already exists, returns an host alive ;)
@@ -302,19 +278,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_1' created."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'My host...',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
+                u'name': u'new_host_1'
             }
         })
         # Host created, even if check_command does not exist, it uses the default check_command!
@@ -340,19 +304,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_2' created."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_2',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
+                u'name': u'new_host_2'
             }
         })
         # No errors!
@@ -395,19 +347,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Host 'new_host_3' unchanged."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'generic-host',  # TODO: check this because it looks fuzzy...
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+                u'name': u'new_host_3'
             }
         })
         # No errors!
@@ -448,19 +388,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Host 'new_host_4' unchanged."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'generic-host',  # TODO: check this because it looks fuzzy...
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+                u'name': u'new_host_4'
             }
         })
         # No errors!
@@ -579,19 +507,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_for_services_0' created."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_for_services_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
+                u'name': u'new_host_for_services_0'
             }
         })
         # No errors!
@@ -601,8 +517,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_empty_0",
                     # "template": {
                     #     "_realm": 'All',
@@ -620,7 +536,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                         'test3': 5.0
                     },
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -637,31 +553,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_for_services_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0,
-                u'services': {u'new_service': {u'_overall_state_id': 3,
-                                               u'active_checks_enabled': True,
-                                               u'alias': u'test_empty_0',
-                                               u'check_freshness': False,
-                                               u'check_interval': 5,
-                                               u'freshness_state': u'x',
-                                               u'freshness_threshold': 0,
-                                               u'max_check_attempts': 1,
-                                               u'notes': u'',
-                                               u'passive_checks_enabled': True,
-                                               u'retry_interval': 0}
-                              }
+                u'name': u'new_host_for_services_0'
             }
         })
         # No errors!
@@ -693,8 +585,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_ok_0",
                     "template": {
                         "_realm": 'All',
@@ -714,7 +606,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                         'test3': 5.0
                     },
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -731,31 +623,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_for_services_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0,
-                u'services': {u'new_service': {u'_overall_state_id': 3,
-                                               u'active_checks_enabled': True,
-                                               u'alias': u'My service...',
-                                               u'check_freshness': False,
-                                               u'check_interval': 5,
-                                               u'freshness_state': u'x',
-                                               u'freshness_threshold': 0,
-                                               u'max_check_attempts': 1,
-                                               u'notes': u'',
-                                               u'passive_checks_enabled': True,
-                                               u'retry_interval': 0}
-                              }
+                u'name': u'new_host_for_services_0'
             }
         })
         # No errors!
@@ -785,8 +653,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # Create a new service with a template and update service livestate and data
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_ok_1",
                     "template": {
                         "_realm": 'All',
@@ -805,7 +673,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                         'test3': 5.0
                     },
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -822,31 +690,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_for_services_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0,
-                u'services': {u'new_service': {u'_overall_state_id': 3,
-                                               u'active_checks_enabled': True,
-                                               u'alias': u'test_ok_1',
-                                               u'check_freshness': False,
-                                               u'check_interval': 5,
-                                               u'freshness_state': u'x',
-                                               u'freshness_threshold': 0,
-                                               u'max_check_attempts': 1,
-                                               u'notes': u'',
-                                               u'passive_checks_enabled': True,
-                                               u'retry_interval': 0}
-                              }
+                u'name': u'new_host_for_services_0'
             }
         })
         # No errors!
@@ -868,7 +712,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            u'_TEMPLATE': u'generic', u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
         self.assertEqual(expected, service['customs'])
         # Logout
