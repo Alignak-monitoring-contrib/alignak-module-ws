@@ -102,9 +102,26 @@ class AlignakWebServices(BaseModule):
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
         logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
 
-        # Give some feedback when updating the livestate
-        self.give_feedback = getattr(mod_conf, 'give_feedback', '1') == '1'
-        logger.info("Alignak update livestate, set give_feedback: %s", self.give_feedback)
+        # Give some feedback when updating the host/services
+        # 0: no feedback
+        # 1: feedback only for host
+        # 2: feedback for host and services
+        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
+
+        self.feedback_host = getattr(mod_conf, 'feedback_host', '')
+        self.feedback_host = self.feedback_host.split(',')
+        if self.feedback_host:
+            logger.info("Alignak host feedback list: %s", self.feedback_host)
+
+        self.feedback_service = getattr(mod_conf, 'feedback_service', '')
+        self.feedback_service = self.feedback_service.split(',')
+        if self.feedback_service:
+            logger.info("Alignak service feedback list: %s", self.feedback_service)
+
+        # Give some results of the executed commands
+        self.give_result = getattr(mod_conf, 'give_result', '0') == '1'
+        logger.info("Alignak update, set give_result: %s", self.give_result)
 
         # Alignak Backend part
         # ---
@@ -538,7 +555,7 @@ class AlignakWebServices(BaseModule):
         host = None
 
         ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name],
-                     '_issues': [], '_feedback': {}}
+                     '_issues': []}
         try:
             if not self.backend_available:
                 self.backend_available = self.getBackendAvailability()
@@ -699,10 +716,14 @@ class AlignakWebServices(BaseModule):
         if data['services']:
             if update is None:
                 update = False
-            ws_result['_feedback']['services'] = {}
-            for service_id in data['services']:
-                service = data['services'][service_id]
-                service_name = service.get('name', service_id)
+            if '_feedback' not in ws_result:
+                ws_result['_feedback'] = {}
+            ws_result['_feedback']['services'] = []
+            for service in data['services']:
+                service_name = service.get('name', None)
+                if service_name is None:
+                    ws_result['_issues'].append("A service does not have a 'name' property")
+                    continue
                 service.pop('name')
                 result = self.updateService(host, service_name, service)
                 if '_result' in result:
@@ -711,33 +732,30 @@ class AlignakWebServices(BaseModule):
                     ws_result['_issues'].extend(result['_issues'])
                 else:
                     if '_feedback' in result:
-                        ws_result['_feedback']['services'][service_id] = result['_feedback']
+                        ws_result['_feedback']['services'].append(result['_feedback'])
+            if not ws_result['_feedback']['services']:
+                ws_result['_feedback'].pop('services')
 
         # If no update requested
         if update is None:
             # Simple host alive without any required update
             if ws_result['_issues']:
+                if not self.give_feedback and '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
             if self.give_feedback:
                 host = self.backend.get('/'.join(['host', host['_id']]))
-                ws_result['_feedback'].update({
-                    'alias': host['alias'],
-                    'notes': host['notes'],
-                    'location': host['location'],
-                    'active_checks_enabled': host['active_checks_enabled'],
-                    'max_check_attempts': host['max_check_attempts'],
-                    'check_interval': host['check_interval'],
-                    'retry_interval': host['retry_interval'],
-                    'passive_checks_enabled': host['passive_checks_enabled'],
-                    'check_freshness': host['check_freshness'],
-                    'freshness_state': host['freshness_state'],
-                    'freshness_threshold': host['freshness_threshold'],
-                    '_overall_state_id': host['_overall_state_id']
-                })
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': host['name']})
+                for prop in host:
+                    if prop in self.feedback_host:
+                        ws_result['_feedback'].update({prop: host[prop]})
             else:
-                ws_result.pop('_feedback')
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -747,27 +765,22 @@ class AlignakWebServices(BaseModule):
             # Simple host alive with updates required but no update needed
             ws_result['_result'].append("Host '%s' unchanged." % host['name'])
             if ws_result['_issues']:
+                if not self.give_feedback and '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
             if self.give_feedback:
                 host = self.backend.get('/'.join(['host', host['_id']]))
-                ws_result['_feedback'].update({
-                    'alias': host['alias'],
-                    'notes': host['notes'],
-                    'location': host['location'],
-                    'active_checks_enabled': host['active_checks_enabled'],
-                    'max_check_attempts': host['max_check_attempts'],
-                    'check_interval': host['check_interval'],
-                    'retry_interval': host['retry_interval'],
-                    'passive_checks_enabled': host['passive_checks_enabled'],
-                    'check_freshness': host['check_freshness'],
-                    'freshness_state': host['freshness_state'],
-                    'freshness_threshold': host['freshness_threshold'],
-                    '_overall_state_id': host['_overall_state_id']
-                })
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': host['name']})
+                for prop in host:
+                    if prop in self.feedback_host:
+                        ws_result['_feedback'].update({prop: host[prop]})
             else:
-                ws_result.pop('_feedback')
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -793,22 +806,16 @@ class AlignakWebServices(BaseModule):
 
             if self.give_feedback:
                 host = self.backend.get('/'.join(['host', host['_id']]))
-                ws_result['_feedback'].update({
-                    'alias': host['alias'],
-                    'notes': host['notes'],
-                    'location': host['location'],
-                    'active_checks_enabled': host['active_checks_enabled'],
-                    'max_check_attempts': host['max_check_attempts'],
-                    'check_interval': host['check_interval'],
-                    'retry_interval': host['retry_interval'],
-                    'passive_checks_enabled': host['passive_checks_enabled'],
-                    'check_freshness': host['check_freshness'],
-                    'freshness_state': host['freshness_state'],
-                    'freshness_threshold': host['freshness_threshold'],
-                    '_overall_state_id': host['_overall_state_id']
-                })
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': host['name']})
+                for prop in host:
+                    if prop in self.feedback_host:
+                        ws_result['_feedback'].update({prop: host[prop]})
             else:
-                ws_result.pop('_feedback')
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
+
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
@@ -820,6 +827,8 @@ class AlignakWebServices(BaseModule):
 
         if ws_result['_issues']:
             ws_result['_status'] = 'ERR'
+            if '_feedback' in ws_result:
+                ws_result.pop('_feedback')
             return ws_result
 
         ws_result.pop('_issues')
@@ -1002,21 +1011,17 @@ class AlignakWebServices(BaseModule):
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            if self.give_feedback:
+            if self.give_feedback > 1:
                 service = self.backend.get('/'.join(['service', service['_id']]))
-                ws_result['_feedback'] = {
-                    'alias': service['alias'],
-                    'notes': service['notes'],
-                    'active_checks_enabled': service['active_checks_enabled'],
-                    'max_check_attempts': service['max_check_attempts'],
-                    'check_interval': service['check_interval'],
-                    'retry_interval': service['retry_interval'],
-                    'passive_checks_enabled': service['passive_checks_enabled'],
-                    'check_freshness': service['check_freshness'],
-                    'freshness_state': service['freshness_state'],
-                    'freshness_threshold': service['freshness_threshold'],
-                    '_overall_state_id': service['_overall_state_id']
-                }
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': service['name']})
+                for prop in host:
+                    if prop in self.feedback_service:
+                        ws_result['_feedback'].update({prop: service[prop]})
+            else:
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -1030,21 +1035,17 @@ class AlignakWebServices(BaseModule):
                 ws_result['_status'] = 'ERR'
                 return ws_result
 
-            if self.give_feedback:
+            if self.give_feedback > 1:
                 service = self.backend.get('/'.join(['service', service['_id']]))
-                ws_result['_feedback'] = {
-                    'alias': service['alias'],
-                    'notes': service['notes'],
-                    'active_checks_enabled': service['active_checks_enabled'],
-                    'max_check_attempts': service['max_check_attempts'],
-                    'check_interval': service['check_interval'],
-                    'retry_interval': service['retry_interval'],
-                    'passive_checks_enabled': service['passive_checks_enabled'],
-                    'check_freshness': service['check_freshness'],
-                    'freshness_state': service['freshness_state'],
-                    'freshness_threshold': service['freshness_threshold'],
-                    '_overall_state_id': service['_overall_state_id']
-                }
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': service['name']})
+                for prop in host:
+                    if prop in self.feedback_service:
+                        ws_result['_feedback'].update({prop: service[prop]})
+            else:
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
             return ws_result
@@ -1066,21 +1067,17 @@ class AlignakWebServices(BaseModule):
                 logger.warning("Service patch, got a problem: %s", result)
                 return ('ERR', patch_result['_issues'])
 
-            if self.give_feedback:
+            if self.give_feedback > 1:
                 service = self.backend.get('/'.join(['service', service['_id']]))
-                ws_result['_feedback'] = {
-                    'alias': service['alias'],
-                    'notes': service['notes'],
-                    'active_checks_enabled': service['active_checks_enabled'],
-                    'max_check_attempts': service['max_check_attempts'],
-                    'check_interval': service['check_interval'],
-                    'retry_interval': service['retry_interval'],
-                    'passive_checks_enabled': service['passive_checks_enabled'],
-                    'check_freshness': service['check_freshness'],
-                    'freshness_state': service['freshness_state'],
-                    'freshness_threshold': service['freshness_threshold'],
-                    '_overall_state_id': service['_overall_state_id']
-                }
+                if '_feedback' not in ws_result:
+                    ws_result['_feedback'] = {}
+                ws_result['_feedback'].update({'name': service['name']})
+                for prop in host:
+                    if prop in self.feedback_service:
+                        ws_result['_feedback'].update({prop: service[prop]})
+            else:
+                if '_feedback' in ws_result:
+                    ws_result.pop('_feedback')
 
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")

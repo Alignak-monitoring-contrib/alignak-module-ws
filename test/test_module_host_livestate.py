@@ -518,8 +518,8 @@ class TestModuleWsHostLivestate(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_empty_0",
                     # "template": {
                     #     "_realm": 'All',
@@ -537,7 +537,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                         'test3': 5.0
                     },
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -579,8 +579,8 @@ class TestModuleWsHostLivestate(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_empty_0",
                     "livestate": {
                         # No timestamp in the livestate
@@ -590,7 +590,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                         "perf_data": "'counter'=1",
                     }
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -619,8 +619,8 @@ class TestModuleWsHostLivestate(AlignakTest):
         now = int(time.time()) - 3600
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_empty_0",
                     "livestate": {
                         # Timestamp in the past
@@ -631,7 +631,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                         "perf_data": "'counter'=1",
                     }
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -666,8 +666,8 @@ class TestModuleWsHostLivestate(AlignakTest):
         now = now + 1800
         data = {
             "name": "new_host_for_services_0",
-            "services": {
-                "new_service": {
+            "services": [
+                {
                     "name": "test_empty_0",
                     "livestate": {
                         # Timestamp in the past
@@ -678,7 +678,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                         "perf_data": "'counter'=1",
                     }
                 }
-            }
+            ]
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)

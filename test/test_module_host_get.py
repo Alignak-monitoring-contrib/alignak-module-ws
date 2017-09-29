@@ -238,21 +238,7 @@ class TestModuleWsHostGet(AlignakTest):
                 u'new_host_0 is alive :)',
                 u"Requested host 'new_host_0' does not exist.",
                 u"Requested host 'new_host_0' created."],
-            u'_feedback': {
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'new_host_0',
-                u'check_freshness': False,
-                u'check_interval': 5,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 0,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 1,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 0
-            }
+            u'_feedback': {u'name': u'new_host_0'}
         })
         # Host created with default check_command and in default user realm
 
