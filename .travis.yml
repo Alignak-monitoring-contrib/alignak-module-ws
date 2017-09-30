@@ -35,6 +35,25 @@ after_success:
   # to get coverage data with relative paths and not absolute we have to
   # execute coveralls from the base directory of the project,
   # so we need to move the .coverage file here :
-  mv test/.coverage . && coveralls --rcfile=test/.coveragerc
+  - mv test/.coverage . && coveralls --rcfile=test/.coveragerc
   # mv test/.coverage . && coveralls -v
+  - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION
+
+deploy:
+  - provider: bintray
+    skip_cleanup: true
+    file: .bintray.json
+    user: ddurieux
+    key:
+      secure: "3uEOyxJIC5Gyd2f/+8mBAMABngwg5mM3oZYF6SUbws9UbQpAE0Gj0h1O7szUnhdMaVdnBj4CsHoROnGFMMATSRHB6dsTYdNadDrOkO795BzsZY7n1NFRQ7RmlCRxFx30xlANJ3xt2jzm9F1ZlCXTIOv3WuymYD3VaNmNsARnUfiAHSkmDHjcAi8kXz0UVP99FKeM0cyhZNkr7K6TMHGFEmj5KYlwvnmEQmYawv7UkudWUnrxcvyo5xP/CBsLF7Bela1kCOeEcqB2NP1SMLpdOjDKvc6ftEvvM30Th7gq36OrBIF7/EiAa8RIZ0v4J/Q61N4T1JZ7wpZrS9V4MihoLYwtdXs2gA4oIIvEY6hqSXiJA/U4DWWqfWDWdkrF9HaEhISJ44U/pF+WzRaEU9uR5KKUqfyNS1G37bOHHBfJIMpf/CREEAs0TFTIIPXvd2G+0AP2rm3KuisYFFsEbp2bpzXDehVkysrk6JX01M9FBO6LnTViCXvmTOAuugTAWr3QBvm22ZlTYgWRgdMyvOdJfqeYualbkOR/T3vNSi/J1C7P/RhOkWe9hCGpIjR2S5WHfTe2hRkH7+DT7Brr54qHCv8g4Jgem5TvUvb7FA/4yJ7KUk+dZRbOIUWNkhzH/mFmb1wkfPHLHkVJ8g/uYtwW1SESWbSvlF7j8kAhRFfOTi8="
+    on:
+      branch: develop
+  - provider: bintray
+    skip_cleanup: true
+    file: .bintray.json
+    user: ddurieux
+    key:
+      secure: "3uEOyxJIC5Gyd2f/+8mBAMABngwg5mM3oZYF6SUbws9UbQpAE0Gj0h1O7szUnhdMaVdnBj4CsHoROnGFMMATSRHB6dsTYdNadDrOkO795BzsZY7n1NFRQ7RmlCRxFx30xlANJ3xt2jzm9F1ZlCXTIOv3WuymYD3VaNmNsARnUfiAHSkmDHjcAi8kXz0UVP99FKeM0cyhZNkr7K6TMHGFEmj5KYlwvnmEQmYawv7UkudWUnrxcvyo5xP/CBsLF7Bela1kCOeEcqB2NP1SMLpdOjDKvc6ftEvvM30Th7gq36OrBIF7/EiAa8RIZ0v4J/Q61N4T1JZ7wpZrS9V4MihoLYwtdXs2gA4oIIvEY6hqSXiJA/U4DWWqfWDWdkrF9HaEhISJ44U/pF+WzRaEU9uR5KKUqfyNS1G37bOHHBfJIMpf/CREEAs0TFTIIPXvd2G+0AP2rm3KuisYFFsEbp2bpzXDehVkysrk6JX01M9FBO6LnTViCXvmTOAuugTAWr3QBvm22ZlTYgWRgdMyvOdJfqeYualbkOR/T3vNSi/J1C7P/RhOkWe9hCGpIjR2S5WHfTe2hRkH7+DT7Brr54qHCv8g4Jgem5TvUvb7FA/4yJ7KUk+dZRbOIUWNkhzH/mFmb1wkfPHLHkVJ8g/uYtwW1SESWbSvlF7j8kAhRFfOTi8="
+    on:
+      tags: true
 
