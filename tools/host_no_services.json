@@ -1,0 +1,51 @@
+{
+  "name": "master-0001"
+  , "active_checks_enabled": false
+  , "passive_checks_enabled": true
+  , "livestate": {
+    "timestamp": 1506613353
+    , "state": "up"
+    , "output": "master-0001 is alive (8d 10h 50m 42s)"
+    , "perf_data": "Uptime=730242s"
+  }
+  , "template": {
+    "_templates": ["north-host"]
+  }
+  , "variables": {
+    "Serial": "master-0001"
+    , "Model": "NORTH-HOST"
+    , "Type": "A"
+    , "Client": "IPM"
+    , "Group": "IPM-kiosks"
+    , "Site": "Stock"
+    , "Location": ""
+    , "Phase": "Exploitation"
+    , "Status": "ES-V"
+    , "Packages": [
+         {
+            "id": "adobereader",
+            "version": "3.0.0",
+            "description": "Adobe Reader XI (11.0.04)",
+            "service": "soft_adobereader"
+         },
+         {
+            "id": "cwrsync",
+            "version": "3.1.2",
+            "description": "CWRsync 4.0.5",
+            "service": "soft_cwrsync"
+         },
+         {
+            "id": "HomeMaison",
+            "version": "0.1.0",
+            "description": "Application HomeMaison",
+            "service": "HomeMaison"
+         },
+         {
+            "id": "Inventory",
+            "version": "4.0.4",
+            "description": "Fusion Inventory 2.3.18",
+            "service": "soft_Inventory"
+         }
+      ]
+  }
+}

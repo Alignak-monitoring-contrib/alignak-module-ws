@@ -1,0 +1,80 @@
+{
+   "name": "master-0001",
+   "active_checks_enabled": false,
+   "passive_checks_enabled": true,
+   "livestate": {
+      "timestamp": 1506695091,
+      "state": "up",
+      "output": "master-0001 is alive (9d 9h 33m 03s)",
+      "perf_data": "Uptime=811983s"
+   },
+   "template": {
+      "_templates": [
+         "north-host"
+      ]
+   },
+   "variables": {
+      "Serial": "master-0001",
+      "Model": "NORTH-HOST",
+      "Type": "A",
+      "Client": "IPM",
+      "Group": "IPM-kiosks",
+      "Site": "Stock",
+      "Location": "",
+      "Phase": "Exploitation",
+      "Status": "ES-V",
+      "Packages": [
+         {u'version': u'4.1.0', u'id': u'adobereader', u'service': u'soft_adobereader', u'description': u'Adobe Reader XI (11.0.04)'}, {u'version': u'3.1.5', u'id': u'AudioRealtek', u'service': u'dev_SoundPanelPC', u'description': u'Realtek High Definition Audio'}, {u'version': u'3.5.0', u'id': u'Bluetooth', u'service': u'dev_BluetoothPanelPC', u'description': u'Carte Bluetooth'}, {u'version': u'4.1.0', u'id': u'cwrsync', u'service': u'soft_cwrsync', u'description': u'CWRsync 4.0.5'}, {u'version': u'3.1.5', u'id': u'Display', u'service': u'dev_DisplayPanelPC', u'description': u'Generic PnP Monitor'}, {u'version': u'1.1.1.prod', u'id': u'IllikoLive', u'service': u'IllikoLive', u'description': u'Illiko Live'}, {u'version': u'4.1.0', u'id': u'Inventory', u'service': u'soft_Inventory', u'description': u'Fusion Inventory 2.3.18'}, {u'version': u'3.1.2', u'id': u'ioKiosk', u'service': u'dev_IOPanelPC', u'description': u'ioKiosk'}, {u'version': u'3.9.6.1005', u'id': u'Kiosk', u'service': u'soft_Kiosk', u'description': u'Kiosk'}, {u'disabled': True, u'version': u'1.0.0', u'id': u'KioskMedia_IllikoLive', u'service': u'soft_KioskMedia_IllikoLive', u'description': u'Medias IllikoLive'}, {u'version': u'3.9.6.1005', u'id': u'KioskShell', u'service': u'soft_KioskShell', u'description': u'Shell Windows'}, {u'version': u'3.9.6.1000', u'id': u'Maintenance', u'service': u'Maintenance', u'description': u'Maintenance - application de maintenance de la borne'}, {u'version': u'6.1.0', u'id': u'Master', u'service': u'soft_Master', u'description': u'Master PANELPC-FDJ'}, {u'version': u'4.1.0', u'id': u'NSClient', u'service': u'soft_NSClient', u'description': u'NSClient ++ 0.5.0.62'}, {u'version': u'3.0.7', u'id': u'NetworkLan', u'service': u'dev_Network', u'description': u''}, {u'version': u'3.1.2', u'id': u'NetworkWifi', u'service': u'dev_Network', u'description': u''}, {u'version': u'1.1.1.prod', u'id': u'ParionsSport', u'service': u'ParionsSport', u'description': u'Parions Sport Point de Vente'}, {u'version': u'4.21.3', u'id': u'PaymentIngenico', u'service': u'dev_CBPayment', u'description': u'Paiement CB Ingenico'}, {u'version': u'4.7.6.3', u'id': u'PrinterKalypso60_64b', u'service': u'dev_ReceiptPrinter', u'description': u'Printer Receipt'}, {u'version': u'4.0.3', u'id': u'radiusFdj', u'service': u'soft_radiusFdj', u'description': u'radiusFdj'}, {u'version': u'3.7.14', u'id': u'ReaderBluetooth', u'service': u'soft_ReaderBluetooth', u'description': u'Lecteur Bluetooth'}, {u'disabled': True, u'version': u'3.5.0', u'id': u'ReaderGemalto', u'service': u'dev_ContactReader', u'description': u'Lecteur de cartes a puces'}, {u'disabled': True, u'version': u'4.6.13', u'id': u'ReaderGFS4470', u'service': u'dev_BarcodeReader', u'description': u'Barcode Scanner'}, {u'version': u'3.5.0', u'id': u'ReaderProxNRoll', u'service': u'dev_ContactlessReader', u'description': u'Lecteur de cartes RFID'}, {u'version': u'3.8.0', u'id': u'ReaderSesamVitale', u'service': u'dev_SesamVitaleReader', u'description': u'Lecteur Sesam Vitale'}, {u'version': u'4.1.2', u'id': u'setKiosk', u'service': u'soft_setKiosk', u'description': u'setKiosk'}, {u'version': u'3.9.6.1001', u'id': u'SoftKiosk', u'service': u'svc_SoftKiosk', u'description': u'SoftKiosk - KioskShell plus'}, {u'version': u'3.2.3', u'id': u'Touchscreen', u'service': u'dev_TouchPanelPC', u'description': u'Microsoft Input Configuration Device'}, {u'version': u'4.1.0', u'id': u'Monitoring', u'service': u'svc_Monitoring', u'description': u'Monitoring'}, {u'version': u'3.9.6.1005', u'id': u'Management', u'service': u'svc_Management', u'description': u'Management'}, {u'version': u'3.9.6.1005', u'id': u'Session', u'service': u'svc_Session'}, {u'version': u'3.9.6.1005', u'id': u'Screensaver', u'service': u'svc_Screensaver'}, {u'version': u'3.9.6.1005', u'id': u'Disk', u'service': u'svc_Disk', u'description': u'Gestion des disques USB'}, {u'version': u'3.9.6.1005', u'id': u'TagReading_A', u'service': u'svc_TagReading_A', u'description': u'Lecture de badges sans contact'}, {u'version': u'3.9.6.1005', u'id': u'TagReading_F', u'service': u'svc_TagReading_F', u'description': u'Lecture de cartes Sesam Vitale'}, {u'version': u'3.9.6.1005', u'id': u'TagReading_D', u'service': u'svc_TagReading_D', u'description': u'Lecture de tokens bluetooth'}, {u'version': u'3.9.6.1005', u'id': u'Payment_A', u'service': u'svc_Payment_A', u'description': u'Paiement TPA'}, {u'version': u'3.9.6.1005', u'id': u'Alarm', u'service': u'svc_Alarm', u'description': u'Alarmes'}, {u'version': u'3.9.6.1005', u'id': u'Activity', u'service': u'svc_Activity', u'description': u'Activit\xe9 sur la borne'}, {u'version': u'3.9.6.1005', u'id': u'Printing_A', u'service': u'svc_Printing_A', u'description': u'Impression de re\xe7us CB'}
+      ]
+   },
+   "services": [
+      {
+         "name": "soft_adobereader",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+         "livestate": [
+            {
+               "timestamp": 1506695089,
+               "state": "ok",
+               "output": "Ok - Init"
+            }
+         ]
+      },
+      {
+         "name": "soft_cwrsync",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+         "livestate": [
+            {
+               "timestamp": 1506695089,
+               "state": "ok",
+               "output": "Ok - Init"
+            }
+         ]
+      },
+      {
+         "name": "soft_Inventory",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+         "livestate": [
+            {
+               "timestamp": 1506695090,
+               "state": "ok",
+               "output": "Ok - Init"
+            }
+         ]
+      },
+      {
+         "name": "svc_HomeMaison",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+         "livestate": [
+            {
+               "timestamp": 1506695090,
+               "state": "ok",
+               "output": "Ok - Init"
+            }
+         ]
+      }
+   ]
+}

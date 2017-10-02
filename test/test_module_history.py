@@ -580,6 +580,19 @@ class TestModuleConnection(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
+        # Implicit host_name
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=chazay')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(len(result['items']), 1)
+        # Unknown search field
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=name:chazay')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        # All history items because name is not aknown search field! So we get all items...
+        self.assertEqual(len(result['items']), 5)
+
+        # Some other hosts...
         response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -588,6 +601,19 @@ class TestModuleConnection(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
+
+        # Several hosts...
+        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice host_name:srv001')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(len(result['items']), 4)   # 2 for each host
+
+        # Not an host...
+        # TODO: looks that ths criteria is not correctly implemented :(
+        # response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!denice')
+        # self.assertEqual(response.status_code, 200)
+        # result = response.json()
+        # self.assertEqual(len(result['items']), 3)
         # ---
 
         # ---

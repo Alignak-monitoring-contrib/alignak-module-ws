@@ -24,6 +24,7 @@
 """
 
 import json
+import time
 import logging
 import inspect
 import cherrypy
@@ -241,7 +242,10 @@ class WSInterface(object):
         :return: A json array of the Alignak daemons state
         :rtype: list
         """
-        return self.app.daemons_map
+        logger.debug("Get /alignak_map")
+        response = self.app.daemons_map
+        logger.debug("Response: %s", response)
+        return response
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -257,11 +261,14 @@ class WSInterface(object):
         # Get an host
         # ---
         if cherrypy.request.method == "GET":
+            logger.debug("Get /host: %s", cherrypy.request.params)
             if cherrypy.request.params.get('name', None) is not None:
                 name = cherrypy.request.params.get('name', None)
             if not name:
                 return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
-            return self.app.getHost(name)
+            response = self.app.getHost(name)
+            logger.debug("Response: %s", response)
+            return response
 
         # Update an host
         # ---
@@ -274,6 +281,8 @@ class WSInterface(object):
         if not name:
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
+        _ts = time.time()
+        logger.debug("Patch /host: %s", cherrypy.request.json)
         data = {
             'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
             'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
@@ -283,7 +292,9 @@ class WSInterface(object):
             'services': cherrypy.request.json.get('services', None)
         }
 
-        return self.app.updateHost(name, data)
+        response = self.app.updateHost(name, data)
+        logger.debug("Response: %s, duration: %s", response, time.time() - _ts)
+        return response
     host.method = 'patch'
 
     @cherrypy.expose
@@ -302,13 +313,16 @@ class WSInterface(object):
 
         # Get an hostgroup
         # ---
+        logger.debug("Get /hostgroup: %s", cherrypy.request.params)
         if cherrypy.request.params.get('name', None) is not None:
             name = cherrypy.request.params.get('name', None)
         if cherrypy.request.params.get('embedded', False):
             embedded = cherrypy.request.params.get('embedded')
 
-        return self.app.getHostsGroup(name, embedded)
-    host.method = 'get'
+        response = self.app.getHostsGroup(name, embedded)
+        logger.debug("Response: %s", response)
+        return response
+    hostgroup.method = 'get'
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -324,6 +338,7 @@ class WSInterface(object):
         if cherrypy.request and not cherrypy.request.json:
             return {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
 
+        logger.debug("Post /event: %s", cherrypy.request.params)
         timestamp = cherrypy.request.json.get('timestamp', None)
         host = cherrypy.request.json.get('host', None)
         service = cherrypy.request.json.get('service', None)
@@ -337,7 +352,9 @@ class WSInterface(object):
             return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
                                                   'comment, do not comment ;)']}
 
-        return self.app.buildPostComment(host, service, author, comment, timestamp)
+        response = self.app.buildPostComment(host, service, author, comment, timestamp)
+        logger.debug("Response: %s", response)
+        return response
     event.method = 'post'
 
     @cherrypy.expose
@@ -354,6 +371,7 @@ class WSInterface(object):
         if cherrypy.request and not cherrypy.request.json:
             return {'_status': 'ERR', '_error': 'You must POST parameters on this endpoint.'}
 
+        logger.debug("Post /command: %s", cherrypy.request.params)
         command = cherrypy.request.json.get('command', None)
         timestamp = cherrypy.request.json.get('timestamp', None)
         element = cherrypy.request.json.get('element', None)
@@ -404,6 +422,7 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: dict
         """
+        logger.debug("Get /alignak_log: %s", cherrypy.request.params)
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))
         sort = cherrypy.request.params.get('sort', '-_id')
@@ -414,6 +433,9 @@ class WSInterface(object):
         }
         where = Helper.decode_search(cherrypy.request.params.get('search', ''))
         if where:
-            search.update({'where': json.dumps(where)})
+            # search.update({'where': json.dumps(where)})
+            search.update({'where': where})
 
-        return self.app.getBackendHistory(search)
+        response = self.app.getBackendHistory(search)
+        logger.debug("Response: %s", response)
+        return response
