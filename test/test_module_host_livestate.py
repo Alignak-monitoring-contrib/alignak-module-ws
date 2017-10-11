@@ -19,7 +19,7 @@
 # along with Alignak.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Test the module
+Test the module - host/service livestate
 """
 
 import os
@@ -51,7 +51,7 @@ import alignak_module_ws
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
-class TestModuleWsHostServiceCreation(AlignakTest):
+class TestModuleWsHostLivestate(AlignakTest):
     """This class contains the tests for the module"""
 
     @classmethod
@@ -77,12 +77,13 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                                  stdout=fnull, stderr=fnull)
         time.sleep(3)
 
-        cls.endpoint = 'http://127.0.0.1:5000'
+        endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
         print("Current test directory: %s" % test_dir)
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print("Feeding Alignak backend...")
+        print('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir)
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
@@ -94,18 +95,18 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
         # Get admin user token (force regenerate)
-        response = requests.post(cls.endpoint + '/login', json=params, headers=headers)
+        response = requests.post(endpoint + '/login', json=params, headers=headers)
         resp = response.json()
         cls.token = resp['token']
         cls.auth = requests.auth.HTTPBasicAuth(cls.token, '')
 
         # Get admin user
-        response = requests.get(cls.endpoint + '/user', auth=cls.auth)
+        response = requests.get(endpoint + '/user', auth=cls.auth)
         resp = response.json()
         cls.user_admin = resp['_items'][0]
 
         # Get realms
-        response = requests.get(cls.endpoint + '/realm', auth=cls.auth)
+        response = requests.get(endpoint + '/realm', auth=cls.auth)
         resp = response.json()
         cls.realmAll_id = resp['_items'][0]['_id']
 
@@ -114,13 +115,17 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 'host_notification_period': cls.user_admin['host_notification_period'],
                 'service_notification_period': cls.user_admin['service_notification_period'],
                 '_realm': cls.realmAll_id}
-        response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
+        response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        cls.modulemanager = None
+
     @classmethod
     def tearDownClass(cls):
+        if cls.modulemanager:
+            cls.modulemanager.stop_all()
         cls.p.kill()
 
     @classmethod
@@ -129,11 +134,11 @@ class TestModuleWsHostServiceCreation(AlignakTest):
 
         :return: None
         """
-        for resource in ['host', 'service']:
-            requests.delete(cls.endpoint + '/' + resource, auth=cls.auth)
+        for resource in ['logcheckresult']:
+            requests.delete('http://127.0.0.1:5000/' + resource, auth=cls.auth)
 
-    def test_module_zzz_host_creation(self):
-        """Test the module /host API - host creation
+    def test_module_zzz_host_livestate(self):
+        """Test the module /host API - host creation and livestate
         :return:
         """
         self.print_header()
@@ -158,6 +163,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -193,6 +200,17 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertTrue(my_module.process.is_alive())
 
         time.sleep(1)
+
+        # Alignak backend
+        # ---
+        self.endpoint = 'http://127.0.0.1:5000'
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # get token
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
 
         # Do not allow GET request on /host - not authorized
         response = requests.get('http://127.0.0.1:8888/host')
@@ -207,10 +225,17 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         assert response.status_code == 200
         resp = response.json()
 
-        # Request to create an host - no provided data
-        headers = {'Content-Type': 'application/json'}
+        # -----
+        # Create a new host with an host livestate (heartbeat / host is alive): livestate
         data = {
             "name": "new_host_0",
+            "livestate": {
+                # No timestamp in the livestate
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -221,112 +246,32 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"Requested host 'new_host_0' does not exist.",
-                u"Requested host 'new_host_0' created."],
-            u'_feedback': {
-                u'name': u'new_host_0'
-            }
+                u"Requested host 'new_host_0' created.",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_0' unchanged."
+            ]
         })
-        # Host created with default check_command and in default user realm
+        # No errors!
 
-        # Get new host to confirm creation
-        response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_0'})})
+        # Get new host in the backend
+        response = requests.get(self.endpoint + '/host', auth=self.auth, params={'where': json.dumps({'name': 'new_host_0'})})
         resp = response.json()
         new_host_0 = resp['_items'][0]
         self.assertEqual('new_host_0', new_host_0['name'])
-        self.assertEqual([], new_host_0['_templates'])
-        self.assertEqual({}, new_host_0['customs'])
 
-        # Request to create an host - host still existing
-        headers = {'Content-Type': 'application/json'}
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
+
+
+        # -----
+        # Send an host livestate
         data = {
             "name": "new_host_0",
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'new_host_0 is alive :)'],
-            u'_feedback': {
-                u'name': u'new_host_0'
-            }
-        })
-        # The host already exists, returns an host alive ;)
-
-        # Request to create an host - unknown provided data
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "new_host_1",
-            "template": {
-                # "_realm": 'All',
-                # "check_command": "unknown"
-                "alias": "My host...",
-                "check_period": "24x7"
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_1 is alive :)',
-                u"Requested host 'new_host_1' does not exist.",
-                u"Requested host 'new_host_1' created."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_1'
-            }
-        })
-        # Host created, even if check_command does not exist, it uses the default check_command!
-
-        # Request to create an host - host created with specified realm and check_command
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            "name": "new_host_2",
-            "template": {
-                "_realm": 'All',
-                "check_command": "_internal_host_up"
-            }
-        }
-        self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
-        self.assertEqual(response.status_code, 200)
-        result = response.json()
-        self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_2 is alive :)',
-                u"Requested host 'new_host_2' does not exist.",
-                u"Requested host 'new_host_2' created."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_2'
-            }
-        })
-        # No errors!
-
-        # Get new host to confirm creation
-        response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_2'})})
-        resp = response.json()
-        new_host_2 = resp['_items'][0]
-        self.assertEqual('new_host_2', new_host_2['name'])
-        self.assertEqual([], new_host_2['_templates'])
-        self.assertEqual({}, new_host_2['customs'])
-
-        # Create a new host with a template and Update host livestate (heartbeat / host is alive): livestate
-        data = {
-            "name": "new_host_3",
-            "template": {
-                "_realm": 'All',
-                "check_command": "_internal_host_up",
-                "_templates": ["generic-host"]
-            },
             "livestate": {
+                # No timestamp in the livestate
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
@@ -340,34 +285,28 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
-                u'new_host_3 is alive :)',
-                u"Requested host 'new_host_3' does not exist.",
-                u"Requested host 'new_host_3' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_3' unchanged."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_3'
-            }
+                u'new_host_0 is alive :)',
+                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_0' unchanged."
+            ]
         })
         # No errors!
 
-        # Get new host to confirm creation
-        response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_3'})})
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
         resp = response.json()
-        new_host_3 = resp['_items'][0]
-        self.assertEqual('new_host_3', new_host_3['name'])
-        self.assertNotEqual([], new_host_3['_templates'])
-        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_3['customs'])
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
 
-        # Create a new host with a template and no _realm and Update host livestate (heartbeat / host is alive): livestate
+
+        # -----
+        # Send an host livestate with a timestamp in the past
+        now = int(time.time()) - 3600
         data = {
-            "name": "new_host_4",
-            "template": {
-                "_templates": ["generic-host"]
-            },
+            "name": "new_host_0",
             "livestate": {
+                # Timestamp in the past
+                "timestamp": now,
                 "state": "UP",
                 "output": "Output...",
                 "long_output": "Long output...",
@@ -381,26 +320,66 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
-                u'new_host_4 is alive :)',
-                u"Requested host 'new_host_4' does not exist.",
-                u"Requested host 'new_host_4' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_4;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_4' unchanged."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_4'
-            }
+                u'new_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Host 'new_host_0' unchanged."
+            ]
         })
         # No errors!
 
-        # Get new host to confirm creation
-        response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_4'})})
+        # Get backend check results - a check result was recorded in the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
         resp = response.json()
-        new_host_4 = resp['_items'][0]
-        self.assertEqual('new_host_4', new_host_4['name'])
-        self.assertNotEqual([], new_host_4['_templates'])
-        self.assertEqual({'_TEMPLATE': 'generic'}, new_host_4['customs'])
+        rl = resp['_items']
+        # A log check result was recorded...
+        self.assertEqual(len(rl), 1)
+        rl = resp['_items'][0]
+        print("LCR: %s" % rl)
+        # ...with the correct timestamp
+        self.assertEqual(rl['host_name'], "new_host_0")
+        self.assertEqual(rl['last_check'], now)
+
+        # -----
+        # Send an host livestate with a timestamp in the past but sooner than the former one
+        now = now + 1800
+        data = {
+            "name": "new_host_0",
+            "livestate": {
+                # Timestamp in the past
+                "timestamp": now,
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Host 'new_host_0' unchanged."
+            ]
+        })
+        # No errors!
+
+        # Get backend check results - one more check result was recorded in the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        # A log check result was recorded...
+        self.assertEqual(len(rl), 2)
+        # Get the second LCR
+        rl = resp['_items'][1]
+        print("LCR: %s" % rl)
+        # ...with the correct timestamp
+        self.assertEqual(rl['host_name'], "new_host_0")
+        self.assertEqual(rl['last_check'], now)
+
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
@@ -411,8 +390,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
 
         self.modulemanager.stop_all()
 
-    def test_module_zzz_service_creation(self):
-        """Test the module /host API - service creation
+    def test_module_zzz_service_livestate(self):
+        """Test the module /host API - service creation and livestate
         :return:
         """
         self.print_header()
@@ -437,6 +416,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -472,6 +453,17 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertTrue(my_module.process.is_alive())
 
         time.sleep(1)
+
+        # Alignak backend
+        # ---
+        self.endpoint = 'http://127.0.0.1:5000'
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # get token
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
 
         # Do not allow GET request on /host - not authorized
         response = requests.get('http://127.0.0.1:8888/host')
@@ -505,12 +497,21 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u'new_host_for_services_0 is alive :)',
                 u"Requested host 'new_host_for_services_0' does not exist.",
                 u"Requested host 'new_host_for_services_0' created."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
-            }
+            ]
         })
         # No errors!
+
+        # Get new host in the backend
+        response = requests.get(self.endpoint + '/host', auth=self.auth, params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        resp = response.json()
+        new_host_for_services_0 = resp['_items'][0]
+        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
+
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
 
 
         # Request to create an host - create a new service without any template data
@@ -551,10 +552,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'new_host_for_services_0/test_empty_0' updated",
                 u"Host 'new_host_for_services_0' unchanged."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
-            }
+            ]
         })
         # No errors!
 
@@ -564,8 +562,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         resp = response.json()
         new_host_for_services_0 = resp['_items'][0]
         self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
-        self.assertEqual([], new_host_for_services_0['_templates'])
-        self.assertEqual({}, new_host_for_services_0['customs'])
 
         # Get services data to confirm update
         response = requests.get(self.endpoint + '/service', auth=self.auth,
@@ -573,38 +569,26 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                                                              'name': 'test_empty_0'})})
         resp = response.json()
         service = resp['_items'][0]
-        # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
         self.assertEqual(expected, service['customs'])
 
 
-
-        # Request to create an host - create a new service for the new host
+        # Send a service livestate, no timestamp
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_for_services_0",
             "services": [
                 {
-                    "name": "test_ok_0",
-                    "template": {
-                        "_realm": 'All',
-                        "check_command": "_echo",
-                        "alias": "My service...",
-                        "check_period": "24x7"
-                    },
+                    "name": "test_empty_0",
                     "livestate": {
+                        # No timestamp in the livestate
                         "state": "OK",
                         "output": "Output...",
                         "long_output": "Long output...",
                         "perf_data": "'counter'=1",
-                    },
-                    "variables": {
-                        'test1': 'string',
-                        'test2': 1,
-                        'test3': 5.0
-                    },
+                    }
                 }
             ]
         }
@@ -616,62 +600,36 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             u'_status': u'OK',
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_ok_0' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_ok_0' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_ok_0' updated",
+                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
                 u"Host 'new_host_for_services_0' unchanged."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
-            }
+            ]
         })
         # No errors!
 
-        # Get new host to confirm creation
-        response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
         resp = response.json()
-        new_host_for_services_0 = resp['_items'][0]
-        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
-        self.assertEqual([], new_host_for_services_0['_templates'])
-        self.assertEqual({}, new_host_for_services_0['customs'])
-
-        # Get services data to confirm update
-        response = requests.get(self.endpoint + '/service', auth=self.auth,
-                                params={'where': json.dumps({'host': new_host_for_services_0['_id'],
-                                                             'name': 'test_ok_0'})})
-        resp = response.json()
-        service = resp['_items'][0]
-        # The service still had a variable _CUSTNAME and it inherits from the host variables
-        expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
-        }
-        self.assertEqual(expected, service['customs'])
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
 
 
-        # Create a new service with a template and update service livestate and data
+        # Send a service livestate, timestamp in the past
+        headers = {'Content-Type': 'application/json'}
+        now = int(time.time()) - 3600
         data = {
             "name": "new_host_for_services_0",
             "services": [
                 {
-                    "name": "test_ok_1",
-                    "template": {
-                        "_realm": 'All',
-                        "check_command": "_echo",
-                        "_templates": ["generic-service"]
-                    },
+                    "name": "test_empty_0",
                     "livestate": {
+                        # Timestamp in the past
+                        "timestamp": now,
                         "state": "OK",
                         "output": "Output...",
                         "long_output": "Long output...",
                         "perf_data": "'counter'=1",
-                    },
-                    "variables": {
-                        'test1': 'string',
-                        'test2': 1,
-                        'test3': 5.0
-                    },
+                    }
                 }
             ]
         }
@@ -683,38 +641,74 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             u'_status': u'OK',
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_ok_1' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_ok_1' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_1;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_ok_1' updated",
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
                 u"Host 'new_host_for_services_0' unchanged."
-            ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
-            }
+            ]
         })
         # No errors!
 
-        # Get new service to confirm creation
-        response = session.get('http://127.0.0.1:5000/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_for_services_0'})})
+        # Get backend check results - a check result was recorded in the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
         resp = response.json()
-        new_host_for_services_0 = resp['_items'][0]
-        self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
-        self.assertEqual([], new_host_for_services_0['_templates'])
-        self.assertEqual({}, new_host_for_services_0['customs'])
+        rl = resp['_items']
+        # A log check result was recorded...
+        self.assertEqual(len(rl), 1)
+        rl = resp['_items'][0]
+        print("LCR: %s" % rl)
+        # ...with the correct timestamp
+        self.assertEqual(rl['host_name'], "new_host_for_services_0")
+        self.assertEqual(rl['service_name'], "test_empty_0")
+        self.assertEqual(rl['last_check'], now)
 
-        # Get services data to confirm update
-        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
-                                params={'where': json.dumps({'host': new_host_for_services_0['_id'],
-                                                             'name': 'test_ok_1'})})
-        resp = response.json()
-        service = resp['_items'][0]
-        # The service still had a variable _CUSTNAME and it inherits from the host variables
-        expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+
+        # Send a service livestate with a timestamp in the past but sooner than the former one
+        now = now + 1800
+        data = {
+            "name": "new_host_for_services_0",
+            "services": [
+                {
+                    "name": "test_empty_0",
+                    "livestate": {
+                        # Timestamp in the past
+                        "timestamp": now,
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1",
+                    }
+                }
+            ]
         }
-        self.assertEqual(expected, service['customs'])
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
+                u"Host 'new_host_for_services_0' unchanged."
+            ]
+        })
+        # No errors!
+
+        # Get backend check results - a check result was recorded in the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        # A log check result was recorded...
+        self.assertEqual(len(rl), 2)
+        rl = resp['_items'][1]
+        print("LCR: %s" % rl)
+        # ...with the correct timestamp
+        self.assertEqual(rl['host_name'], "new_host_for_services_0")
+        self.assertEqual(rl['service_name'], "test_empty_0")
+        self.assertEqual(rl['last_check'], now)
+
+
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)

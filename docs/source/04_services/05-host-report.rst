@@ -146,6 +146,7 @@ The livestate data for an host or service may contain:
 - `perf_data`: the host/service check performance data
 - `timestamp`: timestamp for the host/service check
 
+**Note** that the `livestate` for the host or for any service may be an array if more than one result is to be reported to the Web Service.
 
 Host custom variables
 ~~~~~~~~~~~~~~~~~~~~~
@@ -155,10 +156,10 @@ To create/update host custom variables, PATCH on the `host` endpoint providing t
     $ curl -X PATCH -H "Content-Type: application/json" -d '{
         "name": "test_host",
         "variables": {
-            'test1': 'string',
-            'test2': 12,
-            'test3': 15055.0,
-            'test4': "new!"
+            "test1": "string",
+            "test2": 12,
+            "test3": 15055.0,
+            "test4": "new!"
         }
     }' "http://demo.alignak.net:8888/host"
 

@@ -265,6 +265,21 @@ class HostSimulator(object):
         self.password = args['--password']
         logger.debug("WS login with credentials: %s/%s", self.username, self.password)
 
+        # NSCA mode
+        self.nsca_notifier = args['--nsca-server']
+        self.port = 5667
+        if self.nsca_notifier and ':' in self.nsca_notifier:
+            data = self.nsca_notifier.split(':')
+            self.nsca_notifier = data[0]
+            self.port = int(data[1])
+        self.encryption = args['--encryption']
+        self.nsca_password = None
+        if ':' in self.encryption:
+            data = self.encryption.split(':')
+            self.encryption = int(data[0])
+            self.nsca_password = data[1]
+        logger.debug("NSCA notifications: %s, port: %s", self.nsca_notifier, self.port)
+
         # Get the data files folder
         self.folder = None
         if args['--folder'] != 'none':
@@ -409,7 +424,7 @@ class HostSimulator(object):
                                         perfdatas.append("'disk_%s_percent_used'=%.2f%%"
                                                          % (disk, getattr(disk_usage, key)))
                                     else:
-                                        perfdatas.append("'disk_%s_%s'=%db"
+                                        perfdatas.append("'disk_%s_%s'=%dB"
                                                          % (disk, key, getattr(disk_usage, key)))
 
 
@@ -430,7 +445,7 @@ class HostSimulator(object):
                                     perfdatas.append("'mem_percent_used_%s'=%.2f%%"
                                                      % (key, getattr(virtual_memory, key)))
                                 else:
-                                    perfdatas.append("'mem_%s'=%db"
+                                    perfdatas.append("'mem_%s'=%dB"
                                                      % (key, getattr(virtual_memory, key)))
 
                             swap_memory = psutil.swap_memory()
@@ -440,7 +455,7 @@ class HostSimulator(object):
                                     perfdatas.append("'swap_used_%s'=%.2f%%"
                                                      % (key, getattr(swap_memory, key)))
                                 else:
-                                    perfdatas.append("'swap_%s'=%db"
+                                    perfdatas.append("'swap_%s'=%dB"
                                                      % (key, getattr(swap_memory, key)))
 
                             service["livestate"] = {
