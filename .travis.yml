@@ -37,7 +37,7 @@ after_success:
   # so we need to move the .coverage file here :
   - mv test/.coverage . && coveralls --rcfile=test/.coveragerc
   # mv test/.coverage . && coveralls -v
-  - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION
+  - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION $TRAVIS_TAG
 
 deploy:
   - provider: bintray
