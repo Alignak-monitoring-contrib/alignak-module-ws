@@ -6,7 +6,7 @@ gem install fpm
 
 # Debian
 
-if [ "$1" = "master" ]; then
+if [ $3 ]; then
    if [ "$2" = "2.7" ]; then
      fpm -s python --python-install-lib "/usr/lib/python2.7/dist-packages" -t deb -a all -d python-alignak --deb-no-default-config-files --python-install-data '/usr/local' ./setup.py
      version=`python -c "from version import __version__;print(__version__)"`

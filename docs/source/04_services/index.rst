@@ -24,3 +24,4 @@ The application runs without any extra configuration file with its default param
    05-host-report
    06-host-creation
    07-external-command
+   08-host-event

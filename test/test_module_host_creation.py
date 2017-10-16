@@ -158,6 +158,11 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            'give_result': '1',
+            'give_feedback': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -210,7 +215,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # Request to create an host - no provided data
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "new_host_0",
+            "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -219,28 +224,28 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist.",
-                u"Requested host 'new_host_0' created."],
+                u'new_host_10 is alive :)',
+                u"Requested host 'new_host_10' does not exist.",
+                u"Requested host 'new_host_10' created."],
             u'_feedback': {
-                u'name': u'new_host_0'
+                u'name': u'new_host_10'
             }
         })
         # Host created with default check_command and in default user realm
 
         # Get new host to confirm creation
         response = requests.get(self.endpoint + '/host', auth=self.auth,
-                                params={'where': json.dumps({'name': 'new_host_0'})})
+                                params={'where': json.dumps({'name': 'new_host_10'})})
         resp = response.json()
-        new_host_0 = resp['_items'][0]
-        self.assertEqual('new_host_0', new_host_0['name'])
-        self.assertEqual([], new_host_0['_templates'])
-        self.assertEqual({}, new_host_0['customs'])
+        new_host_10 = resp['_items'][0]
+        self.assertEqual('new_host_10', new_host_10['name'])
+        self.assertEqual([], new_host_10['_templates'])
+        self.assertEqual({}, new_host_10['customs'])
 
         # Request to create an host - host still existing
         headers = {'Content-Type': 'application/json'}
         data = {
-            "name": "new_host_0",
+            "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
@@ -248,9 +253,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
-            u'_result': [u'new_host_0 is alive :)'],
+            u'_result': [u'new_host_10 is alive :)'],
             u'_feedback': {
-                u'name': u'new_host_0'
+                u'name': u'new_host_10'
             }
         })
         # The host already exists, returns an host alive ;)
@@ -344,7 +349,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_3' does not exist.",
                 u"Requested host 'new_host_3' created.",
                 u"PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_3' unchanged."
             ],
             u'_feedback': {
                 u'name': u'new_host_3'
@@ -385,7 +389,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_4' does not exist.",
                 u"Requested host 'new_host_4' created.",
                 u"PROCESS_HOST_CHECK_RESULT;new_host_4;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_4' unchanged."
             ],
             u'_feedback': {
                 u'name': u'new_host_4'
@@ -437,6 +440,11 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            'give_result': '1',
+            'give_feedback': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -550,7 +558,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested service 'new_host_for_services_0/test_empty_0' created.",
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'new_host_for_services_0/test_empty_0' updated",
-                u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
                 u'name': u'new_host_for_services_0'
@@ -620,7 +627,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested service 'new_host_for_services_0/test_ok_0' created.",
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'new_host_for_services_0/test_ok_0' updated",
-                u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
                 u'name': u'new_host_for_services_0'
@@ -687,7 +693,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested service 'new_host_for_services_0/test_ok_1' created.",
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_1;0;Output...|'counter'=1\nLong output...",
                 u"Service 'new_host_for_services_0/test_ok_1' updated",
-                u"Host 'new_host_for_services_0' unchanged."
             ],
             u'_feedback': {
                 u'name': u'new_host_for_services_0'

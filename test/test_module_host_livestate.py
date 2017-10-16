@@ -163,8 +163,11 @@ class TestModuleWsHostLivestate(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Send a log_check_result to the alignak backend
+            'alignak_backend_old_lcr': '1',
             # Do not give feedback data
             'give_feedback': '0',
+            'give_result': '1',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -248,7 +251,6 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Requested host 'new_host_0' does not exist.",
                 u"Requested host 'new_host_0' created.",
                 u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_0' unchanged."
             ]
         })
         # No errors!
@@ -287,7 +289,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_0' unchanged."
             ]
         })
         # No errors!
@@ -322,7 +323,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' unchanged."
             ]
         })
         # No errors!
@@ -362,7 +362,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' unchanged."
             ]
         })
         # No errors!
@@ -416,8 +415,11 @@ class TestModuleWsHostLivestate(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Send a log_check_result to the alignak backend
+            'alignak_backend_old_lcr': '1',
             # Do not give feedback data
             'give_feedback': '0',
+            'give_result': '1',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -551,7 +553,6 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Requested service 'new_host_for_services_0/test_empty_0' created.",
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
                 u"Service 'new_host_for_services_0/test_empty_0' updated",
-                u"Host 'new_host_for_services_0' unchanged."
             ]
         })
         # No errors!
@@ -601,8 +602,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
-                u"Host 'new_host_for_services_0' unchanged."
             ]
         })
         # No errors!
@@ -642,8 +641,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
-                u"Host 'new_host_for_services_0' unchanged."
             ]
         })
         # No errors!
@@ -689,8 +686,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'new_host_for_services_0/test_empty_0' unchanged.",
-                u"Host 'new_host_for_services_0' unchanged."
             ]
         })
         # No errors!
