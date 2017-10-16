@@ -25,9 +25,11 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 
 import os
 import sys
+import copy
 import base64
 import json
 import time
+import datetime
 import logging
 import threading
 import Queue
@@ -95,8 +97,13 @@ class AlignakWebServices(BaseModule):
         # Allow host/service creation
         self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '0') == '1'
         logger.info("Alignak host creation allowed: %s", self.allow_host_creation)
+        self.ignore_unknown_host = getattr(mod_conf, 'ignore_unknown_host', '0') == '1'
+        logger.info("Alignak unknown host is ignored: %s", self.ignore_unknown_host)
+
         self.allow_service_creation = getattr(mod_conf, 'allow_service_creation', '0') == '1'
         logger.info("Alignak service creation allowed: %s", self.allow_service_creation)
+        self.ignore_unknown_service = getattr(mod_conf, 'ignore_unknown_service', '1') == '1'
+        logger.info("Alignak unknown service is ignored: %s", self.ignore_unknown_service)
 
         # Set timestamp
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
@@ -147,6 +154,12 @@ class AlignakWebServices(BaseModule):
 
             self.alignak_backend_polling_period = \
                 int(getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+
+            self.alignak_backend_old_lcr = \
+                getattr(mod_conf, 'alignak_backend_old_lcr', '0') == '1'
+
+            self.alignak_backend_timeshift = \
+                int(getattr(mod_conf, 'alignak_backend_timeshift', '5'))
 
             if not self.backend.token and not self.backend_username:
                 logger.warning("No Alignak backend credentials configured (empty token and "
@@ -229,6 +242,8 @@ class AlignakWebServices(BaseModule):
         # Host / post listening to...
         self.host = getattr(mod_conf, 'host', '0.0.0.0')
         self.port = int(getattr(mod_conf, 'port', '8888'))
+        self.log_error = getattr(mod_conf, 'log_error', '')
+        self.log_access = getattr(mod_conf, 'log_access', '')
 
         protocol = 'http'
         if self.use_ssl:
@@ -246,6 +261,10 @@ class AlignakWebServices(BaseModule):
         cherrypy.config.update({"tools.wsauth.on": self.authorization})
         cherrypy.config.update({"tools.sessions.on": True})
         cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
+        if self.log_error:
+            cherrypy.config.update({"log.error_file": "/tmp/alignak-module-ws-error.log"})
+        if self.log_access:
+            cherrypy.config.update({"log.access_file": "/tmp/alignak-module-ws-access.log"})
         self.http_interface = WSInterface(self)
 
         # My thread pool (simultaneous connections)
@@ -383,8 +402,8 @@ class AlignakWebServices(BaseModule):
             else:
                 post_data[field] = found
 
-        if '_realm' not in post_data:
-            logger.info("add default realm to the data")
+        if '_realm' not in post_data and self.default_realm:
+            logger.info("add default realm (%s) to the data", self.default_realm['_id'])
             post_data.update({'_realm': self.default_realm['_id']})
 
         if '_id' in post_data:
@@ -394,6 +413,7 @@ class AlignakWebServices(BaseModule):
         return post_data
 
     def getHostsGroup(self, name, embedded=False):
+        # pylint: disable=too-many-nested-blocks
         """Get the specified hostgroup
 
         Search the hostgroup in the backend with its name
@@ -426,7 +446,7 @@ class AlignakWebServices(BaseModule):
                 }),
                 'embedded': json.dumps({
                     "hostgroups": 1, "hosts": 1,
-                    "_level": 1, "_parent": 1, "_tree_parents": 1,
+                    "_parent": 1, "_tree_parents": 1,
                     '_realm': 1,
                 })
             }
@@ -448,25 +468,24 @@ class AlignakWebServices(BaseModule):
                 # item.pop('_id')
                 item.pop('_etag')
                 item.pop('_links')
-                item.pop('_updated')
+                # item.pop('_updated')
 
                 # Remove not interesting content from linked elements
-                if embedded and '_realm' in item and item['_realm']:
-                    for prop in item['_realm'].keys():
-                        if prop not in ['name', 'alias']:
-                            del item['_realm'][prop]
-                if embedded and 'hosts' in item and item['hosts']:
-                    for prop in item['hosts'].keys():
-                        if prop not in ['name', 'alias']:
-                            del item['hosts'][prop]
-                if embedded and 'hostgroups' in item and item['hostgroups']:
-                    for prop in item['hostgroups'].keys():
-                        if prop not in ['name', 'alias']:
-                            del item['hostgroups'][prop]
-                if embedded and '_tree_parents' in item and item['_tree_parents']:
-                    for prop in item['_tree_parents'].keys():
-                        if prop not in ['name', 'alias']:
-                            del item['_tree_parents'][prop]
+                if embedded:
+                    # For embedded items, only return their name and alias properties
+                    for embedded_item in ['_realm', 'hosts', 'hostgroups',
+                                          '_tree_parents', '_parent']:
+                        if isinstance(item[embedded_item], list):
+                            for linked_item in item[embedded_item]:
+                                item_copy = copy.copy(linked_item)
+                                for prop in item_copy:
+                                    if prop not in ['name', 'alias']:
+                                        linked_item.pop(prop)
+                        else:
+                            item_copy = copy.copy(item[embedded_item])
+                            for prop in item_copy:
+                                if prop not in ['name', 'alias']:
+                                    item[embedded_item].pop(prop)
                 hostgroups.append(item)
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, getHostgroup.")
@@ -567,12 +586,17 @@ class AlignakWebServices(BaseModule):
 
             result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
             logger.debug("Get host, got: %s", result)
-            if not result['_items'] and not self.allow_host_creation:
-                ws_result['_status'] = 'ERR'
-                ws_result['_issues'].append("Requested host '%s' does not exist" % host_name)
-                return ws_result
-
             if not result['_items']:
+                if not self.allow_host_creation:
+                    if not self.ignore_unknown_host:
+                        ws_result['_status'] = 'ERR'
+                        ws_result['_issues'].append("Requested host '%s' does not exist"
+                                                    % host_name)
+                    else:
+                        ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
+                    return ws_result
+
+            if not result['_items'] and self.allow_host_creation:
                 # Tries to create the host
                 logger.info("Requested host '%s' does not exist. Trying to create a new host",
                             host_name)
@@ -610,6 +634,7 @@ class AlignakWebServices(BaseModule):
             return ws_result
 
         update = None
+        logger.debug("Got host: %s", host)
 
         # Update host check state
         if 'active_checks_enabled' in data:
@@ -670,34 +695,41 @@ class AlignakWebServices(BaseModule):
             customs = host['customs']
             for prop in data['variables']:
                 value = data['variables'][prop]
-                logger.info("Variable: %s = %s, update: %s", prop, value, update)
+                logger.debug("Variable: %s = %s, update: %s", prop, value, update)
                 custom = '_' + prop.upper()
                 if isinstance(value, list):
                     if custom in customs:
-                        diff = [x for x in value if x not in customs[custom]]
-                        logger.debug("List difference: %s", diff)
-                        if custom not in customs or diff:
-                            logger.info("Changed: %s", diff)
+                        if all(isinstance(x, dict) for x in value):
+                            # List of dictionaries
+                            pairs = zip(value, customs[custom])
+                            diff = [(x, y) for x, y in pairs if x != y]
+                        else:
+                            diff = list(set(value) - set(customs[custom]))
+
+                        if diff:
                             update = True
+                            logger.info("Modified list: %s, difference: %s (%s vs %s)",
+                                        prop, diff, value, customs[custom])
                             customs[custom] = value
                     else:
                         update = True
+                        logger.info("Create list: %s = %s", prop, value)
                         customs[custom] = value
                 else:
                     if custom in customs and value == "__delete__":
                         update = True
+                        logger.info("Delete variable: %s", prop)
                         customs.pop(custom)
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
+                            logger.info("Update variable: %s = %s", prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs
 
         # Update host livestate
         if data['livestate']:
-            if update is None:
-                update = False
             if not isinstance(data['livestate'], list):
                 data['livestate'] = [data['livestate']]
             for livestate in data['livestate']:
@@ -714,8 +746,6 @@ class AlignakWebServices(BaseModule):
 
         # Update host services
         if data['services']:
-            if update is None:
-                update = False
             if '_feedback' not in ws_result:
                 ws_result['_feedback'] = {}
             ws_result['_feedback']['services'] = []
@@ -736,9 +766,11 @@ class AlignakWebServices(BaseModule):
             if not ws_result['_feedback']['services']:
                 ws_result['_feedback'].pop('services')
 
-        # If no update requested
+        # If no data update requested (only livestate in the data...)
         if update is None:
             # Simple host alive without any required update
+            logger.debug("No host update, only livestate: %s / %s",
+                         self.give_result, self.give_feedback)
             if ws_result['_issues']:
                 if not self.give_feedback and '_feedback' in ws_result:
                     ws_result.pop('_feedback')
@@ -757,12 +789,18 @@ class AlignakWebServices(BaseModule):
                 if '_feedback' in ws_result:
                     ws_result.pop('_feedback')
 
+            if not self.give_result:
+                ws_result.pop('_result')
+
             ws_result.pop('_issues')
+            logger.debug("Result: %s", ws_result)
             return ws_result
 
         # If no update needed
         if not update:
             # Simple host alive with updates required but no update needed
+            logger.debug("No host update: %s / %s",
+                         self.give_result, self.give_feedback)
             ws_result['_result'].append("Host '%s' unchanged." % host['name'])
             if ws_result['_issues']:
                 if not self.give_feedback and '_feedback' in ws_result:
@@ -782,7 +820,11 @@ class AlignakWebServices(BaseModule):
                 if '_feedback' in ws_result:
                     ws_result.pop('_feedback')
 
+            if not self.give_result:
+                ws_result.pop('_result')
+
             ws_result.pop('_issues')
+            logger.debug("Result: %s", ws_result)
             return ws_result
 
         # Clean data to be posted
@@ -794,9 +836,10 @@ class AlignakWebServices(BaseModule):
             data.pop('variables')
         if 'services' in data:
             data.pop('services')
+
         try:
             headers = {'If-Match': host['_etag']}
-            logger.debug("Updating host '%s': %s", host_name, data)
+            logger.info("Updating host '%s': %s", host_name, data)
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
                                               data=data, headers=headers, inception=True)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -831,6 +874,9 @@ class AlignakWebServices(BaseModule):
                 ws_result.pop('_feedback')
             return ws_result
 
+        if not self.give_result:
+            ws_result.pop('_result')
+
         ws_result.pop('_issues')
         return ws_result
 
@@ -860,13 +906,18 @@ class AlignakWebServices(BaseModule):
             result = self.backend.get('/service', {'where': json.dumps({'host': host['_id'],
                                                                         'name': service_name})})
             logger.debug("Get service, got: %s", result)
-            if not result['_items'] and not self.allow_service_creation:
-                ws_result['_status'] = 'ERR'
-                ws_result['_issues'].append("Requested service '%s/%s' does not exist"
-                                            % (host['name'], service_name))
-                return ws_result
-
             if not result['_items']:
+                if not self.allow_service_creation:
+                    if not self.ignore_unknown_service:
+                        ws_result['_status'] = 'ERR'
+                        ws_result['_issues'].append("Requested service '%s/%s' does not exist"
+                                                    % (host['name'], service_name))
+                    else:
+                        ws_result['_result'].append("Requested service '%s/%s' does not exist"
+                                                    % (host['name'], service_name))
+                    return ws_result
+
+            if not result['_items'] and self.allow_service_creation:
                 # Tries to create the service
                 logger.info("Requested service '%s/%s' does not exist. "
                             "Trying to create a new service",
@@ -987,8 +1038,6 @@ class AlignakWebServices(BaseModule):
 
         # Update service livestate
         if 'livestate' in data and data['livestate']:
-            if update is None:
-                update = False
             if not isinstance(data['livestate'], list):
                 data['livestate'] = [data['livestate']]
             for livestate in data['livestate']:
@@ -1004,8 +1053,10 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append(self.buildServiceLivestate(host, service,
                                                                                livestate))
 
-        # If no update requested
+        # If no data update requested (only livestate in the data...)
         if update is None:
+            logger.debug("No service update, only livestate: %s / %s",
+                         self.give_result, self.give_feedback)
             # Simple service alive without any required update
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
@@ -1029,6 +1080,8 @@ class AlignakWebServices(BaseModule):
         # If no update needed
         if not update:
             # Simple service alive with updates required but no update needed
+            logger.debug("No service update: %s / %s",
+                         self.give_result, self.give_feedback)
             ws_result['_result'].append("Service '%s/%s' unchanged."
                                         % (host['name'], service_name))
             if ws_result['_issues']:
@@ -1059,7 +1112,7 @@ class AlignakWebServices(BaseModule):
             data.pop('variables')
         try:
             headers = {'If-Match': service['_etag']}
-            logger.debug("Updating service '%s/%s': %s", host['name'], service_name, data)
+            logger.info("Updating service '%s/%s': %s", host['name'], service_name, data)
             patch_result = self.backend.patch('/'.join(['service', service['_id']]),
                                               data=data, headers=headers, inception=True)
             logger.debug("Backend patch, result: %s", patch_result)
@@ -1162,6 +1215,7 @@ class AlignakWebServices(BaseModule):
         return result
 
     def buildHostLivestate(self, host, livestate):
+        # pylint: disable=too-many-locals
         """Build and notify the external command for an host livestate
 
         PROCESS_HOST_CHECK_RESULT;<host_name>;<status_code>;<plugin_output>
@@ -1202,61 +1256,73 @@ class AlignakWebServices(BaseModule):
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
+        _ts = time.time()
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
+        logger.info("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for an host if we got a timestamp in the past
         # A passive check with a timestamp older than the host last check data will not be
         # managed by Alignak but we may track this event in the backend logcheckresult
-        if timestamp and (not host['ls_last_check'] or timestamp < host['ls_last_check']):
-            logger.info("Recording a check result from the past...")
-            # Assume data are in the host livestate
-            data = {
-                "last_check": timestamp,
-                "host": host['_id'],
-                "service": None,
-                'acknowledged': host['ls_acknowledged'],
-                'acknowledgement_type': host['ls_acknowledgement_type'],
-                'downtimed': host['ls_downtimed'],
-                'state_id': state_to_id[state],
-                'state': state,
-                'state_type': host['ls_state_type'],
-                'last_state': host['ls_last_state'],
-                'last_state_type': host['ls_last_state_type'],
-                'latency': 0,
-                'execution_time': 0,
-                'output': output,
-                'long_output': long_output,
-                'perf_data': perf_data,
-                "_realm": host['_realm']
-            }
-            result = self.backend.get('/logcheckresult',
-                                      {'max_results': 1,
-                                       'where': json.dumps({'host_name': host['name'],
-                                                            'last_check': {"$lte": timestamp}})})
-            logger.debug("Get logcheckresult, got: %s", result)
-            if result['_items']:
-                lcr = result['_items'][0]
-                logger.info("Updating data from an existing logcheckresult: %s", lcr)
-                # Assume some data are in the most recent check result
-                data.update({
-                    'acknowledged': lcr['acknowledged'],
-                    'acknowledgement_type': lcr['acknowledgement_type'],
-                    'downtimed': lcr['downtimed'],
-                    'state_type': lcr['state_type'],
-                    'last_state': lcr['last_state'],
-                    'last_state_type': lcr['last_state_type'],
-                    'state_changed': lcr['state_changed']
-                })
+        if self.alignak_backend_old_lcr:
+            if timestamp and \
+                    (not host['ls_last_check'] or
+                     timestamp + self.alignak_backend_timeshift < host['ls_last_check']):
+                _ts = time.time()
+                past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                logger.info("Recording a check result from the past (%s) for %s...",
+                            past, host['name'])
+                # Assume data are in the host livestate
+                data = {
+                    "last_check": timestamp,
+                    "host": host['_id'],
+                    "service": None,
+                    'acknowledged': host['ls_acknowledged'],
+                    'acknowledgement_type': host['ls_acknowledgement_type'],
+                    'downtimed': host['ls_downtimed'],
+                    'state_id': state_to_id[state],
+                    'state': state,
+                    'state_type': host['ls_state_type'],
+                    'last_state': host['ls_last_state'],
+                    'last_state_type': host['ls_last_state_type'],
+                    'latency': 0,
+                    'execution_time': 0,
+                    'output': output,
+                    'long_output': long_output,
+                    'perf_data': perf_data,
+                    "_realm": host['_realm']
+                }
+                result = self.backend.get('/logcheckresult',
+                                          {'max_results': 1,
+                                           'where': json.dumps({'host_name': host['name'],
+                                                                'last_check': {
+                                                                    "$lte": timestamp}})})
+                logger.debug("Get logcheckresult, got: %s", result)
+                if result['_items']:
+                    lcr = result['_items'][0]
+                    logger.info("Updating data from an existing logcheckresult: %s", lcr)
+                    # Assume some data are in the most recent check result
+                    data.update({
+                        'acknowledged': lcr['acknowledged'],
+                        'acknowledgement_type': lcr['acknowledgement_type'],
+                        'downtimed': lcr['downtimed'],
+                        'state_type': lcr['state_type'],
+                        'last_state': lcr['last_state'],
+                        'last_state_type': lcr['last_state_type'],
+                        'state_changed': lcr['state_changed']
+                    })
 
-            result = self.backend.post('/logcheckresult', data)
-            if result['_status'] != 'OK':
-                logger.warning("Post logcheckresult, error: %s", result)
+                result = self.backend.post('/logcheckresult', data)
+                if result['_status'] != 'OK':
+                    logger.warning("Post logcheckresult, error: %s", result)
+                else:
+                    logger.info("Recorded, duration: %s", time.time() - _ts)
 
         return command_line
 
     def buildServiceLivestate(self, host, service, livestate):
+        # pylint: disable=too-many-locals
         """Build and notify the external command for a service livestate
 
         PROCESS_SERVICE_CHECK_RESULT;<host_name>;<service_description>;<return_code>;<plugin_output>
@@ -1301,58 +1367,70 @@ class AlignakWebServices(BaseModule):
             command_line = '[%d] %s' % (time.time(), command_line)
 
         # Add a command to get managed
+        _ts = time.time()
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
+        logger.info("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for a service if we got a timestamp in the past
         # A passive check with a timestamp older than the service last check data will not be
         # managed by Alignak but we may track this event in the backend logcheckresult
-        if timestamp and (not service['ls_last_check'] or timestamp < service['ls_last_check']):
-            logger.info("Recording a check result from the past...")
-            # Assume data are in the host livestate
-            data = {
-                "last_check": timestamp,
-                "host": host['_id'],
-                "service": service['_id'],
-                'acknowledged': service['ls_acknowledged'],
-                'acknowledgement_type': service['ls_acknowledgement_type'],
-                'downtimed': service['ls_downtimed'],
-                'state_id': state_to_id[state],
-                'state': state,
-                'state_type': service['ls_state_type'],
-                'last_state': service['ls_last_state'],
-                'last_state_type': service['ls_last_state_type'],
-                'latency': 0,
-                'execution_time': 0,
-                'output': output,
-                'long_output': long_output,
-                'perf_data': perf_data,
-                "_realm": service['_realm']
-            }
-            result = self.backend.get('/logcheckresult',
-                                      {'max_results': 1,
-                                       'where': json.dumps({'host_name': host['name'],
-                                                            'service_name': service['name'],
-                                                            'last_check': {"$lte": timestamp}})})
-            logger.debug("Get logcheckresult, got: %s", result)
-            if result['_items']:
-                lcr = result['_items'][0]
-                logger.info("Updating data from an existing logcheckresult: %s", lcr)
-                # Assume some data are in the most recent check result
-                data.update({
-                    'acknowledged': lcr['acknowledged'],
-                    'acknowledgement_type': lcr['acknowledgement_type'],
-                    'downtimed': lcr['downtimed'],
-                    'state_type': lcr['state_type'],
-                    'last_state': lcr['last_state'],
-                    'last_state_type': lcr['last_state_type'],
-                    'state_changed': lcr['state_changed']
-                })
+        if self.alignak_backend_old_lcr:
+            if timestamp and \
+                    (not service['ls_last_check'] or
+                     timestamp + self.alignak_backend_timeshift < service['ls_last_check']):
+                _ts = time.time()
+                past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                logger.info("Recording a check result from the past (%s) for %s/%s...",
+                            past, host['name'], service['name'])
+                # Assume data are in the service livestate
+                data = {
+                    "last_check": timestamp,
+                    "host": host['_id'],
+                    "service": service['_id'],
+                    'acknowledged': service['ls_acknowledged'],
+                    'acknowledgement_type': service['ls_acknowledgement_type'],
+                    'downtimed': service['ls_downtimed'],
+                    'state_id': state_to_id[state],
+                    'state': state,
+                    'state_type': service['ls_state_type'],
+                    'last_state': service['ls_last_state'],
+                    'last_state_type': service['ls_last_state_type'],
+                    'latency': 0,
+                    'execution_time': 0,
+                    'output': output,
+                    'long_output': long_output,
+                    'perf_data': perf_data,
+                    "_realm": service['_realm']
+                }
+                result = self.backend.get('/logcheckresult',
+                                          {'max_results': 1,
+                                           'where': json.dumps({'host_name': host['name'],
+                                                                'service_name': service['name'],
+                                                                'last_check': {
+                                                                    "$lte": timestamp}})})
+                if self.alignak_backend_old_lcr:
+                    logger.debug("Get logcheckresult, got: %s", result)
+                    if result['_items']:
+                        lcr = result['_items'][0]
+                        logger.debug("Updating data from an existing logcheckresult: %s", lcr)
+                        # Assume some data are in the most recent check result
+                        data.update({
+                            'acknowledged': lcr['acknowledged'],
+                            'acknowledgement_type': lcr['acknowledgement_type'],
+                            'downtimed': lcr['downtimed'],
+                            'state_type': lcr['state_type'],
+                            'last_state': lcr['last_state'],
+                            'last_state_type': lcr['last_state_type'],
+                            'state_changed': lcr['state_changed']
+                        })
 
-            result = self.backend.post('/logcheckresult', data)
-            if result['_status'] != 'OK':
-                logger.warning("Post logcheckresult, error: %s", result)
+                result = self.backend.post('/logcheckresult', data)
+                if result['_status'] != 'OK':
+                    logger.warning("Post logcheckresult, error: %s", result)
+                else:
+                    logger.info("Recorded, duration: %s", time.time() - _ts)
 
         return command_line
 
@@ -1442,6 +1520,8 @@ class AlignakWebServices(BaseModule):
                 return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
             logger.info("Searching history: %s", search)
+            if 'where' in search:
+                search.update({'where': json.dumps(search['where'])})
             result = self.backend.get('history', search)
             logger.debug("Backend history, got: %s", result)
             if result['_status'] == 'OK':

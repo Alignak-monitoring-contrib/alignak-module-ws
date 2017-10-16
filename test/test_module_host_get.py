@@ -149,12 +149,17 @@ class TestModuleWsHostGet(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            'give_result': '1',
+            'give_feedback': '1',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
             # Allow host/service creation
             'allow_host_creation': '1',
-            'allow_service_creation': '1'
+            'allow_service_creation': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
         })
 
         # Create the modules manager for a daemon type

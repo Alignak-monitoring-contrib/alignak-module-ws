@@ -219,7 +219,7 @@ class TestModuleWsHostgroup(AlignakTest):
             ]
         })
 
-        # Get a non-existing host - 2nd: use host name in the URI
+        # Get a non-existing host - 2nd: use hostgroup name in the URI
         response = session.get('http://127.0.0.1:8888/hostgroup/fake-hostgroup', auth=self.auth)
         result = response.json()
         self.assertEqual(result, {
@@ -241,7 +241,7 @@ class TestModuleWsHostgroup(AlignakTest):
         self.assertEqual(len(result['_result']), 13)
 
         # -----
-        # Get new host to confirm creation - 1st: use parameters in the request
+        # Get a specific hostgroup - 1st: use parameters in the request
         response = session.get('http://127.0.0.1:8888/hostgroup', auth=self.auth,
                                 params={'name': 'hostgroup_01'})
         result = response.json()
@@ -249,12 +249,37 @@ class TestModuleWsHostgroup(AlignakTest):
         self.assertIsNot(result['_result'], {})
         self.assertEqual(result['_result'][0]['name'], 'hostgroup_01')
 
-        # Get new host to confirm creation - 2nd: use host name in the URI
+        # Get a specific hostgroup - 2nd: use hostgroup name in the URI
         response = session.get('http://127.0.0.1:8888/hostgroup/hostgroup_01', auth=self.auth)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertIsNot(result['_result'], {})
-        self.assertEqual(result['_result'][0]['name'], 'hostgroup_01')
+        # Comparing is tricky because of the changing objects _id ...
+        # self.assertEqual(result['_result'][0], {
+        #     u'_level': 1, u'name': u'hostgroup_01', u'notes': u'', u'hostgroups': [],
+        #     u'_parent': {u'alias': u'All hosts', u'name': u'All'}, u'alias': u'hostgroup_alias_01',
+        #     u'hosts': [{u'alias': u'up_0', u'name': u'test_host_0'}],
+        #     u'_tree_parents': [{u'alias': u'All hosts', u'name': u'All'}],
+        #     u'_realm': {u'alias': u'All', u'name': u'All'}
+        # })
+
+        # Get a specific hostgroup - embed related items
+        response = session.get('http://127.0.0.1:8888/hostgroup/hostgroup_01', auth=self.auth,
+                                params={'embedded': True})
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertIsNot(result['_result'], {})
+        print(result['_result'][0])
+        result['_result'][0].pop('_id')
+        result['_result'][0].pop('_created')
+        result['_result'][0].pop('_updated')
+        self.assertEqual(result['_result'][0], {
+            u'_level': 1, u'name': u'hostgroup_01', u'notes': u'', u'hostgroups': [],
+            u'_parent': {u'alias': u'All hosts', u'name': u'All'}, u'alias': u'hostgroup_alias_01',
+            u'hosts': [{u'alias': u'up_0', u'name': u'test_host_0'}],
+            u'_tree_parents': [{u'alias': u'All hosts', u'name': u'All'}],
+            u'_realm': {u'alias': u'All', u'name': u'All'}
+        })
 
         # -----
         # Logout

@@ -54,7 +54,7 @@ class Helper(object):
 
         :return: query to be provided to the data manager search objects function
         """
-        logger.info("decode_search, search string: %s", query)
+        logger.debug("decode_search, search string: %s", query)
 
         # Search patterns like: isnot:0 isnot:ack isnot:"downtime test" name "vm test"
         regex = re.compile(

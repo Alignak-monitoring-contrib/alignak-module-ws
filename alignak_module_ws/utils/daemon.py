@@ -163,7 +163,7 @@ class HTTPDaemon(object):
         """
         try:
             self.srv.start()
-        except socket.error, exp:
+        except socket.error, exp:  # pragma: no cover, not during tests
             msg = "Error: Sorry, the port %d is not free: %s" % (self.port, str(exp))
             raise PortNotFree(msg)
 

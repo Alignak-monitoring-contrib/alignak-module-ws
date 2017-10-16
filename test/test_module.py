@@ -356,31 +356,35 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak host creation allowed: False"), 1)
         self.assert_log_match(
-            re.escape("Alignak service creation allowed: False"), 2)
+            re.escape("Alignak unknown host is ignored: False"), 2)
         self.assert_log_match(
-            re.escape("Alignak external commands, set timestamp: True"), 3)
+            re.escape("Alignak service creation allowed: False"), 3)
         self.assert_log_match(
-            re.escape("Alignak update, set give_feedback: 1"), 4)
+            re.escape("Alignak unknown service is ignored: True"), 4)
         self.assert_log_match(
-            re.escape("Alignak host feedback list: ['']"), 5)
+            re.escape("Alignak external commands, set timestamp: True"), 5)
         self.assert_log_match(
-            re.escape("Alignak service feedback list: ['']"), 6)
+            re.escape("Alignak update, set give_feedback: 1"), 6)
         self.assert_log_match(
-            re.escape("Alignak update, set give_result: False"), 7)
+            re.escape("Alignak host feedback list: ['']"), 7)
+        self.assert_log_match(
+            re.escape("Alignak service feedback list: ['']"), 8)
+        self.assert_log_match(
+            re.escape("Alignak update, set give_result: False"), 9)
         self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 8)
+                      "Some module features will not be available."), 10)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 9)
+            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 11)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 10)
+            re.escape("Alignak Arbiter polling period: 5"), 12)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 11)
+            re.escape("Alignak daemons get status period: 10"), 13)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 12)
+                      "You should consider enabling SSL!"), 14)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://0.0.0.0:8888"), 13)
+            re.escape("configuration, listening on: http://0.0.0.0:8888"), 15)
 
     def test_module_start_parameters(self):
         """
@@ -408,6 +412,16 @@ class TestModuleWs(AlignakTest):
             'alignak_port': 80,
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
+            # Give result data
+            'give_result': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             'host': 'me',
             'port': 8080,
         })
@@ -421,34 +435,38 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak host creation allowed: False"), 1)
         self.assert_log_match(
-            re.escape("Alignak service creation allowed: False"), 2)
+            re.escape("Alignak unknown host is ignored: False"), 2)
         self.assert_log_match(
-            re.escape("Alignak external commands, set timestamp: False"), 3)
+            re.escape("Alignak service creation allowed: False"), 3)
         self.assert_log_match(
-            re.escape("Alignak update, set give_feedback: 1"), 4)
+            re.escape("Alignak unknown service is ignored: False"), 4)
         self.assert_log_match(
-            re.escape("Alignak host feedback list: ['']"), 5)
+            re.escape("Alignak external commands, set timestamp: False"), 5)
         self.assert_log_match(
-            re.escape("Alignak service feedback list: ['']"), 6)
+            re.escape("Alignak update, set give_feedback: 0"), 6)
         self.assert_log_match(
-            re.escape("Alignak update, set give_result: False"), 7)
+            re.escape("Alignak host feedback list: ['']"), 7)
+        self.assert_log_match(
+            re.escape("Alignak service feedback list: ['']"), 8)
+        self.assert_log_match(
+            re.escape("Alignak update, set give_result: True"), 9)
         self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), 8)
+                      "Some module features will not be available."), 10)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: my_host:80"), 9)
+            re.escape("Alignak Arbiter configuration: my_host:80"), 11)
         self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), 10)
+            re.escape("Alignak Arbiter polling period: 5"), 12)
         self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), 11)
+            re.escape("Alignak daemons get status period: 10"), 13)
         self.assert_log_match(
             re.escape("The CA certificate /usr/local/etc/alignak/certs/ca.pem is missing "
-                      "(ca_cert). Please fix it in your configuration"), 12)
+                      "(ca_cert). Please fix it in your configuration"), 14)
         self.assert_log_match(
             re.escape("SSL is not enabled, this is not recommended. "
-                      "You should consider enabling SSL!"), 13)
+                      "You should consider enabling SSL!"), 15)
         self.assert_log_match(
-            re.escape("configuration, listening on: http://me:8080"), 14)
+            re.escape("configuration, listening on: http://me:8080"), 16)
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled

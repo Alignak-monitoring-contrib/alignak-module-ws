@@ -156,10 +156,18 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Give result data
+            'give_result': '1',
             # Give some feedback about host and services
             'give_feedback': '2',
             'feedback_host': 'alias,notes,location,active_checks_enabled,max_check_attempts,check_interval,retry_interval,passive_checks_enabled,check_freshness,freshness_state,freshness_threshold,_overall_state_id',
             'feedback_service': 'alias,notes,active_checks_enabled,max_check_attempts,check_interval,retry_interval,passive_checks_enabled,check_freshness,freshness_state,freshness_threshold,_overall_state_id',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -383,8 +391,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host_0 is alive :)',
-                                               u"Host 'test_host_0' unchanged."],
+                                  u'_result': [u'test_host_0 is alive :)'],
                                   u'_issues': [u'Missing state in the livestate.']})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
@@ -403,8 +410,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host_0 is alive :)',
-                                               u"Host 'test_host_0' unchanged."],
+                                  u'_result': [u'test_host_0 is alive :)'],
                                   u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
                                                u"and not ''."]})
 
@@ -427,8 +433,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output...",
-                         u"Host 'test_host_0' unchanged."],
+                         u"Output...|'counter'=1\nLong output..."],
             u'_feedback': {
                 u'name': u'test_host_0',
                 u'_overall_state_id': 3,
@@ -466,8 +471,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output...",
-                         u"Host 'test_host_0' unchanged."],
+                         u"Output...|'counter'=1\nLong output..."],
             u'_feedback': {
                 u'name': u'test_host_0',
                 u'_overall_state_id': 3,
@@ -534,12 +538,8 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
-                u"Service 'test_host_0/test_ok_1' unchanged.",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2"
             ],
             u'_feedback': {
                 u'name': u'test_host_0',
@@ -609,10 +609,15 @@ class TestModuleWsHost(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Give result data
+            'give_result': '1',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
             # No feedback
             'give_feedback': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -706,12 +711,8 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
             ]
         })
 
@@ -789,13 +790,9 @@ class TestModuleWsHost(AlignakTest):
                 u"[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
-                u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
             ]
         })
 
@@ -833,10 +830,15 @@ class TestModuleWsHost(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Give result data
+            'give_result': '1',
             # Timestamp
             'set_timestamp': '1',
             # No feedback
             'give_feedback': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -985,7 +987,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_result': [u'test_host_0 is alive :)'],
             u'_issues': [u'Missing state in the livestate.']
         })
 
@@ -1006,7 +1008,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_result': [u'test_host_0 is alive :)'],
             u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not ''."]})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
@@ -1026,7 +1028,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_result': [u'test_host_0 is alive :)'],
             u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not 'XXX'."]})
 
         # Update host livestate (heartbeat / host is alive): livestate, no timestamp
@@ -1048,8 +1050,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."]
+                         u"Output...|'counter'=1\nLong output..." % time.time()]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, provided timestamp
@@ -1072,8 +1073,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 123456789,
-                         u"Host 'test_host_0' unchanged."]
+                         u"Output...|'counter'=1\nLong output..." % 123456789]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate may be a list
@@ -1107,8 +1107,7 @@ class TestModuleWsHost(AlignakTest):
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % 123456789,
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 987654321,
-                         u"Host 'test_host_0' unchanged."]
+                         u"Output...|'counter'=1\nLong output..." % 987654321]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, invalid provided timestamp
@@ -1133,8 +1132,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."]
+                         u"Output...|'counter'=1\nLong output..." % time.time()]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -1156,8 +1154,7 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
-                         u"Host 'test_host_0' unchanged."]
+                         u"Output...|'counter'=1\nLong output..." % time.time()]
         })
 
         # Update host services livestate
@@ -1209,12 +1206,8 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
             ]
         })
 
@@ -1268,12 +1261,8 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
             ]
         })
 
@@ -1337,12 +1326,8 @@ class TestModuleWsHost(AlignakTest):
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
-                u"Service 'test_host_0/test_ok_0' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_1' unchanged.",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'test_host_0/test_ok_2' unchanged.",
-                u"Host 'test_host_0' unchanged."
             ]
         })
 
@@ -1375,8 +1360,13 @@ class TestModuleWsHost(AlignakTest):
             'password': 'admin',
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
+            # Give result data
+            'give_result': '1',
             # No feedback
             'give_feedback': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -1615,6 +1605,96 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
 
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_variables_as_array(self):
+        """Test the module /host API * create/update custom variables
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Give result data
+            'give_result': '1',
+            # No feedback
+            'give_feedback': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        # ---
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
         # ----------
         # New host variables as an array
         headers = {'Content-Type': 'application/json'}
@@ -1624,6 +1704,7 @@ class TestModuleWsHost(AlignakTest):
                 'test1': 'string modified',
                 'test2': 12,
                 'test3': 15055.0,
+                'test4': "new!",
                 'my_array': [
                     {
                         "id": "identifier", "name": "my name", "other": 1
@@ -1632,213 +1713,29 @@ class TestModuleWsHost(AlignakTest):
                         "id": "identifier", "name": "my name", "other": 1
                     }
                 ],
-                "Kiosk_Packages": [
+                'my_array_of_strings': [
+                    "string1", "string2", "string3"
+                ],
+                'my_array_of_integers': [
+                    1, 2, 3
+                ],
+                "List_Packages": [
                     {
                         "id": "adobereader"
                         , "version": "3.0.0"
                         , "service": "soft_adobereader"
                     }, {
-                        "id": "AudioRealtek"
-                        , "version": "3.1.5"
-                        , "service": "dev_SoundPanelPC"
-                    }, {
-                        "id": "Bea"
-                        , "version": "1.0.7"
-                        , "service": "Bea"
-                    }, {
                         "id": "cwrsync"
                         , "version": "3.1.2"
                         , "service": "soft_cwrsync"
-                    }, {
-                        "id": "Display"
-                        , "version": "3.1.5"
-                        , "service": "dev_DisplayPanelPC"
-                    }, {
-                        "id": "eLiberty"
-                        , "version": "1.5.15"
-                        , "service": "eLiberty"
                     }, {
                         "id": "HomeMaison"
                         , "version": "0.1.0"
                         , "service": "HomeMaison"
                     }, {
-                        "id": "ImagerDocumentSimu"
-                        , "version": "4.1.1"
-                        , "service": "dev_DocumentImager"
-                        , "disabled": True
-                    }, {
-                        "id": "ImagerPhotoVideoSimu"
-                        , "version": "4.1.1"
-                        , "service": "dev_PhotoVideoImager"
-                        , "disabled": True
-                    }, {
-                        "id": "ImagerPhotoVideoWebcam"
-                        , "version": "4.1.1"
-                        , "service": "dev_PhotoVideoImager_2"
-                        , "disabled": True
-                    }, {
                         "id": "Inventory"
                         , "version": "4.0.4"
                         , "service": "soft_Inventory"
-                    }, {
-                        "id": "ioKiosk"
-                        , "version": "3.1.2"
-                        , "service": "dev_IOPanelPC"
-                    }, {
-                        "id": "Kiosk"
-                        , "version": "3.5.0"
-                        , "service": "soft_Kiosk"
-                    }, {
-                        "id": "KioskShell"
-                        , "version": "3.9.6.1000"
-                        , "service": "soft_KioskShell"
-                    }, {
-                        "id": "Maintenance"
-                        , "version": "1.5.0"
-                        , "service": "Maintenance"
-                    }, {
-                        "id": "Master"
-                        , "version": "2.0.0"
-                        , "service": "soft_Master"
-                    }, {
-                        "id": "NSClient"
-                        , "version": "4.0.2"
-                        , "service": "soft_NSClient"
-                    }, {
-                        "id": "NetworkLan"
-                        , "version": "3.0.7"
-                        , "service": "dev_Network"
-                    }, {
-                        "id": "NetworkWifi"
-                        , "version": "3.1.2"
-                        , "service": "dev_Network"
-                    }, {
-                        "id": "ParionsSport"
-                        , "version": "2.0.11"
-                        , "service": "ParionsSport"
-                    }, {
-                        "id": "PaymentSimu"
-                        , "version": "4.18.1"
-                        , "service": "dev_CBPayment"
-                        , "disabled": True
-                    }, {
-                        "id": "PaymentVerifoneUX"
-                        , "version": "4.6.3"
-                        , "service": "dev_CBPayment_2"
-                        , "disabled": True
-                    }, {
-                        "id": "Printer"
-                        , "version": "4.0.0"
-                        , "service": "dev_ReceiptPrinter"
-                    }, {
-                        "id": "PrinterKalypso60_64b"
-                        , "version": "4.7.6"
-                        , "service": "dev_ReceiptPrinter_2"
-                    }, {
-                        "id": "PrinterKPM180"
-                        , "version": "4.6.2.4"
-                        , "service": "dev_TicketPrinter_"
-                        , "disabled": True
-                    }, {
-                        "id": "PrinterM506"
-                        , "version": "4.6.1"
-                        , "service": "dev_DocumentPrinter"
-                        , "disabled": True
-                    }, {
-                        "id": "PrinterM506_2"
-                        , "version": "4.6.1"
-                        , "service": "dev_Document2Printer"
-                    }, {
-                        "id": "PrinterM506_3"
-                        , "version": "4.6.1"
-                        , "service": "dev_Document3Printer"
-                    }, {
-                        "id": "PrinterTG1260H"
-                        , "version": "4.6.2.5"
-                        , "service": "dev_ReceiptPrinter_"
-                        , "disabled": True
-                    }, {
-                        "id": "radiusFdj"
-                        , "version": "4.0.1"
-                        , "service": "soft_radiusFdj"
-                    }, {
-                        "id": "ReaderBluetooth"
-                        , "version": "3.5.0"
-                        , "service": "soft_ReaderBluetooth"
-                        , "disabled": True
-                    }, {
-                        "id": "ReaderGemalto"
-                        , "version": "3.5.0"
-                        , "service": "dev_ContactReader"
-                        , "disabled": True
-                    }, {
-                        "id": "ReaderGFS4470"
-                        , "version": "4.6.3"
-                        , "service": "dev_BarcodeReader"
-                    }, {
-                        "id": "ReaderProxNRoll"
-                        , "version": "3.5.0"
-                        , "service": "dev_ContactlessReader"
-                    }, {
-                        "id": "ReaderSesamVitale"
-                        , "version": "3.7.0"
-                        , "service": "dev_SesamVitaleReader"
-                    }, {
-                        "id": "setKiosk"
-                        , "version": "4.0.1"
-                        , "service": "soft_setKiosk"
-                    }, {
-                        "id": "SoftKiosk"
-                        , "version": "3.8.2"
-                        , "service": "svc_SoftKiosk"
-                    }, {
-                        "id": "Touchscreen"
-                        , "version": "3.2.3"
-                        , "service": "dev_TouchPanelPC"
-                    }, {
-                        "id": "UPS"
-                        , "version": "3.0.0"
-                        , "service": "dev_UPSEnergy"
-                    }, {
-                        "id": "Monitoring"
-                        , "version": "4.0.2"
-                        , "service": "svc_Monitoring"
-                    }, {
-                        "id": "Management"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Management"
-                    }, {
-                        "id": "Session"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Session"
-                    }, {
-                        "id": "Screensaver"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Screensaver"
-                    }, {
-                        "id": "Disk"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Disk"
-                    }, {
-                        "id": "TagReading_A"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_TagReading_A"
-                    }, {
-                        "id": "TagReading_F"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_TagReading_F"
-                    }, {
-                        "id": "TagReading_B"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_TagReading_B"
-                    }, {
-                        "id": "Alarm"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Alarm"
-                    }, {
-                        "id": "Activity"
-                        , "version": "3.9.6.1000"
-                        , "service": "svc_Activity"
                     }
                 ],
                 'packages': [
@@ -1873,164 +1770,21 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'my name', u'other': 1},
                 {u'id': u'identifier', u'name': u'my name', u'other': 1}
             ],
-            u'_KIOSK_PACKAGES': [
+            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
+            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
+            u'_LIST_PACKAGES': [
                 {u'id': u'adobereader',
                  u'service': u'soft_adobereader',
                  u'version': u'3.0.0'},
-                {u'id': u'AudioRealtek',
-                 u'service': u'dev_SoundPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'Bea',
-                 u'service': u'Bea',
-                 u'version': u'1.0.7'},
                 {u'id': u'cwrsync',
                  u'service': u'soft_cwrsync',
                  u'version': u'3.1.2'},
-                {u'id': u'Display',
-                 u'service': u'dev_DisplayPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'eLiberty',
-                 u'service': u'eLiberty',
-                 u'version': u'1.5.15'},
                 {u'id': u'HomeMaison',
                  u'service': u'HomeMaison',
                  u'version': u'0.1.0'},
-                {u'disabled': True,
-                 u'id': u'ImagerDocumentSimu',
-                 u'service': u'dev_DocumentImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoSimu',
-                 u'service': u'dev_PhotoVideoImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoWebcam',
-                 u'service': u'dev_PhotoVideoImager_2',
-                 u'version': u'4.1.1'},
                 {u'id': u'Inventory',
                  u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'},
-                {u'id': u'ioKiosk',
-                 u'service': u'dev_IOPanelPC',
-                 u'version': u'3.1.2'},
-                {u'id': u'Kiosk',
-                 u'service': u'soft_Kiosk',
-                 u'version': u'3.5.0'},
-                {u'id': u'KioskShell',
-                 u'service': u'soft_KioskShell',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Maintenance',
-                 u'service': u'Maintenance',
-                 u'version': u'1.5.0'},
-                {u'id': u'Master',
-                 u'service': u'soft_Master',
-                 u'version': u'2.0.0'},
-                {u'id': u'NSClient',
-                 u'service': u'soft_NSClient',
-                 u'version': u'4.0.2'},
-                {u'id': u'NetworkLan',
-                 u'service': u'dev_Network',
-                 u'version': u'3.0.7'},
-                {u'id': u'NetworkWifi',
-                 u'service': u'dev_Network',
-                 u'version': u'3.1.2'},
-                {u'id': u'ParionsSport',
-                 u'service': u'ParionsSport',
-                 u'version': u'2.0.11'},
-                {u'disabled': True,
-                 u'id': u'PaymentSimu',
-                 u'service': u'dev_CBPayment',
-                 u'version': u'4.18.1'},
-                {u'disabled': True,
-                 u'id': u'PaymentVerifoneUX',
-                 u'service': u'dev_CBPayment_2',
-                 u'version': u'4.6.3'},
-                {u'id': u'Printer',
-                 u'service': u'dev_ReceiptPrinter',
-                 u'version': u'4.0.0'},
-                {u'id': u'PrinterKalypso60_64b',
-                 u'service': u'dev_ReceiptPrinter_2',
-                 u'version': u'4.7.6'},
-                {u'disabled': True,
-                 u'id': u'PrinterKPM180',
-                 u'service': u'dev_TicketPrinter_',
-                 u'version': u'4.6.2.4'},
-                {u'disabled': True,
-                 u'id': u'PrinterM506',
-                 u'service': u'dev_DocumentPrinter',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_2',
-                 u'service': u'dev_Document2Printer',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_3',
-                 u'service': u'dev_Document3Printer',
-                 u'version': u'4.6.1'},
-                {u'disabled': True,
-                 u'id': u'PrinterTG1260H',
-                 u'service': u'dev_ReceiptPrinter_',
-                 u'version': u'4.6.2.5'},
-                {u'id': u'radiusFdj',
-                 u'service': u'soft_radiusFdj',
-                 u'version': u'4.0.1'},
-                {u'disabled': True,
-                 u'id': u'ReaderBluetooth',
-                 u'service': u'soft_ReaderBluetooth',
-                 u'version': u'3.5.0'},
-                {u'disabled': True,
-                 u'id': u'ReaderGemalto',
-                 u'service': u'dev_ContactReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderGFS4470',
-                 u'service': u'dev_BarcodeReader',
-                 u'version': u'4.6.3'},
-                {u'id': u'ReaderProxNRoll',
-                 u'service': u'dev_ContactlessReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderSesamVitale',
-                 u'service': u'dev_SesamVitaleReader',
-                 u'version': u'3.7.0'},
-                {u'id': u'setKiosk',
-                 u'service': u'soft_setKiosk',
-                 u'version': u'4.0.1'},
-                {u'id': u'SoftKiosk',
-                 u'service': u'svc_SoftKiosk',
-                 u'version': u'3.8.2'},
-                {u'id': u'Touchscreen',
-                 u'service': u'dev_TouchPanelPC',
-                 u'version': u'3.2.3'},
-                {u'id': u'UPS',
-                 u'service': u'dev_UPSEnergy',
-                 u'version': u'3.0.0'},
-                {u'id': u'Monitoring',
-                 u'service': u'svc_Monitoring',
-                 u'version': u'4.0.2'},
-                {u'id': u'Management',
-                 u'service': u'svc_Management',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Session',
-                 u'service': u'svc_Session',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Screensaver',
-                 u'service': u'svc_Screensaver',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Disk',
-                 u'service': u'svc_Disk',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_A',
-                 u'service': u'svc_TagReading_A',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_F',
-                 u'service': u'svc_TagReading_F',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_B',
-                 u'service': u'svc_TagReading_B',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Alarm',
-                 u'service': u'svc_Alarm',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Activity',
-                 u'service': u'svc_Activity',
-                 u'version': u'3.9.6.1000'}
+                 u'version': u'4.0.4'}
             ],
             u'_PACKAGES': [
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
@@ -2057,19 +1811,14 @@ class TestModuleWsHost(AlignakTest):
                         "id": "identifier", "name": "my name", "other": 1
                     }
                 ],
-                "Kiosk_Packages": [
+                'my_array_of_integers': [
+                    1, 2, 3
+                ],
+                "List_Packages": [
                     {
-                    "id": "Bea"
-                    , "version": "1.0.7"
-                    , "service": "Bea"
-                    }, {
                     "id": "adobereader"
                     , "version": "3.0.0"
                     , "service": "soft_adobereader"
-                    }, {
-                    "id": "AudioRealtek"
-                    , "version": "3.1.5"
-                    , "service": "dev_SoundPanelPC"
                     }, {
                     "id": "cwrsync"
                     , "version": "3.1.2"
@@ -2078,10 +1827,10 @@ class TestModuleWsHost(AlignakTest):
                 ],
                 'packages': [
                     {
-                        "id": "identifier", "name": "Package 2", "other": 1
+                        "id": "identifier", "name": "Package 1", "other": 1
                     },
                     {
-                        "id": "identifier", "name": "Package 1", "other": 1
+                        "id": "identifier", "name": "Package 2", "other": 1
                     }
                 ]
             },
@@ -2108,168 +1857,25 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'my name', u'other': 1},
                 {u'id': u'identifier', u'name': u'my name', u'other': 1}
             ],
+            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
+            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
             u'_PACKAGES': [
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
                 {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
             ],
-            u'_KIOSK_PACKAGES': [
+            u'_LIST_PACKAGES': [
                 {u'id': u'adobereader',
                  u'service': u'soft_adobereader',
                  u'version': u'3.0.0'},
-                {u'id': u'AudioRealtek',
-                 u'service': u'dev_SoundPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'Bea',
-                 u'service': u'Bea',
-                 u'version': u'1.0.7'},
                 {u'id': u'cwrsync',
                  u'service': u'soft_cwrsync',
                  u'version': u'3.1.2'},
-                {u'id': u'Display',
-                 u'service': u'dev_DisplayPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'eLiberty',
-                 u'service': u'eLiberty',
-                 u'version': u'1.5.15'},
                 {u'id': u'HomeMaison',
                  u'service': u'HomeMaison',
                  u'version': u'0.1.0'},
-                {u'disabled': True,
-                 u'id': u'ImagerDocumentSimu',
-                 u'service': u'dev_DocumentImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoSimu',
-                 u'service': u'dev_PhotoVideoImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoWebcam',
-                 u'service': u'dev_PhotoVideoImager_2',
-                 u'version': u'4.1.1'},
                 {u'id': u'Inventory',
                  u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'},
-                {u'id': u'ioKiosk',
-                 u'service': u'dev_IOPanelPC',
-                 u'version': u'3.1.2'},
-                {u'id': u'Kiosk',
-                 u'service': u'soft_Kiosk',
-                 u'version': u'3.5.0'},
-                {u'id': u'KioskShell',
-                 u'service': u'soft_KioskShell',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Maintenance',
-                 u'service': u'Maintenance',
-                 u'version': u'1.5.0'},
-                {u'id': u'Master',
-                 u'service': u'soft_Master',
-                 u'version': u'2.0.0'},
-                {u'id': u'NSClient',
-                 u'service': u'soft_NSClient',
-                 u'version': u'4.0.2'},
-                {u'id': u'NetworkLan',
-                 u'service': u'dev_Network',
-                 u'version': u'3.0.7'},
-                {u'id': u'NetworkWifi',
-                 u'service': u'dev_Network',
-                 u'version': u'3.1.2'},
-                {u'id': u'ParionsSport',
-                 u'service': u'ParionsSport',
-                 u'version': u'2.0.11'},
-                {u'disabled': True,
-                 u'id': u'PaymentSimu',
-                 u'service': u'dev_CBPayment',
-                 u'version': u'4.18.1'},
-                {u'disabled': True,
-                 u'id': u'PaymentVerifoneUX',
-                 u'service': u'dev_CBPayment_2',
-                 u'version': u'4.6.3'},
-                {u'id': u'Printer',
-                 u'service': u'dev_ReceiptPrinter',
-                 u'version': u'4.0.0'},
-                {u'id': u'PrinterKalypso60_64b',
-                 u'service': u'dev_ReceiptPrinter_2',
-                 u'version': u'4.7.6'},
-                {u'disabled': True,
-                 u'id': u'PrinterKPM180',
-                 u'service': u'dev_TicketPrinter_',
-                 u'version': u'4.6.2.4'},
-                {u'disabled': True,
-                 u'id': u'PrinterM506',
-                 u'service': u'dev_DocumentPrinter',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_2',
-                 u'service': u'dev_Document2Printer',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_3',
-                 u'service': u'dev_Document3Printer',
-                 u'version': u'4.6.1'},
-                {u'disabled': True,
-                 u'id': u'PrinterTG1260H',
-                 u'service': u'dev_ReceiptPrinter_',
-                 u'version': u'4.6.2.5'},
-                {u'id': u'radiusFdj',
-                 u'service': u'soft_radiusFdj',
-                 u'version': u'4.0.1'},
-                {u'disabled': True,
-                 u'id': u'ReaderBluetooth',
-                 u'service': u'soft_ReaderBluetooth',
-                 u'version': u'3.5.0'},
-                {u'disabled': True,
-                 u'id': u'ReaderGemalto',
-                 u'service': u'dev_ContactReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderGFS4470',
-                 u'service': u'dev_BarcodeReader',
-                 u'version': u'4.6.3'},
-                {u'id': u'ReaderProxNRoll',
-                 u'service': u'dev_ContactlessReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderSesamVitale',
-                 u'service': u'dev_SesamVitaleReader',
-                 u'version': u'3.7.0'},
-                {u'id': u'setKiosk',
-                 u'service': u'soft_setKiosk',
-                 u'version': u'4.0.1'},
-                {u'id': u'SoftKiosk',
-                 u'service': u'svc_SoftKiosk',
-                 u'version': u'3.8.2'},
-                {u'id': u'Touchscreen',
-                 u'service': u'dev_TouchPanelPC',
-                 u'version': u'3.2.3'},
-                {u'id': u'UPS',
-                 u'service': u'dev_UPSEnergy',
-                 u'version': u'3.0.0'},
-                {u'id': u'Monitoring',
-                 u'service': u'svc_Monitoring',
-                 u'version': u'4.0.2'},
-                {u'id': u'Management',
-                 u'service': u'svc_Management',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Session',
-                 u'service': u'svc_Session',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Screensaver',
-                 u'service': u'svc_Screensaver',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Disk',
-                 u'service': u'svc_Disk',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_A',
-                 u'service': u'svc_TagReading_A',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_F',
-                 u'service': u'svc_TagReading_F',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_B',
-                 u'service': u'svc_TagReading_B',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Alarm',
-                 u'service': u'svc_Alarm',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Activity',
-                 u'service': u'svc_Activity',
-                 u'version': u'3.9.6.1000'}
+                 u'version': u'4.0.4'}
             ],
         }
         self.assertEqual(expected, test_host_0['customs'])
@@ -2298,7 +1904,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            u'_result': [u'test_host_0 is alive :)'],
             u'_issues': [u"Requested service 'test_host_0/test_service' does not exist"]
         })
         # ----------
@@ -2328,8 +1934,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
-                         u"Service 'test_host_0/test_ok_0' updated",
-                         u"Host 'test_host_0' unchanged."],
+                         u"Service 'test_host_0/test_ok_0' updated"],
         })
 
         # Get host data to confirm update
@@ -2343,7 +1948,7 @@ class TestModuleWsHost(AlignakTest):
                                                              'name': 'test_ok_0'})})
         resp = response.json()
         service = resp['_items'][0]
-        # The service still had a variable _CUSTNAME and it inherits from the host variables
+        # The service still had a variable _CUSTNAME and it inherits from all the host variables
         expected = {
             u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
             u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
@@ -2354,168 +1959,25 @@ class TestModuleWsHost(AlignakTest):
                 {u'id': u'identifier', u'name': u'my name', u'other': 1},
                 {u'id': u'identifier', u'name': u'my name', u'other': 1}
             ],
+            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
+            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
             u'_PACKAGES': [
                 {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
                 {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
             ],
-            u'_KIOSK_PACKAGES': [
+            u'_LIST_PACKAGES': [
                 {u'id': u'adobereader',
                  u'service': u'soft_adobereader',
                  u'version': u'3.0.0'},
-                {u'id': u'AudioRealtek',
-                 u'service': u'dev_SoundPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'Bea',
-                 u'service': u'Bea',
-                 u'version': u'1.0.7'},
                 {u'id': u'cwrsync',
                  u'service': u'soft_cwrsync',
                  u'version': u'3.1.2'},
-                {u'id': u'Display',
-                 u'service': u'dev_DisplayPanelPC',
-                 u'version': u'3.1.5'},
-                {u'id': u'eLiberty',
-                 u'service': u'eLiberty',
-                 u'version': u'1.5.15'},
                 {u'id': u'HomeMaison',
                  u'service': u'HomeMaison',
                  u'version': u'0.1.0'},
-                {u'disabled': True,
-                 u'id': u'ImagerDocumentSimu',
-                 u'service': u'dev_DocumentImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoSimu',
-                 u'service': u'dev_PhotoVideoImager',
-                 u'version': u'4.1.1'},
-                {u'disabled': True,
-                 u'id': u'ImagerPhotoVideoWebcam',
-                 u'service': u'dev_PhotoVideoImager_2',
-                 u'version': u'4.1.1'},
                 {u'id': u'Inventory',
                  u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'},
-                {u'id': u'ioKiosk',
-                 u'service': u'dev_IOPanelPC',
-                 u'version': u'3.1.2'},
-                {u'id': u'Kiosk',
-                 u'service': u'soft_Kiosk',
-                 u'version': u'3.5.0'},
-                {u'id': u'KioskShell',
-                 u'service': u'soft_KioskShell',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Maintenance',
-                 u'service': u'Maintenance',
-                 u'version': u'1.5.0'},
-                {u'id': u'Master',
-                 u'service': u'soft_Master',
-                 u'version': u'2.0.0'},
-                {u'id': u'NSClient',
-                 u'service': u'soft_NSClient',
-                 u'version': u'4.0.2'},
-                {u'id': u'NetworkLan',
-                 u'service': u'dev_Network',
-                 u'version': u'3.0.7'},
-                {u'id': u'NetworkWifi',
-                 u'service': u'dev_Network',
-                 u'version': u'3.1.2'},
-                {u'id': u'ParionsSport',
-                 u'service': u'ParionsSport',
-                 u'version': u'2.0.11'},
-                {u'disabled': True,
-                 u'id': u'PaymentSimu',
-                 u'service': u'dev_CBPayment',
-                 u'version': u'4.18.1'},
-                {u'disabled': True,
-                 u'id': u'PaymentVerifoneUX',
-                 u'service': u'dev_CBPayment_2',
-                 u'version': u'4.6.3'},
-                {u'id': u'Printer',
-                 u'service': u'dev_ReceiptPrinter',
-                 u'version': u'4.0.0'},
-                {u'id': u'PrinterKalypso60_64b',
-                 u'service': u'dev_ReceiptPrinter_2',
-                 u'version': u'4.7.6'},
-                {u'disabled': True,
-                 u'id': u'PrinterKPM180',
-                 u'service': u'dev_TicketPrinter_',
-                 u'version': u'4.6.2.4'},
-                {u'disabled': True,
-                 u'id': u'PrinterM506',
-                 u'service': u'dev_DocumentPrinter',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_2',
-                 u'service': u'dev_Document2Printer',
-                 u'version': u'4.6.1'},
-                {u'id': u'PrinterM506_3',
-                 u'service': u'dev_Document3Printer',
-                 u'version': u'4.6.1'},
-                {u'disabled': True,
-                 u'id': u'PrinterTG1260H',
-                 u'service': u'dev_ReceiptPrinter_',
-                 u'version': u'4.6.2.5'},
-                {u'id': u'radiusFdj',
-                 u'service': u'soft_radiusFdj',
-                 u'version': u'4.0.1'},
-                {u'disabled': True,
-                 u'id': u'ReaderBluetooth',
-                 u'service': u'soft_ReaderBluetooth',
-                 u'version': u'3.5.0'},
-                {u'disabled': True,
-                 u'id': u'ReaderGemalto',
-                 u'service': u'dev_ContactReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderGFS4470',
-                 u'service': u'dev_BarcodeReader',
-                 u'version': u'4.6.3'},
-                {u'id': u'ReaderProxNRoll',
-                 u'service': u'dev_ContactlessReader',
-                 u'version': u'3.5.0'},
-                {u'id': u'ReaderSesamVitale',
-                 u'service': u'dev_SesamVitaleReader',
-                 u'version': u'3.7.0'},
-                {u'id': u'setKiosk',
-                 u'service': u'soft_setKiosk',
-                 u'version': u'4.0.1'},
-                {u'id': u'SoftKiosk',
-                 u'service': u'svc_SoftKiosk',
-                 u'version': u'3.8.2'},
-                {u'id': u'Touchscreen',
-                 u'service': u'dev_TouchPanelPC',
-                 u'version': u'3.2.3'},
-                {u'id': u'UPS',
-                 u'service': u'dev_UPSEnergy',
-                 u'version': u'3.0.0'},
-                {u'id': u'Monitoring',
-                 u'service': u'svc_Monitoring',
-                 u'version': u'4.0.2'},
-                {u'id': u'Management',
-                 u'service': u'svc_Management',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Session',
-                 u'service': u'svc_Session',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Screensaver',
-                 u'service': u'svc_Screensaver',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Disk',
-                 u'service': u'svc_Disk',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_A',
-                 u'service': u'svc_TagReading_A',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_F',
-                 u'service': u'svc_TagReading_F',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'TagReading_B',
-                 u'service': u'svc_TagReading_B',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Alarm',
-                 u'service': u'svc_Alarm',
-                 u'version': u'3.9.6.1000'},
-                {u'id': u'Activity',
-                 u'service': u'svc_Activity',
-                 u'version': u'3.9.6.1000'}
+                 u'version': u'4.0.4'}
             ],
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
             u'_TEST4': u'new!',
@@ -2555,6 +2017,11 @@ class TestModuleWsHost(AlignakTest):
             'set_timestamp': '0',
             # No feedback
             'give_feedback': '0',
+            # Give result data
+            'give_result': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -2997,6 +2464,11 @@ class TestModuleWsHost(AlignakTest):
             'set_timestamp': '0',
             # Do not give feedback data
             'give_feedback': '0',
+            # Give result data
+            'give_result': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -3164,8 +2636,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
-                         u"Service 'test_host_0/test_ok_0' updated",
-                         u"Host 'test_host_0' unchanged."]
+                         u"Service 'test_host_0/test_ok_0' updated"]
         })
 
         # Get host data to confirm update
@@ -3201,3 +2672,313 @@ class TestModuleWsHost(AlignakTest):
 
         self.modulemanager.stop_all()
 
+    def test_module_zzz_host_no_result(self):
+        """Test the module /host API * create/update custom variables * no result in the response
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
+            # Do not give result data
+            'give_result': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        # ---
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # You must have parameters when POSTing on /host
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must send parameters on this endpoint.')
+
+        # Update host variables - empty variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": "",
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK'})
+
+        # ----------
+        # Host does not exist
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "unknown_host",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'ERR',
+                                  u'_result': [u'unknown_host is alive :)'],
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+
+
+        # ----------
+        # Create host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+        })
+
+        # ----------
+        # Create host service variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+
+            "services": [
+                {
+                    "name": "test_ok_0",
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0,
+                        'test5': 'service specific'
+                    },
+                },
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+        })
+        # ----------
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_ignore(self):
+        """Test the module /host API * create/update custom variables * no result in the response
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
+            # Do not give result data
+            'give_result': '1',
+            # Ignore unknown host/service
+            'ignore_unknown_host': '1',
+            'ignore_unknown_service': '1',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get('http://127.0.0.1:5000/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        # ---
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # ----------
+        # Create host variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "unknown_host",
+            "variables": {
+                'test1': 'string',
+                'test2': 1,
+                'test3': 5.0
+            },
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {u'_status': u'OK',
+                                  u'_issues': [],
+                                  u'_result': [u"Requested host 'unknown_host' does not exist"]})
+
+        # ----------
+        # Create host service variables
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+
+            "services": [
+                {
+                    "name": "unknown_service",
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0,
+                        'test5': 'service specific'
+                    }
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_result': [u'test_host_0 is alive :)',
+                         u"Requested service 'test_host_0/unknown_service' does not exist"],
+            u'_status': u'OK'
+        })
+        # ----------
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
