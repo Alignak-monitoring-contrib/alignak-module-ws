@@ -1259,7 +1259,7 @@ class AlignakWebServices(BaseModule):
         _ts = time.time()
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
-        logger.info("Sent command, duration: %s", time.time() - _ts)
+        logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for an host if we got a timestamp in the past
@@ -1370,7 +1370,7 @@ class AlignakWebServices(BaseModule):
         _ts = time.time()
         logger.debug("Sending command: %s", command_line)
         self.to_q.put(ExternalCommand(command_line))
-        logger.info("Sent command, duration: %s", time.time() - _ts)
+        logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for a service if we got a timestamp in the past
@@ -1619,7 +1619,7 @@ class AlignakWebServices(BaseModule):
                 try:
                     message = self.to_q.get_nowait()
                     if isinstance(message, ExternalCommand):
-                        logger.info("Got an external command: %s", message.cmd_line)
+                        logger.debug("Got an external command: %s", message.cmd_line)
                         # Send external command to my Alignak daemon...
                         self.from_q.put(message)
                         self.received_commands += 1
