@@ -51,7 +51,7 @@ from alignak_module_ws.utils.helper import Helper
 # logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
-class TestModuleConnection(AlignakTest):
+class TestModuleWsHistory(AlignakTest):
 
     @classmethod
     def setUpClass(cls):
@@ -105,6 +105,19 @@ class TestModuleConnection(AlignakTest):
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        # Get new user restrict role
+        params = {'where': json.dumps({'user': resp['_id']})}
+        response = requests.get(cls.endpoint + '/userrestrictrole', params=params, auth=cls.auth)
+        resp = response.json()
+
+        # Update user's rights - set full CRUD rights
+        headers = {'Content-Type': 'application/json', 'If-Match': resp['_items'][0]['_etag']}
+        data = {'crud': ['create', 'read', 'update', 'delete', 'custom']}
+        resp = requests.patch(cls.endpoint + '/userrestrictrole/' + resp['_items'][0]['_id'],
+                              json=data, headers=headers, auth=cls.auth)
+        resp = resp.json()
+        assert resp['_status'] == 'OK'
+
         # Add command
         data = {
             "name": "ping",
@@ -155,6 +168,8 @@ class TestModuleConnection(AlignakTest):
         """
 
     def tearDown(self):
+        for resource in ['logcheckresult', 'history']:
+            requests.delete('http://127.0.0.1:5000/' + resource, auth=self.auth)
         if self.modulemanager:
             time.sleep(1)
             self.modulemanager.stop_all()
@@ -178,11 +193,22 @@ class TestModuleConnection(AlignakTest):
             assert False
         return None
 
-    def test_module_zzz_get_ws(self):
+    def test_module_zzz_get_history_admin(self):
         """Test the module log collection functions
         :return:
         """
         self.print_header()
+        self._get_history("admin", "admin")
+
+    def test_module_zzz_get_history_test(self):
+        """Test the module log collection functions
+        :return:
+        """
+        self.print_header()
+        self._get_history("test", "test")
+
+    def _get_history(self, username, password):
+
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
@@ -205,6 +231,9 @@ class TestModuleConnection(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
         })
 
         # Create the modules manager for a daemon type
@@ -357,7 +386,7 @@ class TestModuleConnection(AlignakTest):
         self.assertEqual(len(resp['_items']), 5)
 
         # Backend real history
-        # The comented fields are the one existing in the backend but filtered by the WS
+        # The commented fields are the one existing in the backend but filtered by the WS
         backend_real_history = [
             {
                 u'_created': u'Thu, 01 Jun 2017 15:59:16 GMT',
@@ -501,16 +530,17 @@ class TestModuleConnection(AlignakTest):
         # ---
 
         # ---
-        # Directly call the module function
-        search = {
-            'page': 1,
-            'max_results': 25
-        }
-        result = my_module.getBackendHistory(search)
-        print("Page: %d, got: %d items" % (search["page"], len(result['items'])))
-        for item in result['items']:
-            print(item)
-        assert len(result['items']) == 5
+        # # Directly call the module function
+        # search = {
+        #     'page': 1,
+        #     'max_results': 25
+        # }
+        # result = my_module.getBackendHistory(search)
+        # print(result)
+        # print("Page: %d, got: %d items" % (search["page"], len(result['items'])))
+        # for item in result['items']:
+        #     print(item)
+        # assert len(result['items']) == 5
 
         # ---
         # Do not allow GET request on /alignak_logs - not yet authorized!
@@ -521,7 +551,7 @@ class TestModuleConnection(AlignakTest):
 
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
-        params = {'username': 'admin', 'password': 'admin'}
+        params = {'username': username, 'password': password}
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()

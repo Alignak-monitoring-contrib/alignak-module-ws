@@ -118,6 +118,19 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        # Get new user restrict role
+        params = {'where': json.dumps({'user': resp['_id']})}
+        response = requests.get(cls.endpoint + '/userrestrictrole', params=params, auth=cls.auth)
+        resp = response.json()
+
+        # Update user's rights - set full CRUD rights
+        headers = {'Content-Type': 'application/json', 'If-Match': resp['_items'][0]['_etag']}
+        data = {'crud': ['create', 'read', 'update', 'delete', 'custom']}
+        resp = requests.patch(cls.endpoint + '/userrestrictrole/' + resp['_items'][0]['_id'],
+                              json=data, headers=headers, auth=cls.auth)
+        resp = resp.json()
+        assert resp['_status'] == 'OK'
+
         cls.modulemanager = None
 
     @classmethod

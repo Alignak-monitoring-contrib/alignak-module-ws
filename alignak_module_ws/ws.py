@@ -132,6 +132,7 @@ class AlignakWebServices(BaseModule):
 
         # Alignak Backend part
         # ---
+        self.backend = None
         self.backend_available = False
         self.backend_url = getattr(mod_conf, 'alignak_backend', '')
         if self.backend_url:
@@ -145,7 +146,7 @@ class AlignakWebServices(BaseModule):
             # and the backend is yet connected and authenticated
             self.backend.token = getattr(mod_conf, 'token', '')
             self.backend.authenticated = (self.backend.token != '')
-            self.backend_available = False
+            # self.backend_available = False
             self.backend_auto_login = False
 
             self.backend_username = getattr(mod_conf, 'username', '')
@@ -515,13 +516,13 @@ class AlignakWebServices(BaseModule):
 
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
-            if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
-            if not self.backend_available:
-                ws_result['_status'] = 'ERR'
-                ws_result['_issues'].append("Alignak backend is not available currently. "
-                                            "Host information cannot be fetched.")
-                return ws_result
+            # if not self.backend_available:
+            #     self.backend_available = self.getBackendAvailability()
+            # if not self.backend_available:
+            #     ws_result['_status'] = 'ERR'
+            #     ws_result['_issues'].append("Alignak backend is not available currently. "
+            #                                 "Host information cannot be fetched.")
+            #     return ws_result
 
             search = {
                 'where': json.dumps({'name': host_name}),
@@ -608,6 +609,7 @@ class AlignakWebServices(BaseModule):
                 # Request data for host creation (no service)
                 post_data = self.backendCreationData(host_name, None, data['template'])
                 logger.debug("Post host, data: %s", post_data)
+                logger.info("Post Backend: %s", self.backend.__dict__)
                 result = self.backend.post('host', data=post_data)
                 logger.debug("Post host, response: %s", result)
                 if result['_status'] != 'OK':
@@ -1439,21 +1441,31 @@ class AlignakWebServices(BaseModule):
 
         :return: None
         """
+        # If the backend is not available, try to reconnect
+        logger.info("backendLogin, available: %s", self.backend_available)
+        # if not self.backend_available:
+        #     self.backend_available = self.getBackendAvailability()
+        # if not self.backend_available:
+        #     return None
+
+        logger.info("backendLogin, credentials: %s / %s", username, password)
+        if not password:
+            # We consider that we received a backend token as login. The WS user is logged-in...
+            logger.info("backendLogin, using token: %s", username)
+            self.token = self.backend.token = username
+            return self.token
+
         self.token = None
         self.default_realm = None
 
-        if not password:
-            # We consider that we received a backend token as login. The WS user is logged-in...
-            self.token = username
-            return self.token
-
         try:
+            logger.info("Logging to the backend, username: %s", username)
             if self.backend.login(username, password):
                 self.token = self.backend.token
                 logger.debug("Logged-in to the backend, token: %s", self.token)
 
                 # Get the higher level realm for the current logger-in user
-                # This realm identifier will be used when it is necessaty to provide a realm
+                # This realm identifier will be used when it is necessary to provide a realm
                 # (eg. for new objects creation)
                 result = self.backend.get('/realm', {'max_results': 1, 'sort': '_level'})
                 self.default_realm = result['_items'][0]
@@ -1474,22 +1486,23 @@ class AlignakWebServices(BaseModule):
         if not self.backend_generate:
             generate = 'disabled'
 
+        self.backend_available = False
         try:
-            if not self.backend.authenticated:
-                logger.info("Signing-in to the backend...")
-                self.backend_available = self.backend.login(self.backend_username,
-                                                            self.backend_password, generate)
+            self.backendCheck = Backend(self.backend_url, self.client_processes)
+
+            logger.info("Signing-in to the backend (%s)...", self.backend_username)
+            self.backend_available = self.backendCheck.login(self.backend_username,
+                                                             self.backend_password, generate)
             logger.debug("Checking backend availability, token: %s, authenticated: %s",
-                         self.backend.token, self.backend.authenticated)
-            result = self.backend.get('/realm', {'where': json.dumps({'name': 'All'})})
-            self.default_realm = result['_items'][0]
-            logger.debug("Backend availability, got default realm: %s", self.default_realm)
+                         self.backendCheck.token, self.backendCheck.authenticated)
+            # Get top level realm
+            result = self.backendCheck.get('/realm', {'max_results': 1, 'sort': '_level'})
+            logger.info("Backend availability, got default realm: %s", result['_items'][0])
             self.backend_available = True
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
-            self.backend_available = False
 
     def getBackendHistory(self, search=None):
         """Get the backend Alignak logs
@@ -1520,6 +1533,7 @@ class AlignakWebServices(BaseModule):
                 return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
             logger.info("Searching history: %s", search)
+            logger.info("Backend: %s", self.backend.__dict__)
             if 'where' in search:
                 search.update({'where': json.dumps(search['where'])})
             result = self.backend.get('history', search)

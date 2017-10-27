@@ -58,22 +58,24 @@ def protect(*args, **kwargs):
 
             # Not sure if I need to do this myself or what
             cherrypy.session.regenerate()
-            token = cherrypy.request.login = cherrypy.session[SESSION_KEY]
+            cherrypy.request.login = cherrypy.session[SESSION_KEY]
+            app = cherrypy.request.app.root.app
+            token = app.backendLogin(cherrypy.request.login, None)
             authenticated = True
-            logger.debug("Authenticated with session: %s", this_session)
+            logger.debug("Authenticated with session: %s / %s", this_session, token)
 
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
             # Now check if the request includes HTTP Authorization?
             authorization = cherrypy.request.headers.get('Authorization')
-            logger.debug("Authorization: %s", authorization)
+            logger.warning("Authorization: %s", authorization)
             if authorization:
                 logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
 
                 # Get module application from cherrypy request
                 app = cherrypy.request.app.root.app
-                logger.debug("Request backend login...")
+                logger.info("Request backend login...")
                 token = app.backendLogin(ah['username'], ah['password'])
                 if token:
 

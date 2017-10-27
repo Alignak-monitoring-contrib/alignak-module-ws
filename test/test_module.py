@@ -119,6 +119,19 @@ class TestModuleWs(AlignakTest):
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        # Get new user restrict role
+        params = {'where': json.dumps({'user': resp['_id']})}
+        response = requests.get(endpoint + '/userrestrictrole', params=params, auth=cls.auth)
+        resp = response.json()
+
+        # Update user's rights - set full CRUD rights
+        headers = {'Content-Type': 'application/json', 'If-Match': resp['_items'][0]['_etag']}
+        data = {'crud': ['create', 'read', 'update', 'delete', 'custom']}
+        resp = requests.patch(endpoint + '/userrestrictrole/' + resp['_items'][0]['_id'],
+                              json=data, headers=headers, auth=cls.auth)
+        resp = resp.json()
+        assert resp['_status'] == 'OK'
+
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
@@ -818,7 +831,7 @@ class TestModuleWs(AlignakTest):
         # Start external modules
         self.modulemanager.start_external_instances()
 
-        # Starting external module logs
+        # Starting external module WS
         self.assert_log_match("Trying to initialize module: web-services", 0)
         self.assert_log_match("Starting external module web-services", 1)
         self.assert_log_match("Starting external process for module web-services", 2)
@@ -832,7 +845,36 @@ class TestModuleWs(AlignakTest):
 
         session = requests.Session()
 
-        # Login with username/password (real backend login)
+        # Login with username/password (Admin login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Get the module API list and request on each endpoint
+        response = session.get('http://127.0.0.1:8888')
+        print("Response: %s" % response)
+        assert response.status_code == 200
+        api_list = response.json()
+        for endpoint in api_list:
+            print("Trying %s" % (endpoint))
+            response = session.get('http://127.0.0.1:8888/' + endpoint)
+            print("Response %d: %s" % (response.status_code, response.content))
+            self.assertEqual(response.status_code, 200)
+            if response.status_code == 200:
+                print("Got %s: %s" % (endpoint, response.json()))
+            else:
+                print("Error %s: %s" % (response.status_code, response.content))
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        # Login with username/password (Test login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
