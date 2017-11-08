@@ -150,7 +150,6 @@ class AlignakWebServices(BaseModule):
             # and the backend is yet connected and authenticated
             self.backend.token = getattr(mod_conf, 'token', '')
             self.backend.authenticated = (self.backend.token != '')
-            # self.backend_available = False
             self.backend_auto_login = False
 
             self.backend_username = getattr(mod_conf, 'username', '')
@@ -520,14 +519,6 @@ class AlignakWebServices(BaseModule):
 
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
-            # if not self.backend_available:
-            #     self.backend_available = self.getBackendAvailability()
-            # if not self.backend_available:
-            #     ws_result['_status'] = 'ERR'
-            #     ws_result['_issues'].append("Alignak backend is not available currently. "
-            #                                 "Host information cannot be fetched.")
-            #     return ws_result
-
             search = {
                 'where': json.dumps({'name': host_name}),
                 'embedded': json.dumps({
@@ -630,9 +621,7 @@ class AlignakWebServices(BaseModule):
             else:
                 host = result['_items'][0]
         except BackendException as exp:  # pragma: no cover, should not happen
-            logger.warning("Alignak backend exception, updateHost.")
-            logger.warning("Exception: %s", exp)
-            logger.warning("Exception response: %s", exp.response)
+            logger.warning("Alignak backend exception for updateHost: %s", exp.response)
             ws_result['_status'] = 'ERR'
             ws_result['_issues'].append("Alignak backend error. Exception, updateHost: %s"
                                         % str(exp))
@@ -1445,17 +1434,11 @@ class AlignakWebServices(BaseModule):
 
         :return: None
         """
-        # If the backend is not available, try to reconnect
-        logger.info("backendLogin, available: %s", self.backend_available)
-        # if not self.backend_available:
-        #     self.backend_available = self.getBackendAvailability()
-        # if not self.backend_available:
-        #     return None
-
-        logger.info("backendLogin, credentials: %s / %s", username, password)
+        logger.debug("backendLogin, available: %s, credentials: %s / %s",
+                     self.backend_available, username, password)
         if not password:
             # We consider that we received a backend token as login. The WS user is logged-in...
-            logger.info("backendLogin, using token: %s", username)
+            logger.debug("backendLogin, using token: %s", username)
             self.token = self.backend.token = username
             return self.token
 

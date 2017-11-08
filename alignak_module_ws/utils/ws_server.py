@@ -68,14 +68,15 @@ def protect(*args, **kwargs):
             # If the session isn't set, it either was not existing or valid.
             # Now check if the request includes HTTP Authorization?
             authorization = cherrypy.request.headers.get('Authorization')
-            logger.warning("Authorization: %s", authorization)
+            logger.debug("Authorization: %s", authorization)
             if authorization:
                 logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
 
                 # Get module application from cherrypy request
                 app = cherrypy.request.app.root.app
-                logger.info("Request backend login...")
+                logger.info("Requesting login for %s@%s...",
+                            ah['username'], cherrypy.request.remote.ip)
                 token = app.backendLogin(ah['username'], ah['password'])
                 if token:
 
@@ -295,6 +296,14 @@ class WSInterface(object):
         }
 
         response = self.app.updateHost(name, data)
+
+        # Specific case where WS client credentials are not authorized
+        if '_issues' in response:
+            for issue in response['_issues']:
+                if '401 Client Error: UNAUTHORIZED' in issue:
+                    logger.debug("Response status code set to 401!")
+                    cherrypy.response.status = 401
+
         logger.debug("Response: %s, duration: %s", response, time.time() - _ts)
         return response
     host.method = 'patch'

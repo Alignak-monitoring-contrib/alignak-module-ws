@@ -273,7 +273,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         })
         # The host already exists, returns an host alive ;)
 
-        # Request to create an host - unknown provided data
+        # Request to create an host
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_1",
