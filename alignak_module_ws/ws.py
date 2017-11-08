@@ -1643,7 +1643,7 @@ class AlignakWebServices(BaseModule):
                     # logger.debug("No message in the module queue")
                     pass
 
-            if self.backend_url:
+            if self.backend_url and self.alignak_backend_polling_period > 0:
                 # Check backend connection
                 if ping_alignak_backend_next_time < start:
                     ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
