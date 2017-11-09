@@ -48,9 +48,12 @@ from alignak.basemodule import BaseModule
 from alignak_module_ws.utils.daemon import HTTPDaemon
 from alignak_module_ws.utils.ws_server import WSInterface
 
-logger = logging.getLogger('alignak.module')  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+for handler in logger.parent.handlers:
+    if isinstance(handler, logging.StreamHandler):
+        logger.parent.removeHandler(handler)
 
-# pylint: disable=C0103
+# pylint: disable=invalid-name
 properties = {
     'daemons': ['receiver'],
     'type': 'web-services',
@@ -86,6 +89,7 @@ class AlignakWebServices(BaseModule):
         # pylint: disable=global-statement
         global logger
         logger = logging.getLogger('alignak.module.%s' % self.alias)
+        logger.setLevel(getattr(mod_conf, 'log_level', logging.INFO))
 
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
