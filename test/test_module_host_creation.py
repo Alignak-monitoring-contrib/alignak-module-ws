@@ -119,6 +119,19 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         resp = response.json()
         print("Created a new user: %s" % resp)
 
+        # Get new user restrict role
+        params = {'where': json.dumps({'user': resp['_id']})}
+        response = requests.get(cls.endpoint + '/userrestrictrole', params=params, auth=cls.auth)
+        resp = response.json()
+
+        # Update user's rights - set full CRUD rights
+        headers = {'Content-Type': 'application/json', 'If-Match': resp['_items'][0]['_etag']}
+        data = {'crud': ['create', 'read', 'update', 'delete', 'custom']}
+        resp = requests.patch(cls.endpoint + '/userrestrictrole/' + resp['_items'][0]['_id'],
+                              json=data, headers=headers, auth=cls.auth)
+        resp = resp.json()
+        assert resp['_status'] == 'OK'
+
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
@@ -260,7 +273,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         })
         # The host already exists, returns an host alive ;)
 
-        # Request to create an host - unknown provided data
+        # Request to create an host
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "new_host_1",
