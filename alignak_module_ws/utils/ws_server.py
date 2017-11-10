@@ -58,9 +58,11 @@ def protect(*args, **kwargs):
 
             # Not sure if I need to do this myself or what
             cherrypy.session.regenerate()
-            token = cherrypy.request.login = cherrypy.session[SESSION_KEY]
+            cherrypy.request.login = cherrypy.session[SESSION_KEY]
+            app = cherrypy.request.app.root.app
+            token = app.backendLogin(cherrypy.request.login, None)
             authenticated = True
-            logger.info("Authenticated with session: %s", this_session)
+            logger.debug("Authenticated with session: %s / %s", this_session, token)
 
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
@@ -73,7 +75,8 @@ def protect(*args, **kwargs):
 
                 # Get module application from cherrypy request
                 app = cherrypy.request.app.root.app
-                logger.debug("Request backend login...")
+                logger.info("Requesting login for %s@%s...",
+                            ah['username'], cherrypy.request.remote.ip)
                 token = app.backendLogin(ah['username'], ah['password'])
                 if token:
 
@@ -82,7 +85,7 @@ def protect(*args, **kwargs):
                     # This line of code is discussed in doc/sessions-and-auth.markdown
                     cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
                     authenticated = True
-                    logger.info("Authenticated with backend")
+                    logger.debug("Authenticated with backend")
                 else:
                     logger.warning("Failed attempt to log in with authorization header.")
             else:
@@ -293,6 +296,14 @@ class WSInterface(object):
         }
 
         response = self.app.updateHost(name, data)
+
+        # Specific case where WS client credentials are not authorized
+        if '_issues' in response:
+            for issue in response['_issues']:
+                if '401 Client Error: UNAUTHORIZED' in issue:
+                    logger.debug("Response status code set to 401!")
+                    cherrypy.response.status = 401
+
         logger.debug("Response: %s, duration: %s", response, time.time() - _ts)
         return response
     host.method = 'patch'
