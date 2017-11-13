@@ -9,7 +9,9 @@
     , "perf_data": "Uptime=730242s"
   }
   , "template": {
-    "_templates": ["north-host"]
+      "_templates": ["north-host"],
+      "alias": "Coucou",
+      "_realm": "All"
   }
   , "variables": {
     "Serial": "master-0001"
