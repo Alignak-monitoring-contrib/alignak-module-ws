@@ -896,7 +896,7 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
