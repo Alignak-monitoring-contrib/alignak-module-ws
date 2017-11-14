@@ -246,8 +246,8 @@ class AlignakWebServices(BaseModule):
         # Host / post listening to...
         self.host = getattr(mod_conf, 'host', '0.0.0.0')
         self.port = int(getattr(mod_conf, 'port', '8888'))
-        self.log_error = getattr(mod_conf, 'log_error', '')
-        self.log_access = getattr(mod_conf, 'log_access', '')
+        self.log_error = getattr(mod_conf, 'log_error', '/tmp/alignak-module-ws-error.log')
+        self.log_access = getattr(mod_conf, 'log_access', '/tmp/alignak-module-ws-access.log')
 
         protocol = 'http'
         if self.use_ssl:
@@ -265,10 +265,8 @@ class AlignakWebServices(BaseModule):
         cherrypy.config.update({"tools.wsauth.on": self.authorization})
         cherrypy.config.update({"tools.sessions.on": True})
         cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
-        if self.log_error:
-            cherrypy.config.update({"log.error_file": "/tmp/alignak-module-ws-error.log"})
-        if self.log_access:
-            cherrypy.config.update({"log.access_file": "/tmp/alignak-module-ws-access.log"})
+        cherrypy.config.update({"log.error_file": self.log_error})
+        cherrypy.config.update({"log.access_file": self.log_access})
         self.http_interface = WSInterface(self)
 
         # My thread pool (simultaneous connections)
@@ -433,7 +431,7 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -573,7 +571,7 @@ class AlignakWebServices(BaseModule):
                      '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -891,7 +889,7 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -1178,7 +1176,7 @@ class AlignakWebServices(BaseModule):
 
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 logger.warning("Alignak backend is not available currently. "
                                "Comment not stored: %s", command_line)
@@ -1515,7 +1513,7 @@ class AlignakWebServices(BaseModule):
 
         try:  # pylint: disable=too-many-nested-blocks
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
