@@ -157,7 +157,7 @@ class AlignakWebServices(BaseModule):
             self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
 
             self.alignak_backend_polling_period = \
-                int(getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+                int(getattr(mod_conf, 'alignak_backend_polling_period', '60'))
 
             self.alignak_backend_old_lcr = \
                 getattr(mod_conf, 'alignak_backend_old_lcr', '0') == '1'
