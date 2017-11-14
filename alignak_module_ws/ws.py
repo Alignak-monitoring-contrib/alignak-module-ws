@@ -433,7 +433,7 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -573,7 +573,7 @@ class AlignakWebServices(BaseModule):
                      '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -891,7 +891,7 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 ws_result['_status'] = 'ERR'
                 ws_result['_issues'].append("Alignak backend is not available currently. "
@@ -1178,7 +1178,7 @@ class AlignakWebServices(BaseModule):
 
         try:
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 logger.warning("Alignak backend is not available currently. "
                                "Comment not stored: %s", command_line)
@@ -1515,7 +1515,7 @@ class AlignakWebServices(BaseModule):
 
         try:  # pylint: disable=too-many-nested-blocks
             if not self.backend_available:
-                self.backend_available = self.getBackendAvailability()
+                self.getBackendAvailability()
             if not self.backend_available:
                 return {'_status': 'ERR', '_error': u'Alignak backend is not available currently?'}
 
