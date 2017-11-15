@@ -1477,14 +1477,14 @@ class AlignakWebServices(BaseModule):
         try:
             self.backendCheck = Backend(self.backend_url, self.client_processes)
 
-            logger.info("Signing-in to the backend (%s)...", self.backend_username)
+            logger.debug("Signing-in to the backend (%s)...", self.backend_username)
             self.backend_available = self.backendCheck.login(self.backend_username,
                                                              self.backend_password, generate)
             logger.debug("Checking backend availability, token: %s, authenticated: %s",
                          self.backendCheck.token, self.backendCheck.authenticated)
             # Get top level realm
             result = self.backendCheck.get('/realm', {'max_results': 1, 'sort': '_level'})
-            logger.info("Backend availability, got default realm: %s", result['_items'][0])
+            logger.debug("Backend availability, got default realm: %s", result['_items'][0])
             self.backend_available = True
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
