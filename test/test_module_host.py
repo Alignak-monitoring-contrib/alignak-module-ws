@@ -54,11 +54,11 @@ class TestModuleWsHost(AlignakTest):
     """This class contains the tests for the module"""
 
     @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-host'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -134,11 +134,8 @@ class TestModuleWsHost(AlignakTest):
         cls.modulemanager = None
 
     @classmethod
-    def tearDownClass(cls):
-        cls.p.kill()
-
-    @classmethod
     def tearDown(cls):
+        cls.p.kill()
         if cls.modulemanager:
             time.sleep(1)
             cls.modulemanager.stop_all()
@@ -572,7 +569,7 @@ class TestModuleWsHost(AlignakTest):
                 u'services': [
                     {u'active_checks_enabled': False, u'alias': u'test_ok_0',
                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'retry_interval': 1, u'_overall_state_id': 5, u'freshness_threshold': -1,
                      u'passive_checks_enabled': False, u'check_interval': 1,
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_0'},
                     {u'active_checks_enabled': True, u'alias': u'test_ok_1',
@@ -1496,7 +1493,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' unchanged."],
+                         u"Host 'test_host_0' updated."],
         })
 
         # Get host data to confirm update
@@ -1693,7 +1690,16 @@ class TestModuleWsHost(AlignakTest):
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
+        print("My host customs: %s" % test_host_0['customs'])
         # ---
+
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': test_host_0['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        test_service_0 = resp['_items'][0]
+        print("My service customs: %s" % test_service_0['customs'])
 
         # Do not allow GET request on /host - not authorized
         response = requests.get('http://127.0.0.1:8888/host')
@@ -1924,6 +1930,24 @@ class TestModuleWsHost(AlignakTest):
 
         # ----------
         # Create host service variables
+        # Get host data to confirm update
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        host = resp['_items'][0]
+        # Get services data to confirm update
+        response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
+                                params={'where': json.dumps({'host': host['_id'],
+                                                             'name': 'test_ok_0'})})
+        resp = response.json()
+        service = resp['_items'][0]
+        print("My service: %s" % service)
+
+        # u'customs': {u'_TEMPLATE': u'generic', u'_ICON_IMAGE_ALT': u'icon alt string',
+        #              u'_CUSTNAME': u'custvalue', u'_DISPLAY_NAME': u'test_ok_0',
+        #              u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$'},
+        # u'ls_attempt': 0, u'trigger_name': u'', u'service_dependencies': [], u'_updated': u'Fri, 17 Nov 2017 05:24:37 GMT', u'duplicate_foreach': u'', u'poller_tag': u'None', u'ls_last_time_unreachable': 0, u'ls_state_type': u'HARD', u'_id': u'5a0e729506fd4b062fc8ee2b', u'business_rule_output_template': u''}
+        #
         headers = {'Content-Type': 'application/json'}
         data = {
             "name": "test_host_0",
@@ -1963,37 +1987,11 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from all the host variables
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_ok_0', u'_TEMPLATE': u'generic',
             u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
             u'_ICON_IMAGE_ALT': u'icon alt string',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
-            u'_MY_ARRAY': [
-                {u'id': u'identifier', u'name': u'my name', u'other': 1},
-                {u'id': u'identifier', u'name': u'my name', u'other': 1}
-            ],
-            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
-            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
-            u'_PACKAGES': [
-                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
-                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
-            ],
-            u'_LIST_PACKAGES': [
-                {u'id': u'adobereader',
-                 u'service': u'soft_adobereader',
-                 u'version': u'3.0.0'},
-                {u'id': u'cwrsync',
-                 u'service': u'soft_cwrsync',
-                 u'version': u'3.1.2'},
-                {u'id': u'HomeMaison',
-                 u'service': u'HomeMaison',
-                 u'version': u'0.1.0'},
-                {u'id': u'Inventory',
-                 u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'}
-            ],
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
-            u'_TEST4': u'new!',
             u'_TEST5': u'service specific'
         }
         self.assertEqual(expected, service['customs'])
@@ -2440,9 +2438,9 @@ class TestModuleWsHost(AlignakTest):
                 u"Service 'test_host_0/test_ok_1' updated",
                 # u'Service test_host_0/test_ok_2 active checks will be disabled.',
                 # u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
-                u'Service test_host_0/test_ok_2 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
-                u"Service 'test_host_0/test_ok_2' updated",
+                # u'Service test_host_0/test_ok_2 passive checks will be enabled.',
+                # u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                # u"Service 'test_host_0/test_ok_2' updated",
                 u"Host 'test_host_0' unchanged."
             ]
         })
@@ -2665,10 +2663,9 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            u'_DISPLAY_NAME': u'test_ok_0', u'_TEMPLATE': u'generic',
             u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
             u'_ICON_IMAGE_ALT': u'icon alt string',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_CUSTNAME': u'custvalue',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
             u'_TEST5': u'service specific'

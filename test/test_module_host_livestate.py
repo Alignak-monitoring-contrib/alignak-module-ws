@@ -55,11 +55,11 @@ class TestModuleWsHostLivestate(AlignakTest):
     """This class contains the tests for the module"""
 
     @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-host-livestate'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -136,12 +136,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         cls.modulemanager = None
 
     @classmethod
-    def tearDownClass(cls):
-        if cls.modulemanager:
-            cls.modulemanager.stop_all()
-        cls.p.kill()
-
-    @classmethod
     def tearDown(cls):
         """Delete resources in backend
 
@@ -149,6 +143,10 @@ class TestModuleWsHostLivestate(AlignakTest):
         """
         for resource in ['logcheckresult']:
             requests.delete('http://127.0.0.1:5000/' + resource, auth=cls.auth)
+
+        cls.p.kill()
+        if cls.modulemanager:
+            cls.modulemanager.stop_all()
 
     def test_module_zzz_host_livestate(self):
         """Test the module /host API - host creation and livestate

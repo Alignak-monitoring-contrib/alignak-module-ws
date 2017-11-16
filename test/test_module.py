@@ -59,7 +59,7 @@ class TestModuleWs(AlignakTest):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -216,9 +216,9 @@ class TestModuleWs(AlignakTest):
         self.assert_any_log_match(re.escape(
             "Loaded Python module 'alignak_module_ws' (web-services)"
         ))
-        self.assert_any_log_match(re.escape(
-            "Give an instance of alignak_module_ws for alias: web-services"
-        ))
+        # self.assert_any_log_match(re.escape(
+        #     "Give an instance of alignak_module_ws for alias: web-services"
+        # ))
 
         my_module = self.modulemanager.instances[0]
 
