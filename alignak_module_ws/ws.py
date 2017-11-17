@@ -1015,18 +1015,35 @@ class AlignakWebServices(BaseModule):
             customs = host['customs']
             for prop in data['variables']:
                 value = data['variables'][prop]
+                logger.debug("Variable: %s = %s, update: %s", prop, value, update)
                 custom = '_' + prop.upper()
                 if isinstance(value, list):
-                    if custom not in customs or cmp(customs[custom], value) == 0:
+                    if custom in customs:
+                        if all(isinstance(x, dict) for x in value):
+                            # List of dictionaries
+                            pairs = zip(value, customs[custom])
+                            diff = [(x, y) for x, y in pairs if x != y]
+                        else:
+                            diff = list(set(value) - set(customs[custom]))
+
+                        if diff:
+                            update = True
+                            logger.info("Modified list: %s, difference: %s (%s vs %s)",
+                                        prop, diff, value, customs[custom])
+                            customs[custom] = value
+                    else:
                         update = True
+                        logger.info("Create list: %s = %s", prop, value)
                         customs[custom] = value
                 else:
                     if custom in customs and value == "__delete__":
                         update = True
+                        logger.info("Delete variable: %s", prop)
                         customs.pop(custom)
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
+                            logger.info("Update variable: %s = %s", prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs
