@@ -735,7 +735,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
-                            logger.info("Update variable: %s = %s", prop, value)
+                            logger.info("Update host variable: %s = %s", prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs
@@ -1075,7 +1075,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
-                            logger.info("Update variable: %s = %s", prop, value)
+                            logger.info("Update service variable: %s = %s", prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs
@@ -1491,7 +1491,7 @@ class AlignakWebServices(BaseModule):
             self.token = self.backend.token = username
             return self.token
 
-        self.token = None
+        # self.token = None
         self.default_realm = None
 
         try:

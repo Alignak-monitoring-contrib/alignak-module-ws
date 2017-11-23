@@ -189,6 +189,9 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -502,6 +505,9 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Alignak backend
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
@@ -653,6 +659,9 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Alignak backend
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
@@ -724,6 +733,9 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Alignak backend
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
@@ -766,6 +778,7 @@ class TestModuleWs(AlignakTest):
         # Login with username/password - bad credentials
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'fake', 'password': 'fake'}
+        self.show_logs()
         response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         result = response.json()
