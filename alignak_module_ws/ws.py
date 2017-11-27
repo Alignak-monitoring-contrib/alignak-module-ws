@@ -85,7 +85,6 @@ class AlignakWebServices(BaseModule):
         :param mod_conf: module configuration file as a dictionary
         """
         BaseModule.__init__(self, mod_conf)
-        print("mod_conf: %s" % mod_conf.__dict__)
 
         # pylint: disable=global-statement
         global logger
@@ -415,7 +414,6 @@ class AlignakWebServices(BaseModule):
             post_data.pop('_id')
 
         logger.debug("post_data: %s", post_data)
-        print("post_data: %s" % post_data)
         return post_data
 
     def getHostsGroup(self, name, embedded=False):
