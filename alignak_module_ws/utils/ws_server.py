@@ -289,6 +289,7 @@ class WSInterface(object):
         data = {
             'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
             'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
+            'check_freshness': cherrypy.request.json.get('check_freshness', None),
             'template': cherrypy.request.json.get('template', None),
             'livestate': cherrypy.request.json.get('livestate', None),
             'variables': cherrypy.request.json.get('variables', None),

@@ -590,11 +590,14 @@ class AlignakWebServices(BaseModule):
                                                     % host_name)
                     else:
                         ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
+
+                    if not self.give_feedback and '_feedback' in ws_result:
+                        ws_result.pop('_feedback')
                     return ws_result
 
             if not result['_items'] and self.allow_host_creation:
                 # Tries to create the host
-                logger.info("Requested host '%s' does not exist. Trying to create a new host",
+                logger.info("Requested host '%s' does not exist. Trying to create a new host...",
                             host_name)
                 ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
 
@@ -604,13 +607,15 @@ class AlignakWebServices(BaseModule):
                 # Request data for host creation (no service)
                 post_data = self.backendCreationData(host_name, None, data['template'])
                 logger.debug("Post host, data: %s", post_data)
-                logger.info("Post Backend: %s", self.backend.__dict__)
                 result = self.backend.post('host', data=post_data)
                 logger.debug("Post host, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post host, error: %s", result)
                     ws_result['_status'] = 'ERR'
                     ws_result['_issues'].append("Requested host '%s' creation failed." % host_name)
+                    if not self.give_feedback and '_feedback' in ws_result:
+                        ws_result.pop('_feedback')
+
                     return ws_result
 
                 # Get the newly created host
@@ -682,6 +687,18 @@ class AlignakWebServices(BaseModule):
                     self.to_q.put(ExternalCommand(command_line))
             else:
                 data.pop('passive_checks_enabled')
+
+        if 'check_freshness' in data:
+            if isinstance(data['check_freshness'], bool):
+                if update is None:
+                    update = False
+                if data['check_freshness'] != host['check_freshness']:
+                    update = True
+
+                    # todo: as of Alignak #938, no external command exist
+                    # to enable/disable on an host basis
+            else:
+                data.pop('check_freshness')
 
         # Update host variables
         if data['variables']:
@@ -780,9 +797,9 @@ class AlignakWebServices(BaseModule):
                 for prop in host:
                     if prop in self.feedback_host:
                         ws_result['_feedback'].update({prop: host[prop]})
-            else:
-                if '_feedback' in ws_result:
-                    ws_result.pop('_feedback')
+
+            if not self.give_feedback and '_feedback' in ws_result:
+                ws_result.pop('_feedback')
 
             if not self.give_result:
                 ws_result.pop('_result')
@@ -811,9 +828,9 @@ class AlignakWebServices(BaseModule):
                 for prop in host:
                     if prop in self.feedback_host:
                         ws_result['_feedback'].update({prop: host[prop]})
-            else:
-                if '_feedback' in ws_result:
-                    ws_result.pop('_feedback')
+
+            if not self.give_feedback and '_feedback' in ws_result:
+                ws_result.pop('_feedback')
 
             if not self.give_result:
                 ws_result.pop('_result')
@@ -850,9 +867,9 @@ class AlignakWebServices(BaseModule):
                 for prop in host:
                     if prop in self.feedback_host:
                         ws_result['_feedback'].update({prop: host[prop]})
-            else:
-                if '_feedback' in ws_result:
-                    ws_result.pop('_feedback')
+
+            if not self.give_feedback and '_feedback' in ws_result:
+                ws_result.pop('_feedback')
 
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend is currently not available.")
@@ -871,6 +888,9 @@ class AlignakWebServices(BaseModule):
 
         if not self.give_result:
             ws_result.pop('_result')
+
+        if not self.give_feedback and '_feedback' in ws_result:
+            ws_result.pop('_feedback')
 
         ws_result.pop('_issues')
         return ws_result
@@ -1008,11 +1028,23 @@ class AlignakWebServices(BaseModule):
             else:
                 data.pop('passive_checks_enabled')
 
+        if 'check_freshness' in data:
+            if isinstance(data['check_freshness'], bool):
+                if update is None:
+                    update = False
+                if data['check_freshness'] != host['check_freshness']:
+                    update = True
+
+                    # todo: as of Alignak #938, no external command exist
+                    # to enable/disable on a service basis
+            else:
+                data.pop('check_freshness')
+
         # Update service variables
         if 'variables' in data and data['variables']:
             if update is None:
                 update = False
-            customs = host['customs']
+            customs = service['customs']
             for prop in data['variables']:
                 value = data['variables'][prop]
                 logger.debug("Variable: %s = %s, update: %s", prop, value, update)
@@ -1216,7 +1248,7 @@ class AlignakWebServices(BaseModule):
             logger.warning("Alignak backend is currently not available.")
             logger.warning("Exception: %s", exp)
             logger.warning("Response: %s", exp.response)
-            result['_issues'] = str(exp) + ' - ' + exp.response
+            result['_issues'] = str(exp)
             self.backend_available = False
 
         if result['_issues']:

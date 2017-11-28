@@ -59,7 +59,7 @@ class TestModuleWsEvent(AlignakTest):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-event'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
