@@ -87,13 +87,14 @@ def protect(*args, **kwargs):
                     authenticated = True
                     logger.debug("Authenticated with backend")
                 else:
-                    logger.warning("Failed attempt to log in with authorization header.")
+                    logger.warning("Failed attempt to log in with authorization header for %s..",
+                                   cherrypy.request.remote.ip)
             else:
-                logger.warning("Missing authorization header.")
+                logger.warning("Missing authorization header for %s.", cherrypy.request.remote.ip)
 
         except:  # pylint: disable=bare-except
-            logger.warning("Client has no valid session and did not provided "
-                           "HTTP Authorization credentials.")
+            logger.warning("Client %s has no valid session and did not provided "
+                           "HTTP Authorization credentials.", cherrypy.request.remote.ip)
 
         if authenticated:
             for condition in conditions:

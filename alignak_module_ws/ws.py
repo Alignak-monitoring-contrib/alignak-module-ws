@@ -42,6 +42,8 @@ from alignak_backend_client.client import Backend, BackendException
 from alignak.objects.module import Module
 from alignak.modulesmanager import ModulesManager
 
+from alignak.stats import statsmgr
+
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
@@ -76,7 +78,8 @@ def get_instance(mod_conf):
 class AlignakWebServices(BaseModule):
     """Web services module main class"""
     def __init__(self, mod_conf):
-        """Module initialization
+        """
+        Module initialization
 
         mod_conf is a dictionary that contains:
         - all the variables declared in the module configuration file
@@ -286,6 +289,17 @@ class AlignakWebServices(BaseModule):
                                   'alive', 'passive', 'reachable', 'last_check',
                                   'check_interval', 'polling_interval', 'max_check_attempts']
 
+        logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
+                    getattr(mod_conf, 'statsd_host', 'localhost'),
+                    int(getattr(mod_conf, 'statsd_port', '8125')),
+                    getattr(mod_conf, 'statsd_prefix', 'alignak'),
+                    (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+        statsmgr.register(self.alias, 'module',
+                          statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
+                          statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
+                          statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
+                          statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+
         # Count received commands
         self.received_commands = 0
 
@@ -459,7 +473,10 @@ class AlignakWebServices(BaseModule):
             if not embedded:
                 del search['embedded']
             logger.debug("Get hostgroup, parameters: %s", search)
-            result = self.backend.get_all('/hostgroup', params=search)
+            start = time.time()
+            result = self.backend.get_all('hostgroup', params=search)
+            statsmgr.counter('backend-getall.hostgroup', 1)
+            statsmgr.timer('backend-getall-time.hostgroup', time.time() - start)
             logger.debug("Get hostgroup, got: %s", result)
             if not result['_items']:
                 ws_result['_status'] = 'ERR'
@@ -530,7 +547,10 @@ class AlignakWebServices(BaseModule):
                 })
             }
             logger.debug("Get host, parameters: %s", search)
-            result = self.backend.get_all('/host', params=search)
+            start = time.time()
+            result = self.backend.get_all('host', params=search)
+            statsmgr.counter('backend-getall.host', 1)
+            statsmgr.timer('backend-getall-time.host', time.time() - start)
             logger.debug("Get host, got: %s", result)
             if not result['_items']:
                 ws_result['_status'] = 'ERR'
@@ -568,6 +588,7 @@ class AlignakWebServices(BaseModule):
         :return: command line
         """
         host = None
+        host_created = False
 
         ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name],
                      '_issues': []}
@@ -580,7 +601,10 @@ class AlignakWebServices(BaseModule):
                                             "Host properties cannot be modified.")
                 return ws_result
 
+            start = time.time()
             result = self.backend.get('/host', {'where': json.dumps({'name': host_name})})
+            statsmgr.counter('backend-get.host', 1)
+            statsmgr.timer('backend-get-time.host', time.time() - start)
             logger.debug("Get host, got: %s", result)
             if not result['_items']:
                 if not self.allow_host_creation:
@@ -607,7 +631,10 @@ class AlignakWebServices(BaseModule):
                 # Request data for host creation (no service)
                 post_data = self.backendCreationData(host_name, None, data['template'])
                 logger.debug("Post host, data: %s", post_data)
+                start = time.time()
                 result = self.backend.post('host', data=post_data)
+                statsmgr.counter('backend-post.host', 1)
+                statsmgr.timer('backend-post-time.host', time.time() - start)
                 logger.debug("Post host, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post host, error: %s", result)
@@ -623,6 +650,8 @@ class AlignakWebServices(BaseModule):
                 host = self.backend.get('/'.join(['host', result['_id']]))
                 logger.debug("Get host, got: %s", host)
                 logger.info("Created a new host: %s", host_name)
+                statsmgr.counter('host-created', 1)
+                host_created = True
             else:
                 host = result['_items'][0]
         except BackendException as exp:  # pragma: no cover, should not happen
@@ -643,22 +672,25 @@ class AlignakWebServices(BaseModule):
                 if data['active_checks_enabled'] != host['active_checks_enabled']:
                     update = True
 
-                    # todo: perharps this command is not useful because the backend is updated...
-                    command_line = 'DISABLE_HOST_CHECK;%s' % host_name
-                    if data['active_checks_enabled']:
-                        command_line = 'ENABLE_HOST_CHECK;%s' % host_name
-                        ws_result['_result'].append(
-                            'Host %s active checks will be enabled.' % host_name)
-                    else:
-                        ws_result['_result'].append(
-                            'Host %s active checks will be disabled.' % host_name)
+                    # Except when an host just got created...
+                    if not host_created:
+                        # todo: perharps this command is not useful
+                        # because the backend is updated...
+                        command_line = 'DISABLE_HOST_CHECK;%s' % host_name
+                        if data['active_checks_enabled']:
+                            command_line = 'ENABLE_HOST_CHECK;%s' % host_name
+                            ws_result['_result'].append(
+                                'Host %s active checks will be enabled.' % host_name)
+                        else:
+                            ws_result['_result'].append(
+                                'Host %s active checks will be disabled.' % host_name)
 
-                    # Add a command to get managed
-                    if self.set_timestamp:
-                        command_line = '[%d] %s' % (time.time(), command_line)
-                    ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.debug("Sending command: %s", command_line)
-                    self.to_q.put(ExternalCommand(command_line))
+                        # Add a command to get managed
+                        if self.set_timestamp:
+                            command_line = '[%d] %s' % (time.time(), command_line)
+                        ws_result['_result'].append('Sent external command: %s.' % command_line)
+                        logger.debug("Sending command: %s", command_line)
+                        self.from_q.put(ExternalCommand(command_line))
             else:
                 data.pop('active_checks_enabled')
 
@@ -669,22 +701,25 @@ class AlignakWebServices(BaseModule):
                 if data['passive_checks_enabled'] != host['passive_checks_enabled']:
                     update = True
 
-                    # todo: perharps this command is not useful because the backend is updated...
-                    command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
-                    if data['passive_checks_enabled']:
-                        command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
-                        ws_result['_result'].append(
-                            'Host %s passive checks will be enabled.' % host_name)
-                    else:
-                        ws_result['_result'].append(
-                            'Host %s passive checks will be disabled.' % host_name)
+                    # Except when an host just got created...
+                    if not host_created:
+                        # todo: perharps this command is not useful
+                        # because the backend is updated...
+                        command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                        if data['passive_checks_enabled']:
+                            command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
+                            ws_result['_result'].append(
+                                'Host %s passive checks will be enabled.' % host_name)
+                        else:
+                            ws_result['_result'].append(
+                                'Host %s passive checks will be disabled.' % host_name)
 
-                    # Add a command to get managed
-                    if self.set_timestamp:
-                        command_line = '[%d] %s' % (time.time(), command_line)
-                    ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.debug("Sending command: %s", command_line)
-                    self.to_q.put(ExternalCommand(command_line))
+                        # Add a command to get managed
+                        if self.set_timestamp:
+                            command_line = '[%d] %s' % (time.time(), command_line)
+                        ws_result['_result'].append('Sent external command: %s.' % command_line)
+                        logger.debug("Sending command: %s", command_line)
+                        self.from_q.put(ExternalCommand(command_line))
             else:
                 data.pop('passive_checks_enabled')
 
@@ -753,8 +788,8 @@ class AlignakWebServices(BaseModule):
                         ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
                                                     ", and not '%s'." % (state))
                     else:
-                        ws_result['_result'].append(self.buildHostLivestate(host,
-                                                                            livestate))
+                        statsmgr.counter('host-livestate', 1)
+                        ws_result['_result'].append(self.buildHostLivestate(host, livestate))
 
         # Update host services
         if data['services']:
@@ -767,7 +802,7 @@ class AlignakWebServices(BaseModule):
                     ws_result['_issues'].append("A service does not have a 'name' property")
                     continue
                 service.pop('name')
-                result = self.updateService(host, service_name, service)
+                result = self.updateService(host, service_name, service, host_created)
                 if '_result' in result:
                     ws_result['_result'].extend(result['_result'])
                 if '_issues' in result:
@@ -787,6 +822,7 @@ class AlignakWebServices(BaseModule):
                 if not self.give_feedback and '_feedback' in ws_result:
                     ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
+                statsmgr.counter('host-livestate-error', 1)
                 return ws_result
 
             if self.give_feedback:
@@ -806,6 +842,7 @@ class AlignakWebServices(BaseModule):
 
             ws_result.pop('_issues')
             logger.debug("Result: %s", ws_result)
+            statsmgr.counter('host-livestate-only', 1)
             return ws_result
 
         # If no update needed
@@ -818,6 +855,7 @@ class AlignakWebServices(BaseModule):
                 if not self.give_feedback and '_feedback' in ws_result:
                     ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
+                statsmgr.counter('host-no_update-error', 1)
                 return ws_result
 
             if self.give_feedback:
@@ -837,6 +875,7 @@ class AlignakWebServices(BaseModule):
 
             ws_result.pop('_issues')
             logger.debug("Result: %s", ws_result)
+            statsmgr.counter('host-no_update-only', 1)
             return ws_result
 
         # Clean data to be posted
@@ -852,8 +891,11 @@ class AlignakWebServices(BaseModule):
         try:
             headers = {'If-Match': host['_etag']}
             logger.info("Updating host '%s': %s", host_name, data)
+            start = time.time()
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
                                               data=data, headers=headers, inception=True)
+            statsmgr.counter('backend-patch.host', 1)
+            statsmgr.timer('backend-patch-time.host', time.time() - start)
             logger.debug("Backend patch, result: %s", patch_result)
             if patch_result['_status'] != 'OK':
                 logger.warning("Host patch, got a problem: %s", result)
@@ -895,7 +937,7 @@ class AlignakWebServices(BaseModule):
         ws_result.pop('_issues')
         return ws_result
 
-    def updateService(self, host, service_name, data):
+    def updateService(self, host, service_name, data, host_created):
         # pylint: disable=too-many-locals,too-many-return-statements
         """Create/update the custom variables for the specified service
 
@@ -904,6 +946,7 @@ class AlignakWebServices(BaseModule):
         :param host: host data
         :param service_name: service description
         :param data: dictionary of the service data to be modified
+        :param host_created: the host just got created
         :return: (status, message) tuple
         """
         service = None
@@ -918,8 +961,11 @@ class AlignakWebServices(BaseModule):
                                             "Service properties cannot be modified.")
                 return ws_result
 
+            start = time.time()
             result = self.backend.get('/service', {'where': json.dumps({'host': host['_id'],
                                                                         'name': service_name})})
+            statsmgr.counter('backend-get.service', 1)
+            statsmgr.timer('backend-get-time.service', time.time() - start)
             logger.debug("Get service, got: %s", result)
             if not result['_items']:
                 if not self.allow_service_creation:
@@ -947,7 +993,10 @@ class AlignakWebServices(BaseModule):
                 post_data = self.backendCreationData(host['name'], service_name, data['template'])
                 post_data.update({'host': host['_id']})
                 logger.debug("Post service, data: %s", post_data)
+                start = time.time()
                 result = self.backend.post('service', data=post_data)
+                statsmgr.counter('backend-post.service', 1)
+                statsmgr.timer('backend-post-time.service', time.time() - start)
                 logger.debug("Post service, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post service, error: %s", result)
@@ -961,6 +1010,7 @@ class AlignakWebServices(BaseModule):
                                             % (host['name'], service_name))
                 service = self.backend.get('/'.join(['service', result['_id']]))
                 logger.debug("Get service, got: %s", service)
+                statsmgr.counter('service-created', 1)
             else:
                 service = result['_items'][0]
         except BackendException as exp:  # pragma: no cover, should not happen
@@ -982,22 +1032,25 @@ class AlignakWebServices(BaseModule):
                 if data['active_checks_enabled'] != service['active_checks_enabled']:
                     update = True
 
-                    # todo: perharps this command is not useful because the backend is updated...
-                    command_line = 'DISABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
-                    if data['active_checks_enabled']:
-                        command_line = 'ENABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
-                        ws_result['_result'].append('Service %s/%s active checks will be enabled.'
-                                                    % (host['name'], service_name))
-                    else:
-                        ws_result['_result'].append('Service %s/%s active checks will be disabled.'
-                                                    % (host['name'], service_name))
+                    # Except when an host just got created...
+                    if not host_created:
+                        # todo: perharps this command is not useful
+                        # because the backend is updated...
+                        command_line = 'DISABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
+                        if data['active_checks_enabled']:
+                            command_line = 'ENABLE_SVC_CHECK;%s;%s' % (host['name'], service_name)
+                            ws_result['_result'].append('Service %s/%s active checks will be '
+                                                        'enabled.' % (host['name'], service_name))
+                        else:
+                            ws_result['_result'].append('Service %s/%s active checks will be '
+                                                        'disabled.' % (host['name'], service_name))
 
-                    # Add a command to get managed
-                    if self.set_timestamp:
-                        command_line = '[%d] %s' % (time.time(), command_line)
-                    ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.debug("Sending command: %s", command_line)
-                    self.to_q.put(ExternalCommand(command_line))
+                        # Add a command to get managed
+                        if self.set_timestamp:
+                            command_line = '[%d] %s' % (time.time(), command_line)
+                        ws_result['_result'].append('Sent external command: %s.' % command_line)
+                        logger.debug("Sending command: %s", command_line)
+                        self.from_q.put(ExternalCommand(command_line))
             else:
                 data.pop('active_checks_enabled')
 
@@ -1008,23 +1061,27 @@ class AlignakWebServices(BaseModule):
                 if data['passive_checks_enabled'] != service['passive_checks_enabled']:
                     update = True
 
-                    # todo: perharps this command is not useful because the backend is updated...
-                    command_line = 'DISABLE_PASSIVE_SVC_CHECKS;%s;%s' % (host['name'], service_name)
-                    if data['passive_checks_enabled']:
-                        command_line = 'ENABLE_PASSIVE_SVC_CHECKS;%s;%s' \
+                    # Except when an host just got created...
+                    if not host_created:
+                        # todo: perharps this command is not useful
+                        # because the backend is updated...
+                        command_line = 'DISABLE_PASSIVE_SVC_CHECKS;%s;%s' \
                                        % (host['name'], service_name)
-                        ws_result['_result'].append('Service %s/%s passive checks will be enabled.'
-                                                    % (host['name'], service_name))
-                    else:
-                        ws_result['_result'].append('Service %s/%s passive checks will be disabled.'
-                                                    % (host['name'], service_name))
+                        if data['passive_checks_enabled']:
+                            command_line = 'ENABLE_PASSIVE_SVC_CHECKS;%s;%s' \
+                                           % (host['name'], service_name)
+                            ws_result['_result'].append('Service %s/%s passive checks will be '
+                                                        'enabled.' % (host['name'], service_name))
+                        else:
+                            ws_result['_result'].append('Service %s/%s passive checks will be '
+                                                        'disabled.' % (host['name'], service_name))
 
-                    # Add a command to get managed
-                    if self.set_timestamp:
-                        command_line = '[%d] %s' % (time.time(), command_line)
-                    ws_result['_result'].append('Sent external command: %s.' % command_line)
-                    logger.debug("Sending command: %s", command_line)
-                    self.to_q.put(ExternalCommand(command_line))
+                        # Add a command to get managed
+                        if self.set_timestamp:
+                            command_line = '[%d] %s' % (time.time(), command_line)
+                        ws_result['_result'].append('Sent external command: %s.' % command_line)
+                        logger.debug("Sending command: %s", command_line)
+                        self.from_q.put(ExternalCommand(command_line))
             else:
                 data.pop('passive_checks_enabled')
 
@@ -1094,6 +1151,7 @@ class AlignakWebServices(BaseModule):
                                                     "CRITICAL, UNKNOWN or UNREACHABLE, and not %s."
                                                     % (service_name, state))
                     else:
+                        statsmgr.counter('service-livestate', 1)
                         ws_result['_result'].append(self.buildServiceLivestate(host, service,
                                                                                livestate))
 
@@ -1104,6 +1162,7 @@ class AlignakWebServices(BaseModule):
             # Simple service alive without any required update
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
+                statsmgr.counter('service-livestate-error', 1)
                 return ws_result
 
             if self.give_feedback > 1:
@@ -1119,6 +1178,7 @@ class AlignakWebServices(BaseModule):
                     ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
+            statsmgr.counter('service-livestate-only', 1)
             return ws_result
 
         # If no update needed
@@ -1130,6 +1190,7 @@ class AlignakWebServices(BaseModule):
                                         % (host['name'], service_name))
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
+                statsmgr.counter('service-no_update-error', 1)
                 return ws_result
 
             if self.give_feedback > 1:
@@ -1145,6 +1206,7 @@ class AlignakWebServices(BaseModule):
                     ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
+            statsmgr.counter('service-no_update-only', 1)
             return ws_result
 
         # Clean data to be posted
@@ -1157,8 +1219,11 @@ class AlignakWebServices(BaseModule):
         try:
             headers = {'If-Match': service['_etag']}
             logger.info("Updating service '%s/%s': %s", host['name'], service_name, data)
+            start = time.time()
             patch_result = self.backend.patch('/'.join(['service', service['_id']]),
                                               data=data, headers=headers, inception=True)
+            statsmgr.counter('backend-patch.service', 1)
+            statsmgr.timer('backend-patch-time.service', time.time() - start)
             logger.debug("Backend patch, result: %s", patch_result)
             if patch_result['_status'] != 'OK':
                 logger.warning("Service patch, got a problem: %s", result)
@@ -1221,7 +1286,7 @@ class AlignakWebServices(BaseModule):
 
         # Add a command to get managed
         logger.debug("Sending command: %s", command_line)
-        self.to_q.put(ExternalCommand(command_line))
+        self.from_q.put(ExternalCommand(command_line))
 
         result = {'_status': 'OK', '_result': [command_line], '_issues': []}
 
@@ -1302,7 +1367,7 @@ class AlignakWebServices(BaseModule):
         # Add a command to get managed
         _ts = time.time()
         logger.debug("Sending command: %s", command_line)
-        self.to_q.put(ExternalCommand(command_line))
+        self.from_q.put(ExternalCommand(command_line))
         logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
@@ -1413,7 +1478,7 @@ class AlignakWebServices(BaseModule):
         # Add a command to get managed
         _ts = time.time()
         logger.debug("Sending command: %s", command_line)
-        self.to_q.put(ExternalCommand(command_line))
+        self.from_q.put(ExternalCommand(command_line))
         logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
@@ -1738,7 +1803,7 @@ class AlignakWebServices(BaseModule):
             # Really too verbose :(
             # logger.debug("time to manage queue and Alignak state: %d seconds",
             # time.time() - start)
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         logger.info("stopping...")
 

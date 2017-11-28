@@ -401,6 +401,8 @@ class TestModuleWs(AlignakTest):
                       "You should consider enabling SSL!"), 14)
         self.assert_log_match(
             re.escape("configuration, listening on: http://0.0.0.0:8888"), 15)
+        self.assert_log_match(
+            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: False"), 16)
 
     def test_module_start_parameters(self):
         """
@@ -579,13 +581,13 @@ class TestModuleWs(AlignakTest):
         print("Response json: %s" % resp)
         assert resp == {'_status': 'ERR', '_issues': ['Missing username parameter.']}
 
-        # Login refused because of bad username/password (real backend login)
-        params = {'username': 'admin', 'password': 'fake'}
-        response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
-        assert response.status_code == 200
-        resp = response.json()
-        print("Response json: %s" % resp)
-        assert resp == {'_status': 'ERR', '_issues': ['Access denied.']}
+        # # Login refused because of bad username/password (real backend login)
+        # params = {'username': 'admin', 'password': 'fake'}
+        # response = requests.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        # assert response.status_code == 200
+        # resp = response.json()
+        # print("Response json: %s" % resp)
+        # assert resp == {'_status': 'ERR', '_issues': ['Access denied.']}
 
         # Login with username/password (real backend login)
         print("- Login accepted")
