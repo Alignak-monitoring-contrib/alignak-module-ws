@@ -76,6 +76,20 @@ def get_instance(mod_conf):
 
 
 class AlignakWebServices(BaseModule):
+    host_state_to_id = {
+        "UP": 0,
+        "DOWN": 1,
+        "UNREACHABLE": 2
+    }
+
+    service_state_to_id = {
+        "OK": 0,
+        "WARNING": 1,
+        "CRITICAL": 2,
+        "UNKNOWN": 3,
+        "UNREACHABLE": 4
+    }
+
     """Web services module main class"""
     def __init__(self, mod_conf):
         """
@@ -789,20 +803,68 @@ class AlignakWebServices(BaseModule):
                                                     ", and not '%s'." % (state))
                     else:
                         statsmgr.counter('host-livestate', 1)
-                        ws_result['_result'].append(self.buildHostLivestate(host, livestate))
+                        # Update the host live state
+                        update = True
+                        data['ls_state'] = livestate.get('state', 'UP').upper()
+                        data['ls_state_id'] = self.host_state_to_id[data['ls_state']]
+                        data['ls_state_type'] = 'HARD'
+                        try:
+                            data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
+                        except ValueError:
+                            data['ls_last_check'] = int(time.time())
+                        data['ls_output'] = livestate.get('output', '')
+                        data['ls_long_output'] = livestate.get('long_output', '')
+                        data['ls_perf_data'] = livestate.get('perf_data', '')
+                        ws_result['_result'].append(self.buildHostLivestate(host, livestate,
+                                                                            host_created))
 
         # Update host services
         if data['services']:
             if '_feedback' not in ws_result:
                 ws_result['_feedback'] = {}
             ws_result['_feedback']['services'] = []
+
+            # Get all current host services from the backend
+            try:
+                if not self.backend_available:
+                    self.getBackendAvailability()
+                if not self.backend_available:
+                    ws_result['_status'] = 'ERR'
+                    ws_result['_issues'].append("Alignak backend is not available currently. "
+                                                "Service properties cannot be modified.")
+                    return ws_result
+
+                start = time.time()
+                result = self.backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
+                statsmgr.counter('backend-getall.service', 1)
+                statsmgr.timer('backend-getall-time.service', time.time() - start)
+                logger.debug("Get host services, got: %s", result)
+                if not result['_items']:
+                    if not self.allow_service_creation:
+                        ws_result['_issues'].append("No services exist for the host '%s'"
+                                                    % host['name'])
+                        if not self.ignore_unknown_service:
+                            ws_result['_status'] = 'ERR'
+                        return ws_result
+
+                services = result['_items']
+            except BackendException as exp:  # pragma: no cover, should not happen
+                logger.warning("Alignak backend exception, updateService.")
+                logger.warning("Exception: %s", exp)
+                logger.warning("Exception response: %s", exp.response)
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend error. Exception, "
+                                            "get host services: %s" % str(exp))
+                ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+                return ws_result
+
             for service in data['services']:
                 service_name = service.get('name', None)
                 if service_name is None:
                     ws_result['_issues'].append("A service does not have a 'name' property")
                     continue
                 service.pop('name')
-                result = self.updateService(host, service_name, service, host_created)
+                result = self.updateService(host, services, service_name, service, host_created)
                 if '_result' in result:
                     ws_result['_result'].extend(result['_result'])
                 if '_issues' in result:
@@ -937,13 +999,14 @@ class AlignakWebServices(BaseModule):
         ws_result.pop('_issues')
         return ws_result
 
-    def updateService(self, host, service_name, data, host_created):
+    def updateService(self, host, services, service_name, data, host_created):
         # pylint: disable=too-many-locals,too-many-return-statements
         """Create/update the custom variables for the specified service
 
         Search the service in the backend and update its custom variables with the provided ones.
 
         :param host: host data
+        :param services: the host services got from the backend
         :param service_name: service description
         :param data: dictionary of the service data to be modified
         :param host_created: the host just got created
@@ -961,24 +1024,7 @@ class AlignakWebServices(BaseModule):
                                             "Service properties cannot be modified.")
                 return ws_result
 
-            start = time.time()
-            result = self.backend.get('/service', {'where': json.dumps({'host': host['_id'],
-                                                                        'name': service_name})})
-            statsmgr.counter('backend-get.service', 1)
-            statsmgr.timer('backend-get-time.service', time.time() - start)
-            logger.debug("Get service, got: %s", result)
-            if not result['_items']:
-                if not self.allow_service_creation:
-                    if not self.ignore_unknown_service:
-                        ws_result['_status'] = 'ERR'
-                        ws_result['_issues'].append("Requested service '%s/%s' does not exist"
-                                                    % (host['name'], service_name))
-                    else:
-                        ws_result['_result'].append("Requested service '%s/%s' does not exist"
-                                                    % (host['name'], service_name))
-                    return ws_result
-
-            if not result['_items'] and self.allow_service_creation:
+            if self.allow_service_creation and not any(s['name'] == service_name for s in services):
                 # Tries to create the service
                 logger.info("Requested service '%s/%s' does not exist. "
                             "Trying to create a new service",
@@ -1012,7 +1058,9 @@ class AlignakWebServices(BaseModule):
                 logger.debug("Get service, got: %s", service)
                 statsmgr.counter('service-created', 1)
             else:
-                service = result['_items'][0]
+                for s in services:
+                    if s['name'] == service_name:
+                        service = s
         except BackendException as exp:  # pragma: no cover, should not happen
             logger.warning("Alignak backend exception, updateService.")
             logger.warning("Exception: %s", exp)
@@ -1021,6 +1069,14 @@ class AlignakWebServices(BaseModule):
             ws_result['_issues'].append("Alignak backend error. Exception, updateService: %s"
                                         % str(exp))
             ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+            return ws_result
+
+        if not service:
+            # Raise an error for a non existing service
+            logger.info("Requested service '%s/%s' does not exist. ",
+                        host['name'], service_name)
+            ws_result['_issues'].append("Requested service '%s/%s' does not exist"
+                                        % (host['name'], service_name))
             return ws_result
 
         update = None
@@ -1152,8 +1208,21 @@ class AlignakWebServices(BaseModule):
                                                     % (service_name, state))
                     else:
                         statsmgr.counter('service-livestate', 1)
+                        # Update the host live state
+                        update = True
+                        data['ls_state'] = livestate.get('state', 'OK').upper()
+                        data['ls_state_id'] = self.service_state_to_id[data['ls_state']]
+                        data['ls_state_type'] = 'HARD'
+                        try:
+                            data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
+                        except ValueError:
+                            data['ls_last_check'] = int(time.time())
+                        data['ls_output'] = livestate.get('output', '')
+                        data['ls_long_output'] = livestate.get('long_output', '')
+                        data['ls_perf_data'] = livestate.get('perf_data', '')
                         ws_result['_result'].append(self.buildServiceLivestate(host, service,
-                                                                               livestate))
+                                                                               livestate,
+                                                                               host_created))
 
         # If no data update requested (only livestate in the data...)
         if update is None:
@@ -1323,7 +1392,7 @@ class AlignakWebServices(BaseModule):
         result.pop('_issues')
         return result
 
-    def buildHostLivestate(self, host, livestate):
+    def buildHostLivestate(self, host, livestate, host_created):
         # pylint: disable=too-many-locals
         """Build and notify the external command for an host livestate
 
@@ -1333,7 +1402,8 @@ class AlignakWebServices(BaseModule):
 
         :param host: host from the Alignak backend
         :param livestate: livestate dictionary
-        :return: command line
+        :param host_created: the host just got created
+        :return: external command line
         """
         state = livestate.get('state', 'UP').upper()
         output = livestate.get('output', '')
@@ -1344,13 +1414,7 @@ class AlignakWebServices(BaseModule):
         except ValueError:
             timestamp = None
 
-        state_to_id = {
-            "UP": 0,
-            "DOWN": 1,
-            "UNREACHABLE": 2
-        }
-
-        parameters = '%s;%s' % (state_to_id[state], output)
+        parameters = '%s;%s' % (self.host_state_to_id[state], output)
         if long_output and perf_data:
             parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
         elif long_output:
@@ -1364,11 +1428,13 @@ class AlignakWebServices(BaseModule):
         elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
-        # Add a command to get managed
-        _ts = time.time()
-        logger.debug("Sending command: %s", command_line)
-        self.from_q.put(ExternalCommand(command_line))
-        logger.debug("Sent command, duration: %s", time.time() - _ts)
+        # Except when an host just got created...
+        if not host_created:
+            # Add a command to get managed
+            _ts = time.time()
+            logger.debug("Sending command: %s", command_line)
+            self.from_q.put(ExternalCommand(command_line))
+            logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for an host if we got a timestamp in the past
@@ -1402,11 +1468,14 @@ class AlignakWebServices(BaseModule):
                     'perf_data': perf_data,
                     "_realm": host['_realm']
                 }
+                start = time.time()
                 result = self.backend.get('/logcheckresult',
                                           {'max_results': 1,
                                            'where': json.dumps({'host_name': host['name'],
                                                                 'last_check': {
                                                                     "$lte": timestamp}})})
+                statsmgr.counter('backend-get.lcr', 1)
+                statsmgr.timer('backend-get-time.lcr', time.time() - start)
                 logger.debug("Get logcheckresult, got: %s", result)
                 if result['_items']:
                     lcr = result['_items'][0]
@@ -1422,7 +1491,10 @@ class AlignakWebServices(BaseModule):
                         'state_changed': lcr['state_changed']
                     })
 
+                start = time.time()
                 result = self.backend.post('/logcheckresult', data)
+                statsmgr.counter('backend-post.lcr', 1)
+                statsmgr.timer('backend-post-time.lcr', time.time() - start)
                 if result['_status'] != 'OK':
                     logger.warning("Post logcheckresult, error: %s", result)
                 else:
@@ -1430,7 +1502,7 @@ class AlignakWebServices(BaseModule):
 
         return command_line
 
-    def buildServiceLivestate(self, host, service, livestate):
+    def buildServiceLivestate(self, host, service, livestate, host_created):
         # pylint: disable=too-many-locals
         """Build and notify the external command for a service livestate
 
@@ -1441,7 +1513,8 @@ class AlignakWebServices(BaseModule):
         :param host: host from the Alignak backend
         :param service: service from the Alignak backend
         :param livestate: livestate dictionary
-        :return: command line
+        :param host_created: the host just got created
+        :return: external command line
         """
         state = livestate.get('state', 'OK').upper()
         output = livestate.get('output', '')
@@ -1452,15 +1525,7 @@ class AlignakWebServices(BaseModule):
         except ValueError:
             timestamp = None
 
-        state_to_id = {
-            "OK": 0,
-            "WARNING": 1,
-            "CRITICAL": 2,
-            "UNKNOWN": 3,
-            "UNREACHABLE": 4
-        }
-
-        parameters = '%s;%s' % (state_to_id[state], output)
+        parameters = '%s;%s' % (self.service_state_to_id[state], output)
         if long_output and perf_data:
             parameters = '%s|%s\n%s' % (parameters, perf_data, long_output)
         elif long_output:
@@ -1475,11 +1540,13 @@ class AlignakWebServices(BaseModule):
         elif self.set_timestamp:
             command_line = '[%d] %s' % (time.time(), command_line)
 
-        # Add a command to get managed
-        _ts = time.time()
-        logger.debug("Sending command: %s", command_line)
-        self.from_q.put(ExternalCommand(command_line))
-        logger.debug("Sent command, duration: %s", time.time() - _ts)
+        # Except when an host just got created...
+        if not host_created:
+            # Add a command to get managed
+            _ts = time.time()
+            logger.debug("Sending command: %s", command_line)
+            self.from_q.put(ExternalCommand(command_line))
+            logger.debug("Sent command, duration: %s", time.time() - _ts)
 
         # -------------------------------------------
         # Add a check result for a service if we got a timestamp in the past
@@ -1513,12 +1580,15 @@ class AlignakWebServices(BaseModule):
                     'perf_data': perf_data,
                     "_realm": service['_realm']
                 }
+                start = time.time()
                 result = self.backend.get('/logcheckresult',
                                           {'max_results': 1,
                                            'where': json.dumps({'host_name': host['name'],
                                                                 'service_name': service['name'],
                                                                 'last_check': {
                                                                     "$lte": timestamp}})})
+                statsmgr.counter('backend-get.lcr', 1)
+                statsmgr.timer('backend-get-time.lcr', time.time() - start)
                 if self.alignak_backend_old_lcr:
                     logger.debug("Get logcheckresult, got: %s", result)
                     if result['_items']:
@@ -1535,7 +1605,10 @@ class AlignakWebServices(BaseModule):
                             'state_changed': lcr['state_changed']
                         })
 
+                start = time.time()
                 result = self.backend.post('/logcheckresult', data)
+                statsmgr.counter('backend-post.lcr', 1)
+                statsmgr.timer('backend-post-time.lcr', time.time() - start)
                 if result['_status'] != 'OK':
                     logger.warning("Post logcheckresult, error: %s", result)
                 else:

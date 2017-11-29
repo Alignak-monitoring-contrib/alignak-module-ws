@@ -178,6 +178,9 @@ class TestModuleWsHost(AlignakTest):
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -443,10 +446,12 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..."],
+                         u"Output...|'counter'=1\nLong output...",
+                         u"Host 'test_host_0' updated."
+                         ],
             u'_feedback': {
                 u'name': u'test_host_0',
-                u'_overall_state_id': 3,
+                u'_overall_state_id': 5,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
@@ -481,7 +486,9 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output..."],
+                         u"Output...|'counter'=1\nLong output...",
+                         u"Host 'test_host_0' updated."
+                         ],
             u'_feedback': {
                 u'name': u'test_host_0',
                 u'_overall_state_id': 3,
@@ -548,12 +555,16 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2"
+                u"Service 'test_host_0/test_ok_1' updated",
+                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated.",
             ],
             u'_feedback': {
                 u'name': u'test_host_0',
-                u'_overall_state_id': 3,
+                u'_overall_state_id': 5,
                 u'active_checks_enabled': True,
                 u'alias': u'up_0',
                 u'check_freshness': False,
@@ -579,7 +590,7 @@ class TestModuleWsHost(AlignakTest):
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_1'},
                     {u'active_checks_enabled': False, u'alias': u'test_ok_2',
                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'retry_interval': 1, u'_overall_state_id': 4, u'freshness_threshold': -1,
                      u'passive_checks_enabled': True, u'check_interval': 1,
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_2'}
                 ]
@@ -721,8 +732,12 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -798,11 +813,17 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
                 u"[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                # u"Host 'test_host_0' updated.",
                 u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                # u"Host 'test_host_0' updated.",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated.",
             ]
         })
 
@@ -1060,7 +1081,8 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, provided timestamp
@@ -1083,7 +1105,8 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 123456789]
+                         u"Output...|'counter'=1\nLong output..." % 123456789,
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate may be a list
@@ -1117,7 +1140,8 @@ class TestModuleWsHost(AlignakTest):
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % 123456789,
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 987654321]
+                         u"Output...|'counter'=1\nLong output..." % 987654321,
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, invalid provided timestamp
@@ -1142,7 +1166,8 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -1164,7 +1189,8 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host services livestate
@@ -1216,8 +1242,12 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -1271,8 +1301,12 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -1335,9 +1369,14 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+                # u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -2978,9 +3017,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_result': [u'test_host_0 is alive :)',
-                         u"Requested service 'test_host_0/unknown_service' does not exist"],
-            u'_status': u'OK'
+            u'_result': [u'test_host_0 is alive :)'],
+            u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist"],
+            u'_status': u'ERR'
         })
         # ----------
 
