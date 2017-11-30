@@ -113,7 +113,7 @@ class AlignakWebServices(BaseModule):
         logger.debug("received configuration: %s", mod_conf.__dict__)
         logger.debug("loaded into: %s", self.loaded_into)
 
-        self.token = None
+        # self.token = None
         self.default_realm = None
 
         # Allow host/service creation
