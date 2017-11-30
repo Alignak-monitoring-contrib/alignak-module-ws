@@ -74,7 +74,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                                   '--socket', '0.0.0.0:5000',
                                   '--protocol=http', '--enable-threads', '--pidfile',
                                   '/tmp/uwsgi.pid'],
-                                 stdout=fnull, stderr=fnull)
+                                 )
         time.sleep(3)
 
         endpoint = 'http://127.0.0.1:5000'
@@ -182,6 +182,11 @@ class TestModuleWsHostLivestate(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
+
+            'alignak_backend_old_lcr': '1',
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
@@ -262,6 +267,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Requested host 'new_host_0' does not exist.",
                 u"Requested host 'new_host_0' created.",
                 u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -300,6 +306,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -334,6 +341,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -373,6 +381,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -574,6 +583,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         resp = response.json()
         new_host_for_services_0 = resp['_items'][0]
         self.assertEqual('new_host_for_services_0', new_host_for_services_0['name'])
+        # Default live state
+        self.assertEqual(new_host_for_services_0['ls_state'], "UNREACHABLE")
+        self.assertEqual(new_host_for_services_0['ls_state_id'], 3)
+        self.assertEqual(new_host_for_services_0['ls_state_type'], "HARD")
+        self.assertEqual(new_host_for_services_0['ls_output'], "")
+        self.assertEqual(new_host_for_services_0['ls_long_output'], "")
+        self.assertEqual(new_host_for_services_0['ls_perf_data'], "")
 
         # Get services data to confirm update
         response = requests.get(self.endpoint + '/service', auth=self.auth,
@@ -613,6 +629,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -625,6 +642,20 @@ class TestModuleWsHostLivestate(AlignakTest):
 
 
         # Send a service livestate, timestamp in the past
+        # Example data for the backend:
+        # a = {
+        #     'ls_perf_data': '',
+        #     'ls_output': u'Ok -  Microsoft Input Configuration Device (Microsoft Input Configuration Device) - Init',
+        #     'ls_state': u'OK', 'ls_last_check': 1511952153, 'ls_long_output': '',
+        #     u'passive_checks_enabled': False, 'ls_state_id': 0, 'ls_state_type': 'HARD'
+        # }
+        # b = {
+        #     'ls_perf_data': '', 'ls_output': u'NearEmpty - Battery Power - Init',
+        #     'ls_state': u'WARNING', 'ls_last_check': 1511977215,
+        #     'customs': {u'_ID': u'Energy', u'_VERSION': u'3.9.10',
+        #                 u'_DESCRIPTION': u'Energy Management'}, 'ls_long_output': '',
+        #     u'passive_checks_enabled': False, 'ls_state_id': 1, 'ls_state_type': 'HARD'
+        # }
         headers = {'Content-Type': 'application/json'}
         now = int(time.time()) - 3600
         data = {
@@ -652,6 +683,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -697,6 +729,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+                u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!

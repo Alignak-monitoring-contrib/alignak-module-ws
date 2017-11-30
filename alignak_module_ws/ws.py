@@ -76,6 +76,7 @@ def get_instance(mod_conf):
 
 
 class AlignakWebServices(BaseModule):
+    """Main class for the Alignak Web Services implementation"""
     host_state_to_id = {
         "UP": 0,
         "DOWN": 1,
@@ -835,7 +836,8 @@ class AlignakWebServices(BaseModule):
                     return ws_result
 
                 start = time.time()
-                result = self.backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
+                result = self.backend.get_all('service', {'where':
+                                                              json.dumps({'host': host['_id']})})
                 statsmgr.counter('backend-getall.service', 1)
                 statsmgr.timer('backend-getall-time.service', time.time() - start)
                 logger.debug("Get host services, got: %s", result)
@@ -951,7 +953,7 @@ class AlignakWebServices(BaseModule):
             data.pop('services')
 
         try:
-            headers = {'If-Match': host['_etag']}
+            headers = {'Content-Type': 'application/json', 'If-Match': host['_etag']}
             logger.info("Updating host '%s': %s", host_name, data)
             start = time.time()
             patch_result = self.backend.patch('/'.join(['host', host['_id']]),
@@ -986,7 +988,7 @@ class AlignakWebServices(BaseModule):
 
         if ws_result['_issues']:
             ws_result['_status'] = 'ERR'
-            if '_feedback' in ws_result:
+            if not self.give_feedback and '_feedback' in ws_result:
                 ws_result.pop('_feedback')
             return ws_result
 
@@ -1000,7 +1002,7 @@ class AlignakWebServices(BaseModule):
         return ws_result
 
     def updateService(self, host, services, service_name, data, host_created):
-        # pylint: disable=too-many-locals,too-many-return-statements
+        # pylint: disable=too-many-arguments,too-many-locals,too-many-return-statements
         """Create/update the custom variables for the specified service
 
         Search the service in the backend and update its custom variables with the provided ones.
@@ -1285,8 +1287,9 @@ class AlignakWebServices(BaseModule):
             data.pop('livestate')
         if 'variables' in data:
             data.pop('variables')
+
         try:
-            headers = {'If-Match': service['_etag']}
+            headers = {'Content-Type': 'application/json', 'If-Match': service['_etag']}
             logger.info("Updating service '%s/%s': %s", host['name'], service_name, data)
             start = time.time()
             patch_result = self.backend.patch('/'.join(['service', service['_id']]),
@@ -1448,6 +1451,7 @@ class AlignakWebServices(BaseModule):
                 past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
                 logger.info("Recording a check result from the past (%s) for %s...",
                             past, host['name'])
+                print("Recording a check result from the past (%s) for %s..." % (past, host['name']))
                 # Assume data are in the host livestate
                 data = {
                     "last_check": timestamp,
@@ -1456,7 +1460,7 @@ class AlignakWebServices(BaseModule):
                     'acknowledged': host['ls_acknowledged'],
                     'acknowledgement_type': host['ls_acknowledgement_type'],
                     'downtimed': host['ls_downtimed'],
-                    'state_id': state_to_id[state],
+                    'state_id': self.host_state_to_id[state],
                     'state': state,
                     'state_type': host['ls_state_type'],
                     'last_state': host['ls_last_state'],
@@ -1560,6 +1564,7 @@ class AlignakWebServices(BaseModule):
                 past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
                 logger.info("Recording a check result from the past (%s) for %s/%s...",
                             past, host['name'], service['name'])
+                print("Recording a check result from the past (%s) for %s/%s..." % (past, host['name'], service['name']))
                 # Assume data are in the service livestate
                 data = {
                     "last_check": timestamp,
@@ -1568,7 +1573,7 @@ class AlignakWebServices(BaseModule):
                     'acknowledged': service['ls_acknowledged'],
                     'acknowledgement_type': service['ls_acknowledgement_type'],
                     'downtimed': service['ls_downtimed'],
-                    'state_id': state_to_id[state],
+                    'state_id': self.service_state_to_id[state],
                     'state': state,
                     'state_type': service['ls_state_type'],
                     'last_state': service['ls_last_state'],

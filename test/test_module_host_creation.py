@@ -202,6 +202,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
@@ -398,6 +401,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u"Requested host 'new_host_3' does not exist.",
                 u"Requested host 'new_host_3' created.",
                 u"PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_3' updated."
             ],
             u'_feedback': {
                 u'name': u'new_host_3'
@@ -416,6 +420,12 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # self.assertNotEqual([], new_host_3['_templates'])
         # self.assertEqual({'_TEMPLATE': 'generic'}, new_host_3['customs'])
         self.assertEqual(self.realmTest_id, new_host_3['_realm'])
+        self.assertEqual(new_host_3['ls_state'], "UP")
+        self.assertEqual(new_host_3['ls_state_id'], 0)
+        self.assertEqual(new_host_3['ls_state_type'], "HARD")
+        self.assertEqual(new_host_3['ls_output'], "Output...")
+        self.assertEqual(new_host_3['ls_long_output'], "Long output...")
+        self.assertEqual(new_host_3['ls_perf_data'], "'counter'=1")
 
         # Create a new host with a template and no _realm and Update host livestate (heartbeat / host is alive): livestate
         data = {
@@ -424,10 +434,10 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 "_templates": ["generic-host"]
             },
             "livestate": {
-                "state": "UP",
-                "output": "Output...",
-                "long_output": "Long output...",
-                "perf_data": "'counter'=1",
+                "state": "DOWN",
+                "output": "Output 2...",
+                "long_output": "Long output 2...",
+                "perf_data": "'counter1'=2",
             }
         }
         self.assertEqual(my_module.received_commands, 0)
@@ -440,7 +450,8 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 u'new_host_4 is alive :)',
                 u"Requested host 'new_host_4' does not exist.",
                 u"Requested host 'new_host_4' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_4;0;Output...|'counter'=1\nLong output...",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_4;1;Output 2...|'counter1'=2\nLong output 2...",
+                u"Host 'new_host_4' updated."
             ],
             u'_feedback': {
                 u'name': u'new_host_4'
@@ -457,6 +468,12 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # todo: understand why this assertion is not verified!
         # self.assertNotEqual([], new_host_4['_templates'])
         # self.assertEqual({'_TEMPLATE': 'generic'}, new_host_4['customs'])
+        self.assertEqual(new_host_4['ls_state'], "DOWN")
+        self.assertEqual(new_host_4['ls_state_id'], 1)
+        self.assertEqual(new_host_4['ls_state_type'], "HARD")
+        self.assertEqual(new_host_4['ls_output'], "Output 2...")
+        self.assertEqual(new_host_4['ls_long_output'], "Long output 2...")
+        self.assertEqual(new_host_4['ls_perf_data'], "'counter1'=2")
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
