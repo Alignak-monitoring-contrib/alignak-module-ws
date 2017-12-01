@@ -172,6 +172,7 @@ class TestModuleWsBackendConnection(AlignakTest):
             time.sleep(1)
             self.modulemanager.stop_all()
 
+    @pytest.mark.skip("No more connection with the backend on module load")
     def test_connection_accepted(self):
         """ Test module backend connection accepted """
         # admin user login
@@ -183,7 +184,7 @@ class TestModuleWsBackendConnection(AlignakTest):
             'username': 'admin',
             'password': 'admin',
         }))
-        self.assertTrue(mod.backend_available)
+        # self.assertTrue(mod.backend_available)
 
         # test user login
         mod = get_instance(Module({
@@ -194,8 +195,9 @@ class TestModuleWsBackendConnection(AlignakTest):
             'username': 'test',
             'password': 'test',
         }))
-        self.assertTrue(mod.backend_available)
+        # self.assertTrue(mod.backend_available)
 
+    @pytest.mark.skip("No more connection with the backend on module load")
     def test_connection_refused(self):
         """ Test module backend connection refused """
         # No backend data defined

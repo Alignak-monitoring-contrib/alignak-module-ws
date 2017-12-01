@@ -160,6 +160,9 @@ class TestModuleWsEvent(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,

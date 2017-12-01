@@ -23,32 +23,29 @@ Test the module - host/service livestate
 """
 
 import os
-import re
 import time
 import json
 
 import shlex
 import subprocess
 
-import logging
-
 import requests
+
+import datetime
+from freezegun import freeze_time
 
 from alignak_test import AlignakTest, time_hacker
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
 
+# Set an environment variable to print debug information for the backend
+os.environ['ALIGNAK_BACKEND_PRINT'] = '1'
+
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
-
-# # Activate debug logs for the alignak backend client library
-# logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
-#
-# # Activate debug logs for the module
-# logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
 
 
 class TestModuleWsHostLivestate(AlignakTest):
@@ -176,6 +173,8 @@ class TestModuleWsHostLivestate(AlignakTest):
             'set_timestamp': '0',
             # Send a log_check_result to the alignak backend
             'alignak_backend_old_lcr': '1',
+            'alignak_backend_get_lcr': '0',
+            'alignak_backend_timeshift': '0',
             # Do not give feedback data
             'give_feedback': '0',
             'give_result': '1',
@@ -186,7 +185,6 @@ class TestModuleWsHostLivestate(AlignakTest):
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
 
-            'alignak_backend_old_lcr': '1',
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
@@ -231,18 +229,21 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.token = resp['token']
         self.auth = requests.auth.HTTPBasicAuth(self.token, '')
 
-        # Do not allow GET request on /host - not authorized
-        response = requests.get('http://127.0.0.1:8888/host')
-        self.assertEqual(response.status_code, 401)
-
         session = requests.Session()
 
-        # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
         response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
+        #
+        # #
+        # # # Freeze the time !
+        # initial_datetime = datetime.datetime(2017, 12, 1, 12, 0, 0)
+        # initial_datetime = datetime.datetime.now()
+        # with freeze_time(initial_datetime) as frozen_datetime:
+        #     assert frozen_datetime() == datetime.datetime.now()
+        #     frozen_datetime.tick(delta=datetime.timedelta(seconds=10))
 
         # -----
         # Create a new host with an host livestate (heartbeat / host is alive): livestate
@@ -287,6 +288,7 @@ class TestModuleWsHostLivestate(AlignakTest):
 
         # -----
         # Send an host livestate
+        # The former host livestate created an host last_check
         data = {
             "name": "new_host_0",
             "livestate": {
