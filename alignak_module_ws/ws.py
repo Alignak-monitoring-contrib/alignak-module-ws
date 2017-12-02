@@ -169,9 +169,14 @@ class AlignakWebServices(BaseModule):
 
         self.alignak_backend_polling_period = int(
             getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+
+        # Backend behavior part
         self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
         self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
         self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        self.alignak_backend_livestate_update = getattr(mod_conf,
+                                                        'alignak_backend_livestate_update',
+                                                        '1') == '1'
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -659,7 +664,7 @@ class AlignakWebServices(BaseModule):
         return ws_result
 
     def update_host(self, host_name, data):
-        # pylint: disable=too-many-locals, too-many-return-statements
+        # pylint: disable=too-many-locals, too-many-return-statements, too-many-nested-blocks
         """Create/update the specified host
 
         Search the host in the backend
@@ -902,7 +907,7 @@ class AlignakWebServices(BaseModule):
                         try:
                             timestamp = int(livestate.get('timestamp', 'ABC'))
                             if timestamp < last_ts:
-                                logger.warning("Got unordered timestamp for the service: %s/%s",
+                                logger.warning("Got unordered timestamp for the service: %s/%s"
                                                "The Alignak scheduler may not handle "
                                                "the check result!",
                                                host['name'], service['name'])
@@ -924,17 +929,18 @@ class AlignakWebServices(BaseModule):
                     else:
                         statsmgr.counter('host-livestate', 1)
                         # Update the host live state
-                        update = True
-                        data['ls_state'] = livestate.get('state', 'UP').upper()
-                        data['ls_state_id'] = self.host_state_to_id[data['ls_state']]
-                        data['ls_state_type'] = 'HARD'
-                        try:
-                            data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
-                        except ValueError:
-                            data['ls_last_check'] = int(time.time())
-                        data['ls_output'] = livestate.get('output', '')
-                        data['ls_long_output'] = livestate.get('long_output', '')
-                        data['ls_perf_data'] = livestate.get('perf_data', '')
+                        if self.alignak_backend_livestate_update:
+                            update = True
+                            data['ls_state'] = livestate.get('state', 'UP').upper()
+                            data['ls_state_id'] = self.host_state_to_id[data['ls_state']]
+                            data['ls_state_type'] = 'HARD'
+                            try:
+                                data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
+                            except ValueError:
+                                data['ls_last_check'] = int(time.time())
+                            data['ls_output'] = livestate.get('output', '')
+                            data['ls_long_output'] = livestate.get('long_output', '')
+                            data['ls_perf_data'] = livestate.get('perf_data', '')
                         ws_result['_result'].append(self.build_host_livestate(host, livestate,
                                                                               host_created))
 
@@ -1107,7 +1113,8 @@ class AlignakWebServices(BaseModule):
         return ws_result
 
     def update_service(self, host, services, service_name, data, host_created):
-        # pylint: disable=too-many-arguments,too-many-locals,too-many-return-statements
+        # pylint: disable=too-many-arguments, too-many-locals
+        # pylint: disable=too-many-return-statements, too-many-nested-blocks
         """Create/update the custom variables for the specified service
 
         Search the service in the backend and update its custom variables with the provided ones.
@@ -1320,18 +1327,19 @@ class AlignakWebServices(BaseModule):
                                                     % (service_name, state))
                     else:
                         statsmgr.counter('service-livestate', 1)
-                        # Update the host live state
-                        update = True
-                        data['ls_state'] = livestate.get('state', 'OK').upper()
-                        data['ls_state_id'] = self.service_state_to_id[data['ls_state']]
-                        data['ls_state_type'] = 'HARD'
-                        try:
-                            data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
-                        except ValueError:
-                            data['ls_last_check'] = int(time.time())
-                        data['ls_output'] = livestate.get('output', '')
-                        data['ls_long_output'] = livestate.get('long_output', '')
-                        data['ls_perf_data'] = livestate.get('perf_data', '')
+                        # Update the service live state
+                        if self.alignak_backend_livestate_update:
+                            update = True
+                            data['ls_state'] = livestate.get('state', 'OK').upper()
+                            data['ls_state_id'] = self.service_state_to_id[data['ls_state']]
+                            data['ls_state_type'] = 'HARD'
+                            try:
+                                data['ls_last_check'] = int(livestate.get('timestamp', 'ABC'))
+                            except ValueError:
+                                data['ls_last_check'] = int(time.time())
+                            data['ls_output'] = livestate.get('output', '')
+                            data['ls_long_output'] = livestate.get('long_output', '')
+                            data['ls_perf_data'] = livestate.get('perf_data', '')
                         ws_result['_result'].append(self.build_service_livestate(host, service,
                                                                                  livestate,
                                                                                  host_created))
