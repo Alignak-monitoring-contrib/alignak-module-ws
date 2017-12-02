@@ -40,29 +40,33 @@ SESSION_KEY = 'alignak_web_services'
 
 def protect(*args, **kwargs):
     # pylint: disable=unused-argument
-    """Check user credentials from HTTP Authorization request header"""
-    # logger.debug("Inside protect()...")
+    """
+    Check user credentials from HTTP Authorization request header
+    """
 
     authenticated = False
+
     conditions = cherrypy.request.config.get('auth.require', None)
+
     if conditions is not None:
         logger.debug("conditions: %s", conditions)
         # A condition is just a callable that returns true or false
+        app = cherrypy.request.app.root.app
         try:
             logger.debug("Checking session: %s", SESSION_KEY)
             # check if there is an active session
             # sessions are turned on so we just have to know if there is
             # something inside of cherrypy.session[SESSION_KEY]:
-            this_session = cherrypy.session[SESSION_KEY]
-            logger.debug("Session: %s", this_session)
+            session_token = cherrypy.session[SESSION_KEY]
+            logger.debug("Session: %s", session_token)
 
             # Not sure if I need to do this myself or what
             cherrypy.session.regenerate()
             cherrypy.request.login = cherrypy.session[SESSION_KEY]
-            app = cherrypy.request.app.root.app
-            token = app.backendLogin(cherrypy.request.login, None)
+
+            # token = app.backendLogin(cherrypy.request.login, None)
             authenticated = True
-            logger.debug("Authenticated with session: %s / %s", this_session, token)
+            # logger.debug("Authenticated with session: %s / %s", this_session, token)
 
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
@@ -74,14 +78,11 @@ def protect(*args, **kwargs):
                 ah = httpauth.parseAuthorization(authorization)
 
                 # Get module application from cherrypy request
-                app = cherrypy.request.app.root.app
                 logger.info("Requesting login for %s@%s...",
                             ah['username'], cherrypy.request.remote.ip)
-                token = app.backendLogin(ah['username'], ah['password'])
+                token = app.backend_token(username=ah['username'], password=ah['password'])
                 if token:
-
                     cherrypy.session.regenerate()
-
                     # This line of code is discussed in doc/sessions-and-auth.markdown
                     cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
                     authenticated = True
@@ -91,10 +92,12 @@ def protect(*args, **kwargs):
                                    cherrypy.request.remote.ip)
             else:
                 logger.warning("Missing authorization header for %s.", cherrypy.request.remote.ip)
+                cherrypy.session[SESSION_KEY] = ''
 
         except:  # pylint: disable=bare-except
             logger.warning("Client %s has no valid session and did not provided "
                            "HTTP Authorization credentials.", cherrypy.request.remote.ip)
+            cherrypy.session[SESSION_KEY] = ''
 
         if authenticated:
             for condition in conditions:
@@ -103,6 +106,8 @@ def protect(*args, **kwargs):
                     raise cherrypy.HTTPError("403 Forbidden")
         else:
             raise cherrypy.HTTPError("401 Unauthorized")
+
+
 cherrypy.tools.wsauth = cherrypy.Tool('before_handler', protect)
 
 
@@ -158,11 +163,10 @@ class WSInterface(object):
             if username is None:
                 return {'_status': 'ERR', '_issues': ['Missing username parameter.']}
 
-        token = self.app.backendLogin(username, password)
-        if token is None:
+        token = self.app.backend_token(username, password)
+        if not token:
             return {'_status': 'ERR', '_issues': ['Access denied.']}
 
-        logger.debug("Backend login, token: %s", token)
         cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
         return {'_status': 'OK', '_result': [token]}
     login.method = 'post'
@@ -270,7 +274,7 @@ class WSInterface(object):
                 name = cherrypy.request.params.get('name', None)
             if not name:
                 return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
-            response = self.app.getHost(name)
+            response = self.app.get_host(name)
             logger.debug("Response: %s", response)
             return response
 
@@ -297,10 +301,10 @@ class WSInterface(object):
             'services': cherrypy.request.json.get('services', None)
         }
 
-        response = self.app.updateHost(name, data)
+        response = self.app.update_host(name, data)
 
         # Specific case where WS client credentials are not authorized
-        if '_issues' in response:
+        if response and '_issues' in response:
             for issue in response['_issues']:
                 if '401 Client Error: UNAUTHORIZED' in issue:
                     logger.debug("Response status code set to 401!")
@@ -332,7 +336,7 @@ class WSInterface(object):
         if cherrypy.request.params.get('embedded', False):
             embedded = cherrypy.request.params.get('embedded')
 
-        response = self.app.getHostsGroup(name, embedded)
+        response = self.app.get_host_group(name, embedded)
         logger.debug("Response: %s", response)
         return response
     hostgroup.method = 'get'
@@ -365,7 +369,7 @@ class WSInterface(object):
             return {'_status': 'ERR', '_issues': ['Missing comment. If you do not have any '
                                                   'comment, do not comment ;)']}
 
-        response = self.app.buildPostComment(host, service, author, comment, timestamp)
+        response = self.app.build_host_comment(host, service, author, comment, timestamp)
         logger.debug("Response: %s", response)
         return response
     event.method = 'post'
@@ -449,6 +453,6 @@ class WSInterface(object):
             # search.update({'where': json.dumps(where)})
             search.update({'where': where})
 
-        response = self.app.getBackendHistory(search)
+        response = self.app.get_backend_history(search)
         logger.debug("Response: %s", response)
         return response

@@ -2415,6 +2415,7 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         self.assertTrue(service['active_checks_enabled'])
         self.assertTrue(service['passive_checks_enabled'])
+
         response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
                                 params={'where': json.dumps({'host': host['_id'],
                                                              'name': 'test_ok_1'})})
@@ -2422,6 +2423,7 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         self.assertFalse(service['active_checks_enabled'])
         self.assertFalse(service['passive_checks_enabled'])
+
         response = requests.get('http://127.0.0.1:5000/service', auth=self.auth,
                                 params={'where': json.dumps({'host': host['_id'],
                                                              'name': 'test_ok_2'})})
@@ -2447,11 +2449,11 @@ class TestModuleWsHost(AlignakTest):
                 {
                     "name": "test_ok_1",
                     "active_checks_enabled": True,
-                    "passive_checks_enabled": False,
+                    "passive_checks_enabled": True,
                 },
                 {
                     "name": "test_ok_2",
-                    "active_checks_enabled": True,
+                    "active_checks_enabled": False,
                     "passive_checks_enabled": True,
                 },
             ]
@@ -2470,16 +2472,19 @@ class TestModuleWsHost(AlignakTest):
                 u'Service test_host_0/test_ok_0 passive checks will be disabled.',
                 u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
                 u"Service 'test_host_0/test_ok_0' updated",
+
                 u'Service test_host_0/test_ok_1 active checks will be enabled.',
                 u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
-                # u'Service test_host_0/test_ok_1 passive checks will be enabled.',
-                # u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                u'Service test_host_0/test_ok_1 passive checks will be enabled.',
+                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
                 u"Service 'test_host_0/test_ok_1' updated",
-                # u'Service test_host_0/test_ok_2 active checks will be disabled.',
-                # u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
-                # u'Service test_host_0/test_ok_2 passive checks will be enabled.',
-                # u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
-                # u"Service 'test_host_0/test_ok_2' updated",
+
+                u'Service test_host_0/test_ok_2 active checks will be disabled.',
+                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                u'Service test_host_0/test_ok_2 passive checks will be enabled.',
+                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                u"Service 'test_host_0/test_ok_2' updated",
+
                 u"Host 'test_host_0' unchanged."
             ]
         })
