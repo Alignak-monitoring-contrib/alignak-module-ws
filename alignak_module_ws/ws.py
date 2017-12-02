@@ -874,21 +874,41 @@ class AlignakWebServices(BaseModule):
         # -----
         # Tag host and services livestate with the current time
         # This will allow to measure the livestate management latency
+        now = time.time()
         if data['livestate']:
             if not isinstance(data['livestate'], list):
                 data['livestate'] = [data['livestate']]
-            now = time.time()
+            last_ts = 0
             for livestate in data['livestate']:
                 livestate['_ws_timestamp'] = now
+                try:
+                    timestamp = int(livestate.get('timestamp', 'ABC'))
+                    if timestamp < last_ts:
+                        logger.warning("Got unordered timestamp for the service: %s/%s. "
+                                       "The Alignak scheduler may not handle the check result!",
+                                       host['name'], host['name'])
+                    last_ts = timestamp
+                except ValueError:
+                    pass
 
         if data['services']:
             for service in data['services']:
                 if 'livestate' in service and service['livestate']:
                     if not isinstance(service['livestate'], list):
                         service['livestate'] = [service['livestate']]
-                    now = time.time()
+                    last_ts = 0
                     for livestate in service['livestate']:
                         livestate['_ws_timestamp'] = now
+                        try:
+                            timestamp = int(livestate.get('timestamp', 'ABC'))
+                            if timestamp < last_ts:
+                                logger.warning("Got unordered timestamp for the service: %s/%s",
+                                               "The Alignak scheduler may not handle "
+                                               "the check result!",
+                                               host['name'], service['name'])
+                            last_ts = timestamp
+                        except ValueError:
+                            pass
         # -----
 
         # Update host livestate

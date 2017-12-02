@@ -401,6 +401,226 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(rl['host_name'], "new_host_0")
         self.assertEqual(rl['last_check'], now)
 
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_livestate_multiple(self):
+        """Test the module /host API - host with multiple livestate
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Send a log_check_result to the alignak backend
+            'alignak_backend_old_lcr': '1',
+            'alignak_backend_get_lcr': '0',
+            'alignak_backend_timeshift': '0',
+            # Do not give feedback data
+            'give_feedback': '0',
+            'give_result': '1',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
+
+            # Allow host/service creation
+            'allow_host_creation': '1',
+            'allow_service_creation': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Alignak backend
+        # ---
+        self.endpoint = 'http://127.0.0.1:5000'
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # get token
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
+
+        session = requests.Session()
+
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # -----
+        # Create a new host with an host livestate (heartbeat / host is alive): livestate
+        data = {
+            "name": "new_host_0",
+            "livestate": {
+                # No timestamp in the livestate
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=1",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_0 is alive :)',
+                u"Requested host 'new_host_0' does not exist.",
+                u"Requested host 'new_host_0' created.",
+                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                u"Host 'new_host_0' updated."
+            ]
+        })
+        # No errors!
+
+        # Get new host in the backend
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'new_host_0'})})
+        resp = response.json()
+        new_host_0 = resp['_items'][0]
+        self.assertEqual('new_host_0', new_host_0['name'])
+
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
+
+
+        # -----
+        # Send an host multiple livestate with different timestamp
+        now = int(time.time()) - 3600
+        data = {
+            "name": "new_host_0",
+            "livestate": [
+                {
+                    "timestamp": now,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                },
+                {
+                    "timestamp": now + 1000,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=2",
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+                u"Host 'new_host_0' updated."
+            ]
+        })
+        # No errors!
+
+        # -----
+        # Send an host multiple livestate with different timestamp (unordered!)
+        now = int(time.time()) - 3600
+        data = {
+            "name": "new_host_0",
+            "livestate": [
+                {
+                    "timestamp": now,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                },
+                {
+                    "timestamp": now - 1000,    # Older than the former one!
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=2",
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+                u"Host 'new_host_0' updated."
+            ]
+        })
+        # No errors!
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
@@ -749,6 +969,259 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(rl['service_name'], "test_empty_0")
         self.assertEqual(rl['last_check'], now)
 
+
+        # Logout
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_service_livestate_multiple(self):
+        """Test the module /host API - service with multiple livestate
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # -----
+        # Provide parameters - logger configuration file (exists)
+        # -----
+        # Clear logs
+        self.clear_logs()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Send a log_check_result to the alignak backend
+            'alignak_backend_old_lcr': '1',
+            # Do not give feedback data
+            'give_feedback': '0',
+            'give_result': '1',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Allow host/service creation
+            'allow_host_creation': '1',
+            'allow_service_creation': '1'
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Alignak backend
+        # ---
+        self.endpoint = 'http://127.0.0.1:5000'
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        # get token
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
+
+        # Do not allow GET request on /host - not authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Request to create an host - create a new host
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "new_host_for_services_0",
+            "template": {
+                "_realm": 'All',
+                "check_command": "_internal_host_up"
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested host 'new_host_for_services_0' does not exist.",
+                u"Requested host 'new_host_for_services_0' created."
+            ]
+        })
+        # No errors!
+
+        # Request to create an host - create a new service without any template data
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "new_host_for_services_0",
+            "services": [
+                {
+                    "name": "test_empty_0",
+                    # "template": {
+                    #     "_realm": 'All',
+                    #     "check_command": "_echo"
+                    # },
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1",
+                    },
+                    "variables": {
+                        'test1': 'string',
+                        'test2': 1,
+                        'test3': 5.0
+                    },
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
+                u"Requested service 'new_host_for_services_0/test_empty_0' created.",
+                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
+                u"Output...|'counter'=1\nLong output...",
+                u"Service 'new_host_for_services_0/test_empty_0' updated",
+            ]
+        })
+        # No errors!
+
+        # Send a service with multiple livestate, ordered timestamps
+        headers = {'Content-Type': 'application/json'}
+        now = int(time.time()) - 3600
+        data = {
+            "name": "new_host_for_services_0",
+            "services": [
+                {
+                    "name": "test_empty_0",
+                    "livestate": [
+                        {
+                            "timestamp": now,
+                            "state": "OK",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1",
+                        },
+                        {
+                            "timestamp": now + 1000,
+                            "state": "OK",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=2",
+                        }
+                    ]
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+                u"Service 'new_host_for_services_0/test_empty_0' updated"
+            ]
+        })
+        # No errors!
+
+        # Send a service with multiple livestate, unordered timestamps
+        headers = {'Content-Type': 'application/json'}
+        now = int(time.time()) - 3600
+        data = {
+            "name": "new_host_for_services_0",
+            "services": [
+                {
+                    "name": "test_empty_0",
+                    "livestate": [
+                        {
+                            "timestamp": now,
+                            "state": "OK",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=1",
+                        },
+                        {
+                            "timestamp": now - 1000,    # Older than the former one!
+                            "state": "OK",
+                            "output": "Output...",
+                            "long_output": "Long output...",
+                            "perf_data": "'counter'=2",
+                        }
+                    ]
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'new_host_for_services_0 is alive :)',
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+                u"Service 'new_host_for_services_0/test_empty_0' updated"
+            ]
+        })
+        # No errors!
 
         # Logout
         response = session.get('http://127.0.0.1:8888/logout')
