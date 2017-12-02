@@ -753,6 +753,9 @@ class AlignakWebServices(BaseModule):
                 if data['active_checks_enabled'] != host['active_checks_enabled']:
                     update = True
 
+                    logger.info("Host active checks state modified '%s': %s -> %s", 
+                                host_name, 
+                                host['active_checks_enabled'], data['active_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -782,6 +785,9 @@ class AlignakWebServices(BaseModule):
                 if data['passive_checks_enabled'] != host['passive_checks_enabled']:
                     update = True
 
+                    logger.info("Host passive checks state modified '%s': %s -> %s", 
+                                host_name, 
+                                host['passive_checks_enabled'], data['passive_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -811,6 +817,9 @@ class AlignakWebServices(BaseModule):
                 if data['check_freshness'] != host['check_freshness']:
                     update = True
 
+                    logger.info("Host freshness checks state modified '%s': %s -> %s", 
+                                host_name, 
+                                host['check_freshness'], data['check_freshness'])
                     # todo: as of Alignak #938, no external command exist
                     # to enable/disable on an host basis
             else:
@@ -1150,6 +1159,9 @@ class AlignakWebServices(BaseModule):
                 if data['active_checks_enabled'] != service['active_checks_enabled']:
                     update = True
 
+                    logger.info("Service active checks state modified '%s/%s': %s -> %s",
+                                host['name'], service_name, 
+                                data['active_checks_enabled'], service['active_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -1179,6 +1191,9 @@ class AlignakWebServices(BaseModule):
                 if data['passive_checks_enabled'] != service['passive_checks_enabled']:
                     update = True
 
+                    logger.info("Service passive checks state modified '%s/%s': %s -> %s",
+                                host['name'], service_name, 
+                                data['passive_checks_enabled'], service['passive_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -1207,9 +1222,12 @@ class AlignakWebServices(BaseModule):
             if isinstance(data['check_freshness'], bool):
                 if update is None:
                     update = False
-                if data['check_freshness'] != host['check_freshness']:
+                if data['check_freshness'] != service['check_freshness']:
                     update = True
 
+                    logger.info("Service freshness check state modified '%s/%s': %s -> %s",
+                                host['name'], service_name,
+                                data['check_freshness'], service['check_freshness'])
                     # todo: as of Alignak #938, no external command exist
                     # to enable/disable on a service basis
             else:
