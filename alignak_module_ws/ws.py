@@ -1509,7 +1509,9 @@ class AlignakWebServices(BaseModule):
 
         if timestamp and timestamp + self.alignak_backend_timeshift < now:
             past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info("Got a check result from the past (%s) for %s...", past, host['name'])
+            logger.info("Got a check result from the past (%s / %d s) for %s...",
+                        past, now - timestamp + self.alignak_backend_timeshift,
+                        host['name'])
 
         parameters = '%s;%s' % (self.host_state_to_id[state], output)
         if long_output and perf_data:
@@ -1539,9 +1541,9 @@ class AlignakWebServices(BaseModule):
         # A passive check with a timestamp older than the host last check data will not be
         # managed by Alignak but we may track this event in the backend log check result
         if timestamp and self.alignak_backend_old_lcr:
-            _ts = time.time()
-            logger.info("Recording a check result from the past (%s) for %s...",
-                        past, host['name'])
+            logger.info("Recording a check result from the past (%s / %d s) for %s...",
+                        past, now - timestamp + self.alignak_backend_timeshift,
+                        host['name'])
             # Assume data are in the host livestate
             data = {
                 "last_check": timestamp or livestate.get('_ws_timestamp', now),
@@ -1595,8 +1597,6 @@ class AlignakWebServices(BaseModule):
             statsmgr.timer('backend-lcr-time.host', time.time() - start)
             if result['_status'] != 'OK':
                 logger.warning("Post logcheckresult, error: %s", result)
-            else:
-                logger.info("Recorded, duration: %s", time.time() - _ts)
 
         return command_line
 
@@ -1630,8 +1630,9 @@ class AlignakWebServices(BaseModule):
 
         if timestamp and timestamp + self.alignak_backend_timeshift < now:
             past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info("Got a check result from the past (%s) for %s/%s...",
-                        past, host['name'], service['name'])
+            logger.info("Got a check result from the past (%s / %d s) for %s/%s...",
+                        past, now - timestamp + self.alignak_backend_timeshift,
+                        host['name'], service['name'])
 
         parameters = '%s;%s' % (self.service_state_to_id[state], output)
         if long_output and perf_data:
@@ -1662,10 +1663,10 @@ class AlignakWebServices(BaseModule):
         # A passive check with a timestamp older than the service last check data will not be
         # managed by Alignak but we may track this event in the backend logcheckresult
         if timestamp and self.alignak_backend_old_lcr:
-            _ts = time.time()
             past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            logger.info("Recording a check result from the past (%s) for %s/%s...",
-                        past, host['name'], service['name'])
+            logger.info("Recording a check result from the past (%s / %d s) for %s/%s...",
+                        past, now - timestamp + self.alignak_backend_timeshift,
+                        host['name'], service['name'])
             # Assume data are in the service livestate
             data = {
                 "last_check": timestamp,
@@ -1719,8 +1720,6 @@ class AlignakWebServices(BaseModule):
             statsmgr.timer('backend-lcr-time.service', time.time() - start)
             if result['_status'] != 'OK':
                 logger.warning("Post logcheckresult, error: %s", result)
-            else:
-                logger.info("Recorded, duration: %s", time.time() - _ts)
 
         return command_line
 
