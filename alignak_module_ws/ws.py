@@ -753,8 +753,8 @@ class AlignakWebServices(BaseModule):
                 if data['active_checks_enabled'] != host['active_checks_enabled']:
                     update = True
 
-                    logger.info("Host active checks state modified '%s': %s -> %s", 
-                                host_name, 
+                    logger.info("Host active checks state modified '%s': %s -> %s",
+                                host_name,
                                 host['active_checks_enabled'], data['active_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
@@ -775,6 +775,8 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                else:
+                    data.pop('active_checks_enabled')
             else:
                 data.pop('active_checks_enabled')
 
@@ -785,8 +787,8 @@ class AlignakWebServices(BaseModule):
                 if data['passive_checks_enabled'] != host['passive_checks_enabled']:
                     update = True
 
-                    logger.info("Host passive checks state modified '%s': %s -> %s", 
-                                host_name, 
+                    logger.info("Host passive checks state modified '%s': %s -> %s",
+                                host_name,
                                 host['passive_checks_enabled'], data['passive_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
@@ -807,6 +809,8 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                else:
+                    data.pop('passive_checks_enabled')
             else:
                 data.pop('passive_checks_enabled')
 
@@ -817,11 +821,13 @@ class AlignakWebServices(BaseModule):
                 if data['check_freshness'] != host['check_freshness']:
                     update = True
 
-                    logger.info("Host freshness checks state modified '%s': %s -> %s", 
-                                host_name, 
+                    logger.info("Host freshness checks state modified '%s': %s -> %s",
+                                host_name,
                                 host['check_freshness'], data['check_freshness'])
                     # todo: as of Alignak #938, no external command exist
                     # to enable/disable on an host basis
+                else:
+                    data.pop('check_freshness')
             else:
                 data.pop('check_freshness')
 
@@ -1160,7 +1166,7 @@ class AlignakWebServices(BaseModule):
                     update = True
 
                     logger.info("Service active checks state modified '%s/%s': %s -> %s",
-                                host['name'], service_name, 
+                                host['name'], service_name,
                                 data['active_checks_enabled'], service['active_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
@@ -1181,6 +1187,8 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                else:
+                    data.pop('active_checks_enabled')
             else:
                 data.pop('active_checks_enabled')
 
@@ -1192,7 +1200,7 @@ class AlignakWebServices(BaseModule):
                     update = True
 
                     logger.info("Service passive checks state modified '%s/%s': %s -> %s",
-                                host['name'], service_name, 
+                                host['name'], service_name,
                                 data['passive_checks_enabled'], service['passive_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
@@ -1215,6 +1223,8 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                else:
+                    data.pop('passive_checks_enabled')
             else:
                 data.pop('passive_checks_enabled')
 
@@ -1230,6 +1240,8 @@ class AlignakWebServices(BaseModule):
                                 data['check_freshness'], service['check_freshness'])
                     # todo: as of Alignak #938, no external command exist
                     # to enable/disable on a service basis
+                else:
+                    data.pop('check_freshness')
             else:
                 data.pop('check_freshness')
 
