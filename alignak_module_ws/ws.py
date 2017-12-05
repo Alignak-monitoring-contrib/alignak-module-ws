@@ -42,7 +42,7 @@ from alignak_backend_client.client import Backend, BackendException, HTTPError
 from alignak.objects.module import Module
 from alignak.modulesmanager import ModulesManager
 
-from alignak.stats import statsmgr
+from alignak.stats import Stats
 
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
@@ -296,11 +296,12 @@ class AlignakWebServices(BaseModule):
                     int(getattr(mod_conf, 'statsd_port', '8125')),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
                     (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
-        statsmgr.register(self.alias, 'module',
-                          statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                          statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
-                          statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                          statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+        self.statsmgr = Stats()
+        self.statsmgr.register(self.alias, 'module',
+                               statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
+                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
+                               statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
+                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
 
         # Count received commands
         self.received_commands = 0
@@ -572,8 +573,8 @@ class AlignakWebServices(BaseModule):
             logger.debug("Get hostgroup, parameters: %s", search)
             start = time.time()
             result = backend.get_all('hostgroup', params=search)
-            statsmgr.counter('backend-getall.hostgroup', 1)
-            statsmgr.timer('backend-getall-time.hostgroup', time.time() - start)
+            self.statsmgr.counter('backend-getall.hostgroup', 1)
+            self.statsmgr.timer('backend-getall-time.hostgroup', time.time() - start)
             logger.debug("Get hostgroup, got: %s", result)
             if not result['_items']:
                 ws_result['_status'] = 'ERR'
@@ -644,8 +645,8 @@ class AlignakWebServices(BaseModule):
             logger.debug("Get host, parameters: %s", search)
             start = time.time()
             result = backend.get_all('host', params=search)
-            statsmgr.counter('backend-getall.host', 1)
-            statsmgr.timer('backend-getall-time.host', time.time() - start)
+            self.statsmgr.counter('backend-getall.host', 1)
+            self.statsmgr.timer('backend-getall-time.host', time.time() - start)
             logger.debug("Get host, got: %s", result)
             if not result['_items']:
                 ws_result['_status'] = 'ERR'
@@ -689,8 +690,8 @@ class AlignakWebServices(BaseModule):
         try:
             start = time.time()
             result = backend.get('/host', {'where': json.dumps({'name': host_name})})
-            statsmgr.counter('backend-get.host', 1)
-            statsmgr.timer('backend-get-time.host', time.time() - start)
+            self.statsmgr.counter('backend-get.host', 1)
+            self.statsmgr.timer('backend-get-time.host', time.time() - start)
             logger.debug("Get host, got: %s", result)
             if not result['_items']:
                 if not self.allow_host_creation:
@@ -719,8 +720,8 @@ class AlignakWebServices(BaseModule):
                 logger.debug("Post host, data: %s", post_data)
                 start = time.time()
                 result = backend.post('host', data=post_data)
-                statsmgr.counter('backend-post.host', 1)
-                statsmgr.timer('backend-post-time.host', time.time() - start)
+                self.statsmgr.counter('backend-post.host', 1)
+                self.statsmgr.timer('backend-post-time.host', time.time() - start)
                 logger.debug("Post host, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post host, error: %s", result)
@@ -736,7 +737,7 @@ class AlignakWebServices(BaseModule):
                 host = backend.get('/'.join(['host', result['_id']]))
                 logger.debug("Get host, got: %s", host)
                 logger.info("Created a new host: %s", host_name)
-                statsmgr.counter('host-created', 1)
+                self.statsmgr.counter('host-created', 1)
                 host_created = True
             else:
                 host = result['_items'][0]
@@ -927,7 +928,7 @@ class AlignakWebServices(BaseModule):
                         ws_result['_issues'].append("Host state must be UP, DOWN or UNREACHABLE"
                                                     ", and not '%s'." % (state))
                     else:
-                        statsmgr.counter('host-livestate', 1)
+                        self.statsmgr.counter('host-livestate', 1)
                         # Update the host live state
                         if self.alignak_backend_livestate_update:
                             update = True
@@ -954,8 +955,8 @@ class AlignakWebServices(BaseModule):
             try:
                 start = time.time()
                 result = backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
-                statsmgr.counter('backend-getall.service', 1)
-                statsmgr.timer('backend-getall-time.service', time.time() - start)
+                self.statsmgr.counter('backend-getall.service', 1)
+                self.statsmgr.timer('backend-getall-time.service', time.time() - start)
                 logger.debug("Get host services, got: %s", result)
                 if not result['_items']:
                     if not self.allow_service_creation:
@@ -998,7 +999,7 @@ class AlignakWebServices(BaseModule):
                 if not self.give_feedback and '_feedback' in ws_result:
                     ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
-                statsmgr.counter('host-livestate-error', 1)
+                self.statsmgr.counter('host-livestate-error', 1)
                 return ws_result
 
             if self.give_feedback:
@@ -1018,7 +1019,7 @@ class AlignakWebServices(BaseModule):
 
             ws_result.pop('_issues')
             logger.debug("Result: %s", ws_result)
-            statsmgr.counter('host-livestate-only', 1)
+            self.statsmgr.counter('host-livestate-only', 1)
             return ws_result
 
         # If no update needed
@@ -1031,7 +1032,7 @@ class AlignakWebServices(BaseModule):
                 if not self.give_feedback and '_feedback' in ws_result:
                     ws_result.pop('_feedback')
                 ws_result['_status'] = 'ERR'
-                statsmgr.counter('host-no_update-error', 1)
+                self.statsmgr.counter('host-no_update-error', 1)
                 return ws_result
 
             if self.give_feedback:
@@ -1051,7 +1052,7 @@ class AlignakWebServices(BaseModule):
 
             ws_result.pop('_issues')
             logger.debug("Result: %s", ws_result)
-            statsmgr.counter('host-no_update-only', 1)
+            self.statsmgr.counter('host-no_update-only', 1)
             return ws_result
 
         # Clean data to be posted
@@ -1070,8 +1071,8 @@ class AlignakWebServices(BaseModule):
             start = time.time()
             patch_result = backend.patch('/'.join(['host', host['_id']]),
                                          data=data, headers=headers, inception=True)
-            statsmgr.counter('backend-patch.host', 1)
-            statsmgr.timer('backend-patch-time.host', time.time() - start)
+            self.statsmgr.counter('backend-patch.host', 1)
+            self.statsmgr.timer('backend-patch-time.host', time.time() - start)
             logger.debug("Backend patch, result: %s", patch_result)
             if patch_result['_status'] != 'OK':
                 logger.warning("Host patch, got a problem: %s", result)
@@ -1149,8 +1150,8 @@ class AlignakWebServices(BaseModule):
                 logger.debug("Post service, data: %s", post_data)
                 start = time.time()
                 result = backend.post('service', data=post_data)
-                statsmgr.counter('backend-post.service', 1)
-                statsmgr.timer('backend-post-time.service', time.time() - start)
+                self.statsmgr.counter('backend-post.service', 1)
+                self.statsmgr.timer('backend-post-time.service', time.time() - start)
                 logger.debug("Post service, response: %s", result)
                 if result['_status'] != 'OK':
                     logger.warning("Post service, error: %s", result)
@@ -1164,7 +1165,7 @@ class AlignakWebServices(BaseModule):
                                             % (host['name'], service_name))
                 service = backend.get('/'.join(['service', result['_id']]))
                 logger.debug("Get service, got: %s", service)
-                statsmgr.counter('service-created', 1)
+                self.statsmgr.counter('service-created', 1)
             else:
                 for s in services:
                     if s['name'] == service_name:
@@ -1194,7 +1195,7 @@ class AlignakWebServices(BaseModule):
 
                     logger.info("Service active checks state modified '%s/%s': %s -> %s",
                                 host['name'], service_name,
-                                data['active_checks_enabled'], service['active_checks_enabled'])
+                                service['active_checks_enabled'], data['active_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -1228,7 +1229,7 @@ class AlignakWebServices(BaseModule):
 
                     logger.info("Service passive checks state modified '%s/%s': %s -> %s",
                                 host['name'], service_name,
-                                data['passive_checks_enabled'], service['passive_checks_enabled'])
+                                service['passive_checks_enabled'], data['passive_checks_enabled'])
                     # Except when an host just got created...
                     if not host_created:
                         # todo: perharps this command is not useful
@@ -1264,7 +1265,7 @@ class AlignakWebServices(BaseModule):
 
                     logger.info("Service freshness check state modified '%s/%s': %s -> %s",
                                 host['name'], service_name,
-                                data['check_freshness'], service['check_freshness'])
+                                service['check_freshness'], data['check_freshness'])
                     # todo: as of Alignak #938, no external command exist
                     # to enable/disable on a service basis
                 else:
@@ -1326,7 +1327,7 @@ class AlignakWebServices(BaseModule):
                                                     "CRITICAL, UNKNOWN or UNREACHABLE, and not %s."
                                                     % (service_name, state))
                     else:
-                        statsmgr.counter('service-livestate', 1)
+                        self.statsmgr.counter('service-livestate', 1)
                         # Update the service live state
                         if self.alignak_backend_livestate_update:
                             update = True
@@ -1351,7 +1352,7 @@ class AlignakWebServices(BaseModule):
             # Simple service alive without any required update
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
-                statsmgr.counter('service-livestate-error', 1)
+                self.statsmgr.counter('service-livestate-error', 1)
                 return ws_result
 
             if self.give_feedback > 1:
@@ -1367,7 +1368,7 @@ class AlignakWebServices(BaseModule):
                     ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
-            statsmgr.counter('service-livestate-only', 1)
+            self.statsmgr.counter('service-livestate-only', 1)
             return ws_result
 
         # If no update needed
@@ -1379,7 +1380,7 @@ class AlignakWebServices(BaseModule):
                                         % (host['name'], service_name))
             if ws_result['_issues']:
                 ws_result['_status'] = 'ERR'
-                statsmgr.counter('service-no_update-error', 1)
+                self.statsmgr.counter('service-no_update-error', 1)
                 return ws_result
 
             if self.give_feedback > 1:
@@ -1395,7 +1396,7 @@ class AlignakWebServices(BaseModule):
                     ws_result.pop('_feedback')
 
             ws_result.pop('_issues')
-            statsmgr.counter('service-no_update-only', 1)
+            self.statsmgr.counter('service-no_update-only', 1)
             return ws_result
 
         # Clean data to be posted
@@ -1412,8 +1413,8 @@ class AlignakWebServices(BaseModule):
             start = time.time()
             patch_result = backend.patch('/'.join(['service', service['_id']]),
                                          data=data, headers=headers, inception=True)
-            statsmgr.counter('backend-patch.service', 1)
-            statsmgr.timer('backend-patch-time.service', time.time() - start)
+            self.statsmgr.counter('backend-patch.service', 1)
+            self.statsmgr.timer('backend-patch-time.service', time.time() - start)
             logger.debug("Backend patch, result: %s", patch_result)
             if patch_result['_status'] != 'OK':
                 logger.warning("Service patch, got a problem: %s", result)
@@ -1562,7 +1563,7 @@ class AlignakWebServices(BaseModule):
             logger.debug("Sent command: %s", command_line)
 
         now = time.time()
-        statsmgr.timer('host-livestate-time', now - livestate.get('_ws_timestamp', now))
+        self.statsmgr.timer('host-livestate-time', now - livestate.get('_ws_timestamp', now))
 
         # -------------------------------------------
         # Add a check result for an host if we got a timestamp in the past
@@ -1602,8 +1603,8 @@ class AlignakWebServices(BaseModule):
                                       'where': json.dumps({
                                           'host_name': host['name'],
                                           'last_check': {"$lte": timestamp}})})
-                statsmgr.counter('backend-get.lcr', 1)
-                statsmgr.timer('backend-get-time.lcr', time.time() - start)
+                self.statsmgr.counter('backend-get.lcr', 1)
+                self.statsmgr.timer('backend-get-time.lcr', time.time() - start)
                 logger.debug("Get logcheckresult, got: %s", result)
                 if result['_items']:
                     lcr = result['_items'][0]
@@ -1621,8 +1622,8 @@ class AlignakWebServices(BaseModule):
 
             start = time.time()
             result = backend.post('logcheckresult', data)
-            statsmgr.counter('backend-lcr.host', 1)
-            statsmgr.timer('backend-lcr-time.host', time.time() - start)
+            self.statsmgr.counter('backend-lcr.host', 1)
+            self.statsmgr.timer('backend-lcr-time.host', time.time() - start)
             if result['_status'] != 'OK':
                 logger.warning("Post logcheckresult, error: %s", result)
 
@@ -1684,7 +1685,7 @@ class AlignakWebServices(BaseModule):
             logger.debug("Sent command: %s", command_line)
 
         now = time.time()
-        statsmgr.timer('service-livestate-time', now - livestate.get('_ws_timestamp', now))
+        self.statsmgr.timer('service-livestate-time', now - livestate.get('_ws_timestamp', now))
 
         # -------------------------------------------
         # Add a check result for a service if we got a timestamp in the past
@@ -1724,8 +1725,8 @@ class AlignakWebServices(BaseModule):
                     'where': json.dumps({'host_name': host['name'],
                                          'service_name': service['name'],
                                          'last_check': {"$lte": timestamp}})})
-                statsmgr.counter('backend-get.lcr', 1)
-                statsmgr.timer('backend-get-time.lcr', time.time() - start)
+                self.statsmgr.counter('backend-get.lcr', 1)
+                self.statsmgr.timer('backend-get-time.lcr', time.time() - start)
                 if self.alignak_backend_old_lcr:
                     logger.debug("Get logcheckresult, got: %s", result)
                     if result['_items']:
@@ -1744,8 +1745,8 @@ class AlignakWebServices(BaseModule):
 
             start = time.time()
             result = backend.post('/logcheckresult', data)
-            statsmgr.counter('backend-lcr.service', 1)
-            statsmgr.timer('backend-lcr-time.service', time.time() - start)
+            self.statsmgr.counter('backend-lcr.service', 1)
+            self.statsmgr.timer('backend-lcr-time.service', time.time() - start)
             if result['_status'] != 'OK':
                 logger.warning("Post logcheckresult, error: %s", result)
 
