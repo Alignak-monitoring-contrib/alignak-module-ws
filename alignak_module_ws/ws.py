@@ -176,7 +176,7 @@ class AlignakWebServices(BaseModule):
         self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
         self.alignak_backend_livestate_update = getattr(mod_conf,
                                                         'alignak_backend_livestate_update',
-                                                        '1') == '1'
+                                                        '1') == '0'
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -890,9 +890,9 @@ class AlignakWebServices(BaseModule):
                 try:
                     timestamp = int(livestate.get('timestamp', 'ABC'))
                     if timestamp < last_ts:
-                        logger.warning("Got unordered timestamp for the service: %s/%s. "
+                        logger.warning("Got unordered timestamp for the host: %s. "
                                        "The Alignak scheduler may not handle the check result!",
-                                       host['name'], host['name'])
+                                       host['name'])
                     last_ts = timestamp
                 except ValueError:
                     pass
@@ -1570,6 +1570,7 @@ class AlignakWebServices(BaseModule):
         # A passive check with a timestamp older than the host last check data will not be
         # managed by Alignak but we may track this event in the backend log check result
         if timestamp and self.alignak_backend_old_lcr:
+            past = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
             logger.info("Recording a check result from the past (%s / %d s) for %s...",
                         past, now - timestamp + self.alignak_backend_timeshift,
                         host['name'])
