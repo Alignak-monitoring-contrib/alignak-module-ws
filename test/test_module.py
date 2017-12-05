@@ -335,8 +335,8 @@ class TestModuleWs(AlignakTest):
 
         self.assert_log_match("Request external process to stop for web-services", 9)
         self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), 10)
-        self.assert_log_match(
-            re.escape("'web-services' is still alive after normal kill, I help it to die"), 11
+        self.assert_log_match(re.escape("'web-services' is still alive after normal kill "
+                                        "and 60 seconds waiting, I help it to die"), 11
         )
         self.assert_log_match("Killing external module ", 12)
         self.assert_log_match("External module killed", 13)

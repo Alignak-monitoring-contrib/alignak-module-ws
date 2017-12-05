@@ -930,7 +930,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         self.statsmgr.counter('host-livestate', 1)
                         # Update the host live state
-                        if self.alignak_backend_livestate_update:
+                        if self.alignak_backend_livestate_update or host_created:
                             update = True
                             data['ls_state'] = livestate.get('state', 'UP').upper()
                             data['ls_state_id'] = self.host_state_to_id[data['ls_state']]
@@ -1329,7 +1329,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         self.statsmgr.counter('service-livestate', 1)
                         # Update the service live state
-                        if self.alignak_backend_livestate_update:
+                        if self.alignak_backend_livestate_update or host_created:
                             update = True
                             data['ls_state'] = livestate.get('state', 'OK').upper()
                             data['ls_state_id'] = self.service_state_to_id[data['ls_state']]

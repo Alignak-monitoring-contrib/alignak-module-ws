@@ -207,7 +207,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'log_error': '/tmp/alignak-module-ws-error.log',
             # Allow host/service creation
             'allow_host_creation': '1',
-            'allow_service_creation': '1'
+            'allow_service_creation': '1',
+            # Force Alignak backend update by the module (default is not force!)
+            'alignak_backend_livestate_update': '1'
         })
 
         # Create the modules manager for a daemon type

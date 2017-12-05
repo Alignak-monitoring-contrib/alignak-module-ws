@@ -187,7 +187,9 @@ class TestModuleWsHostLivestate(AlignakTest):
 
             # Allow host/service creation
             'allow_host_creation': '1',
-            'allow_service_creation': '1'
+            'allow_service_creation': '1',
+            # Force Alignak backend update by the module (default is not force!)
+            'alignak_backend_livestate_update': '1'
         })
 
         # Create the modules manager for a daemon type
@@ -308,7 +310,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_0' updated."
+                # u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -343,7 +345,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' updated."
+                # u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -383,7 +385,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' updated."
+                # u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -578,7 +580,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
                 u"Output...|'counter'=2\nLong output..." % (now + 1000),
-                u"Host 'new_host_0' updated."
+                # u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -617,7 +619,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;"
                 u"Output...|'counter'=2\nLong output..." % (now - 1000),
-                u"Host 'new_host_0' updated."
+                # u"Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -851,7 +853,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_empty_0' updated"
+                # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -905,7 +907,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'new_host_for_services_0/test_empty_0' updated"
+                # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -951,7 +953,7 @@ class TestModuleWsHostLivestate(AlignakTest):
             u'_result': [
                 u'new_host_for_services_0 is alive :)',
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Service 'new_host_for_services_0/test_empty_0' updated"
+                # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -1174,7 +1176,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
                 u"Output...|'counter'=2\nLong output..." % (now + 1000),
-                u"Service 'new_host_for_services_0/test_empty_0' updated"
+                # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
@@ -1218,7 +1220,7 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;"
                 u"Output...|'counter'=2\nLong output..." % (now - 1000),
-                u"Service 'new_host_for_services_0/test_empty_0' updated"
+                # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
         # No errors!
