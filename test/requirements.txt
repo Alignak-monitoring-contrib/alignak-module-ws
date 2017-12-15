@@ -10,6 +10,7 @@
 -e git+https://github.com/Alignak-monitoring-contrib/alignak-backend-import.git@develop#egg=alignak-backend-import
 
 unittest2
+requests_mock
 
 # Tests time freeze
 freezegun

@@ -78,8 +78,8 @@ def protect(*args, **kwargs):
                 ah = httpauth.parseAuthorization(authorization)
 
                 # Get module application from cherrypy request
-                logger.info("Requesting login for %s@%s...",
-                            ah['username'], cherrypy.request.remote.ip)
+                logger.debug("Requesting login for %s@%s...",
+                             ah['username'], cherrypy.request.remote.ip)
                 token = app.backend_token(username=ah['username'], password=ah['password'])
                 if token:
                     cherrypy.session.regenerate()

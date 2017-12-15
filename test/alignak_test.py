@@ -146,7 +146,6 @@ class CollectorHandler(Handler):
 
 class AlignakTest(unittest.TestCase):
 
-    time_hacker = TimeHacker()
     maxDiff = None
 
     if sys.version_info < (2, 7):
@@ -894,9 +893,6 @@ class AlignakTest(unittest.TestCase):
 
 
 ShinkenTest = AlignakTest
-
-# Time hacking for every test!
-time_hacker = AlignakTest.time_hacker
 
 if __name__ == '__main__':
     unittest.main()

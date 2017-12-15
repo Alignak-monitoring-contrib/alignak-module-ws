@@ -33,7 +33,7 @@ import requests
 
 from pprint import pprint
 
-from alignak_test import AlignakTest, time_hacker
+from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule

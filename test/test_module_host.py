@@ -33,7 +33,7 @@ import subprocess
 
 import requests
 
-from alignak_test import AlignakTest, time_hacker
+from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -867,6 +867,9 @@ class TestModuleWsHost(AlignakTest):
             'set_timestamp': '1',
             # No feedback
             'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -1408,6 +1411,9 @@ class TestModuleWsHost(AlignakTest):
             'give_result': '1',
             # No feedback
             'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -1682,6 +1688,9 @@ class TestModuleWsHost(AlignakTest):
             'give_result': '1',
             # No feedback
             'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -2064,6 +2073,9 @@ class TestModuleWsHost(AlignakTest):
             'give_feedback': '0',
             # Give result data
             'give_result': '1',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -2516,6 +2528,9 @@ class TestModuleWsHost(AlignakTest):
             'give_feedback': '0',
             # Give result data
             'give_result': '1',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -2745,6 +2760,9 @@ class TestModuleWsHost(AlignakTest):
             'give_feedback': '0',
             # Do not give result data
             'give_result': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
             'ignore_unknown_service': '0',
@@ -2922,6 +2940,12 @@ class TestModuleWsHost(AlignakTest):
             'give_feedback': '0',
             # Do not give result data
             'give_result': '1',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
             # Ignore unknown host/service
             'ignore_unknown_host': '1',
             'ignore_unknown_service': '1',

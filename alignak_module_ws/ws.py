@@ -36,7 +36,7 @@ import Queue
 import requests
 import cherrypy
 
-from alignak_backend_client.client import Backend, BackendException, HTTPError
+from alignak_backend_client.client import Backend, BackendException
 
 # Used for the main function to run module independently
 from alignak.objects.module import Module
@@ -1143,6 +1143,11 @@ class AlignakWebServices(BaseModule):
 
                 if 'template' not in data:
                     data['template'] = None
+
+                # Change Realm case
+                if data['template'] and '_realm' in data['template']:
+                    if data['template']['_realm'] != 'All':
+                        data['template']['_realm'] = data['template']['_realm'].upper()
 
                 # Request data for service creation
                 post_data = self.backend_creation_data(host['name'], service_name, data['template'])

@@ -34,7 +34,7 @@ import requests
 import datetime
 from freezegun import freeze_time
 
-from alignak_test import AlignakTest, time_hacker
+from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
