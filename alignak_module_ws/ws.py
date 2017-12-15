@@ -116,7 +116,7 @@ class AlignakWebServices(BaseModule):
         logger.debug("loaded into: %s", self.loaded_into)
 
         # Allow host/service creation
-        self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '0') == '1'
+        self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '1') == '1'
         logger.info("Alignak host creation allowed: %s", self.allow_host_creation)
         self.ignore_unknown_host = getattr(mod_conf, 'ignore_unknown_host', '0') == '1'
         logger.info("Alignak unknown host is ignored: %s", self.ignore_unknown_host)
