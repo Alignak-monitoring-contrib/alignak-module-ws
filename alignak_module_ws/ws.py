@@ -34,9 +34,10 @@ import logging
 import threading
 import Queue
 import requests
+from requests import HTTPError
 import cherrypy
 
-from alignak_backend_client.client import Backend, BackendException, HTTPError
+from alignak_backend_client.client import Backend, BackendException
 
 # Used for the main function to run module independently
 from alignak.objects.module import Module
@@ -293,14 +294,14 @@ class AlignakWebServices(BaseModule):
 
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
-                    int(getattr(mod_conf, 'statsd_port', '8125')),
+                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
                     (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
-                               statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
+                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
+                               statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak.modules'),
                                statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
 
         # Count received commands
