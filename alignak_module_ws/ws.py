@@ -293,13 +293,13 @@ class AlignakWebServices(BaseModule):
 
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
-                    int(getattr(mod_conf, 'statsd_port', '8125')),
+                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
                     (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
+                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                                statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
                                statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
 
