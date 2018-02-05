@@ -36,7 +36,7 @@ import logging
 
 import requests
 
-from alignak_test import AlignakTest, time_hacker
+from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -86,7 +86,7 @@ class TestModuleWs(AlignakTest):
 
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
-            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
+            shlex.split('alignak-backend-import --delete -u admin -p admin %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
@@ -183,8 +183,6 @@ class TestModuleWs(AlignakTest):
         self.print_header()
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
-
-        time_hacker.set_real_time()
 
         # Create an Alignak module
         mod = Module({
@@ -372,7 +370,7 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("Alignak host creation allowed: False"), 1)
+            re.escape("Alignak host creation allowed: True"), 1)
         self.assert_log_match(
             re.escape("Alignak unknown host is ignored: False"), 2)
         self.assert_log_match(
@@ -460,7 +458,7 @@ class TestModuleWs(AlignakTest):
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), 0)
         self.assert_log_match(
-            re.escape("Alignak host creation allowed: False"), 1)
+            re.escape("Alignak host creation allowed: True"), 1)
         self.assert_log_match(
             re.escape("Alignak unknown host is ignored: False"), 2)
         self.assert_log_match(
@@ -912,11 +910,16 @@ class TestModuleWs(AlignakTest):
         response = requests.patch('http://127.0.0.1:8888/host', json=data, headers=headers, auth=auth)
         result = response.json()
         self.assertEqual(response.status_code, 401)
+        print(result)
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_issues': [
-                u"Alignak backend error. Exception, updateHost: Backend error code 1003: Backend HTTPError: <class 'requests.exceptions.HTTPError'> / 401 Client Error: UNAUTHORIZED for url: http://127.0.0.1:5000/host?where=%7B%22name%22%3A+%22new_host_1%22%7D, response: None",
-                u'Alignak backend error. Response: None'
+                u'Alignak backend error. Exception, updateHost: BackendException raised '
+                u'with code 401 and message: 401 Client Error: UNAUTHORIZED for url:'
+                u' http://127.0.0.1:5000/host?where=%7B%22name%22%3A+%22new_host_1%22%7D'
+                u' - <Response [401]>',
+                u'Alignak backend error. Response: <Response [401]>'
+                # u'Alignak backend error. Response: <Response [401]>'
             ],
             u'_result': [
                 u'new_host_1 is alive :)',
