@@ -288,18 +288,18 @@ class AlignakWebServices(BaseModule):
         # Daemon properties that we are interested in
         self.daemon_properties = ['address', 'port', 'spare', 'is_sent',
                                   'realm_name', 'manage_sub_realms', 'manage_arbiters',
-                                  'alive', 'passive', 'reachable', 'last_check',
-                                  'check_interval', 'polling_interval', 'max_check_attempts']
+                                  'active', 'reachable', 'alive', 'passive',
+                                  'last_check', 'polling_interval', 'max_check_attempts']
 
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
-                    int(getattr(mod_conf, 'statsd_port', '8125')),
+                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
                     (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125')),
+                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                                statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
                                statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
 
@@ -1942,7 +1942,7 @@ class AlignakWebServices(BaseModule):
                         for prop in self.daemon_properties:
                             try:
                                 self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
-                            except ValueError:
+                            except (ValueError, KeyError):
                                 self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
                 time.sleep(0.1)
 
