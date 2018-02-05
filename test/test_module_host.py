@@ -2943,9 +2943,6 @@ class TestModuleWsHost(AlignakTest):
             # Do not allow host/service creation
             'allow_host_creation': '0',
             'allow_service_creation': '0',
-            # Do not allow host/service creation
-            'allow_host_creation': '0',
-            'allow_service_creation': '0',
             # Ignore unknown host/service
             'ignore_unknown_host': '1',
             'ignore_unknown_service': '1',
