@@ -26,6 +26,8 @@ import os
 import time
 import json
 
+import pytest
+
 from freezegun import freeze_time
 
 import shlex
@@ -2049,6 +2051,7 @@ class TestModuleWsHost(AlignakTest):
 
         self.modulemanager.stop_all()
 
+    @pytest.mark.skip("Disabled feature - no more backend host update for passive/active checks")
     def test_module_zzz_host_enable_disable(self):
         """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
