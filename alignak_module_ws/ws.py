@@ -812,7 +812,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
-                            logger.info("Update host variable: %s = %s", prop, value)
+                            logger.info("Update host %s variable: %s = %s", host_name, prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs

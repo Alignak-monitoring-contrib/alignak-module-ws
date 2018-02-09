@@ -61,6 +61,7 @@ class TestModuleWsHost(AlignakTest):
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
         os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-host'
+        os.environ['ALIGNAK_BACKEND_CONFIGURATION_FILE'] = './cfg/backend/settings.json'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -69,6 +70,9 @@ class TestModuleWsHost(AlignakTest):
                 'mongo %s --eval "db.dropDatabase()"' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
         )
         assert exit_code == 0
+
+        if os.path.exists('/tmp/alignak-backend_%s.log' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME']):
+            os.remove('/tmp/alignak-backend_%s.log' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
 
         fnull = open(os.devnull, 'w')
         cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
@@ -2499,6 +2503,219 @@ class TestModuleWsHost(AlignakTest):
             ]
         })
 
+        response = session.get('http://127.0.0.1:8888/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_passive_active(self):
+        """Test the module /host API - enable / disable active / passive checks - manage unchanged
+        :return:
+        """
+        self.print_header()
+        # Obliged to call to get a self.logger...
+        self.setup_with_file('cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # No feedback
+            'give_feedback': '1',
+            'feedback_host': 'active_checks_enabled,check_interval,passive_checks_enabled,freshness_threshold',
+            # Give result data
+            'give_result': '1',
+            # Do not allow host/service creation
+            'allow_host_creation': '1',
+            'allow_service_creation': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        })
+
+        # Create the modules manager for a daemon type
+        self.modulemanager = ModulesManager('receiver', None)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm backend update
+        # ---
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        dummy_host = resp['_items'][0]
+        # ---
+
+        # Do not allow GET request on /host - not yet authorized
+        response = requests.get('http://127.0.0.1:8888/host')
+        self.assertEqual(response.status_code, 401)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # 1 - Request to create an host - with some specific properties
+        data = {
+            "name": "a_very_new_host",
+            "template": {
+                "active_checks_enabled": "1",
+                "passive_checks_enabled": "1",
+                "freshness_threshold": 120,
+                "check_freshness": "1",
+                "alias": "My very new host ...",
+                "check_period": "24x7"
+            }
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'a_very_new_host is alive :)',
+                u"Requested host 'a_very_new_host' does not exist.",
+                u"Requested host 'a_very_new_host' created."
+            ],
+            u'_feedback': {
+                u'name': u'a_very_new_host',
+                u'passive_checks_enabled': True,
+                u'active_checks_enabled': True,
+                u'check_interval': 5,
+                u'freshness_threshold': 120
+            }
+        })
+
+        # Get new host to confirm creation
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'a_very_new_host'})})
+        resp = response.json()
+        new_host_1 = resp['_items'][0]
+        self.assertEqual('a_very_new_host', new_host_1['name'])
+        self.assertEqual(new_host_1['alias'], u"My very new host ...")
+        self.assertNotEqual(new_host_1['check_period'], None)
+        self.assertEqual(self.realmAll_id, new_host_1['_realm'])
+
+        self.assertEqual(True, new_host_1['passive_checks_enabled'])
+        self.assertEqual(True, new_host_1['active_checks_enabled'])
+        self.assertEqual(5, new_host_1['check_interval'])
+        self.assertEqual(120, new_host_1['freshness_threshold'])
+
+        # 2 - Simple host heartbeat - nothing special to report ;)
+        data = {
+            "name": "a_very_new_host"
+        }
+        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'a_very_new_host is alive :)'],
+            u'_feedback': {
+                u'name': u'a_very_new_host',
+                u'passive_checks_enabled': True,
+                u'active_checks_enabled': True,
+                u'check_interval': 5,
+                u'freshness_threshold': 120
+            }
+        })
+
+
+        # 3 - host configuration changes in Alignak
+        # Update hosts's parameters
+        headers = {'Content-Type': 'application/json', 'If-Match': new_host_1['_etag']}
+        data = {
+            'passive_checks_enabled': False,
+            'active_checks_enabled': False,
+            "freshness_threshold": 360
+        }
+        resp = requests.patch(self.endpoint + '/host/' + new_host_1['_id'],
+                              json=data, headers=headers, auth=self.auth)
+        resp = resp.json()
+        assert resp['_status'] == 'OK'
+
+        # Host heartbeat
+        response = session.patch('http://127.0.0.1:8888/host/a_very_new_host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'a_very_new_host is alive :)'],
+            u'_feedback': {
+                u'name': u'a_very_new_host',
+                u'passive_checks_enabled': False,
+                u'active_checks_enabled': False,
+                u'check_interval': 5,
+                u'freshness_threshold': 360
+            }
+        })
+        # Response contains host backend data
+
+        # Host heartbeat with configuration data
+        data = {
+            "active_checks_enabled": "1",
+            "passive_checks_enabled": "1",
+            "freshness_threshold": 120
+        }
+        response = session.patch('http://127.0.0.1:8888/host/a_very_new_host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [u'a_very_new_host is alive :)'],
+            u'_feedback': {
+                u'name': u'a_very_new_host',
+                u'passive_checks_enabled': False,
+                u'active_checks_enabled': False,
+                u'check_interval': 5,
+                u'freshness_threshold': 360
+            }
+        })
+        # Response always contains host backend data!
+        # Host is data-slave for the host configuration !
+
+        # Logout
         response = session.get('http://127.0.0.1:8888/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
