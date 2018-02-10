@@ -755,87 +755,27 @@ class AlignakWebServices(BaseModule):
         # Update host check state
         if 'active_checks_enabled' in data:
             if isinstance(data['active_checks_enabled'], bool):
-                update = False
                 if data['active_checks_enabled'] != host['active_checks_enabled']:
-                    update = True
-
-                    logger.info("Host active checks state modified '%s': %s -> %s",
+                    logger.info("Host active checks state is different '%s': %s -> %s",
                                 host_name,
                                 host['active_checks_enabled'], data['active_checks_enabled'])
-                    # Except when an host just got created...
-                    if not host_created:
-                        # todo: perharps this command is not useful
-                        # because the backend is updated...
-                        command_line = 'DISABLE_HOST_CHECK;%s' % host_name
-                        if data['active_checks_enabled']:
-                            command_line = 'ENABLE_HOST_CHECK;%s' % host_name
-                            ws_result['_result'].append(
-                                'Host %s active checks will be enabled.' % host_name)
-                        else:
-                            ws_result['_result'].append(
-                                'Host %s active checks will be disabled.' % host_name)
-
-                        # Add a command to get managed
-                        if self.set_timestamp:
-                            command_line = '[%d] %s' % (time.time(), command_line)
-                        ws_result['_result'].append('Sent external command: %s.' % command_line)
-                        logger.debug("Sending command: %s", command_line)
-                        self.from_q.put(ExternalCommand(command_line))
-                else:
-                    data.pop('active_checks_enabled')
-            else:
-                data.pop('active_checks_enabled')
+            data.pop('active_checks_enabled')
 
         if 'passive_checks_enabled' in data:
             if isinstance(data['passive_checks_enabled'], bool):
-                if update is None:
-                    update = False
                 if data['passive_checks_enabled'] != host['passive_checks_enabled']:
-                    update = True
-
-                    logger.info("Host passive checks state modified '%s': %s -> %s",
+                    logger.info("Host passive checks state is different '%s': %s -> %s",
                                 host_name,
                                 host['passive_checks_enabled'], data['passive_checks_enabled'])
-                    # Except when an host just got created...
-                    if not host_created:
-                        # todo: perharps this command is not useful
-                        # because the backend is updated...
-                        command_line = 'DISABLE_PASSIVE_HOST_CHECKS;%s' % host_name
-                        if data['passive_checks_enabled']:
-                            command_line = 'ENABLE_PASSIVE_HOST_CHECKS;%s' % host_name
-                            ws_result['_result'].append(
-                                'Host %s passive checks will be enabled.' % host_name)
-                        else:
-                            ws_result['_result'].append(
-                                'Host %s passive checks will be disabled.' % host_name)
-
-                        # Add a command to get managed
-                        if self.set_timestamp:
-                            command_line = '[%d] %s' % (time.time(), command_line)
-                        ws_result['_result'].append('Sent external command: %s.' % command_line)
-                        logger.debug("Sending command: %s", command_line)
-                        self.from_q.put(ExternalCommand(command_line))
-                else:
-                    data.pop('passive_checks_enabled')
-            else:
-                data.pop('passive_checks_enabled')
+            data.pop('passive_checks_enabled')
 
         if 'check_freshness' in data:
             if isinstance(data['check_freshness'], bool):
-                if update is None:
-                    update = False
                 if data['check_freshness'] != host['check_freshness']:
-                    update = True
-
-                    logger.info("Host freshness checks state modified '%s': %s -> %s",
+                    logger.info("Host freshness checks state is different '%s': %s -> %s",
                                 host_name,
                                 host['check_freshness'], data['check_freshness'])
-                    # todo: as of Alignak #938, no external command exist
-                    # to enable/disable on an host basis
-                else:
-                    data.pop('check_freshness')
-            else:
-                data.pop('check_freshness')
+            data.pop('check_freshness')
 
         # Update host variables
         if data['variables']:
@@ -872,7 +812,7 @@ class AlignakWebServices(BaseModule):
                     else:
                         if custom not in customs or customs[custom] != value:
                             update = True
-                            logger.info("Update host variable: %s = %s", prop, value)
+                            logger.info("Update host %s variable: %s = %s", host_name, prop, value)
                             customs[custom] = value
             if update:
                 data['customs'] = customs
