@@ -37,6 +37,7 @@ import logging
 import requests
 
 from alignak_test import AlignakTest
+from alignak.daemons.receiverdaemon import Receiver
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -146,43 +147,34 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
         self.setup_with_file('./cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
         self.show_configuration_logs()
 
         # No arbiter modules created
-        modules = [m.module_alias for m in self.arbiter.myself.modules]
+        modules = [m.module_alias for m in self._arbiter.link_to_myself.modules]
         self.assertListEqual(modules, [])
 
         # The only existing broker module is logs declared in the configuration
-        modules = [m.module_alias for m in self.brokers['broker-master'].modules]
-        self.assertListEqual(modules, [])
-
-        # No poller module
-        modules = [m.module_alias for m in self.pollers['poller-master'].modules]
-        self.assertListEqual(modules, [])
-
-        # No receiver module
-        modules = [m.module_alias for m in self.receivers['receiver-master'].modules]
-        self.assertListEqual(modules, ['web-services'])
-
-        # No reactionner module
-        modules = [m.module_alias for m in self.reactionners['reactionner-master'].modules]
+        modules = [m.module_alias for m in self._broker_daemon.modules]
         self.assertListEqual(modules, [])
 
         # No scheduler modules
-        modules = [m.module_alias for m in self.schedulers['scheduler-master'].modules]
+        modules = [m.module_alias for m in self._scheduler_daemon.modules]
         self.assertListEqual(modules, [])
+
+        # A receiver module
+        modules = [m.module_alias for m in self._receiver_daemon.modules]
+        self.assertListEqual(modules, ['web-services'])
 
     def test_module_manager(self):
         """
         Test if the module manager manages correctly all the modules
         :return:
         """
-        self.print_header()
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
+        self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
@@ -195,10 +187,13 @@ class TestModuleWs(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
         # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load and initialize the modules:
         #  - load python module
@@ -327,40 +322,40 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match("Starting external process for module web-services", 7)
         self.assert_log_match("web-services is now started", 8)
 
+        # Clear logs
+        self.clear_logs()
+
         # And we clear all now
         self.modulemanager.stop_all()
         # Stopping module logs
 
-        self.assert_log_match("Request external process to stop for web-services", 9)
-        self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), 10)
-        self.assert_log_match(re.escape("'web-services' is still alive after normal kill "
-                                        "and 60 seconds waiting, I help it to die"), 11
-        )
-        self.assert_log_match("Killing external module ", 12)
-        self.assert_log_match("External module killed", 13)
-        self.assert_log_match("External process stopped.", 14)
+        self.assert_log_match("Shutting down modules...", 0)
+        self.assert_log_match("Request external process to stop for web-services", 1)
+        self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), 2)
+        self.assert_log_match("External process stopped.", 3)
 
     def test_module_start_default(self):
         """
         Test the module initialization function, no parameters, using default
         :return:
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
 
-        # -----
-        # Default initialization
-        # -----
         # Clear logs
         self.clear_logs()
 
+        # -----
+        # Default initialization
+        # -----
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws'
+            'python_name': 'alignak_module_ws',
+            'host': '0.0.0.0',
+            'port': 8888
         })
 
         instance = alignak_module_ws.get_instance(mod)
@@ -398,7 +393,8 @@ class TestModuleWs(AlignakTest):
             re.escape("No Alignak backend credentials configured (empty username/token). "
                       "The backend connection will use the WS user credentials."), 13)
         self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: 127.0.0.1:7770"), 14)
+            re.escape("Alignak Arbiter address is not configured. "
+                      "Alignak polling is disabled and some information will not be available."), 14)
         self.assert_log_match(
             re.escape("Alignak Arbiter polling period: 5"), 15)
         self.assert_log_match(
@@ -416,14 +412,10 @@ class TestModuleWs(AlignakTest):
         Test the module initialization function, no parameters, provide parameters
         :return:
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
 
-        # -----
-        # Provide parameters
-        # -----
         # Clear logs
         self.clear_logs()
 
@@ -432,18 +424,18 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
-            'use_ssl': '1',
+            'use_ssl': 1,
             'alignak_host': 'my_host',
             'alignak_port': 80,
             # Do not set a timestamp in the built external commands
-            'set_timestamp': '0',
+            'set_timestamp': 0,
             # Do not give feedback data
-            'give_feedback': '0',
+            'give_feedback': 0,
             # Give result data
-            'give_result': '1',
+            'give_result': 1,
             # Errors for unknown host/service
-            'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0',
+            'ignore_unknown_host': 0,
+            'ignore_unknown_service': 0,
             'host': 'me',
             'port': 8080,
             # Activate CherryPy file logs
@@ -507,17 +499,6 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -533,20 +514,29 @@ class TestModuleWs(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
+            # Enable authorization
+            'authorization': 1
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
         #  - get module properties and instances
         self.modulemanager.load_and_init([mod])
 
-        my_module = self.modulemanager.instances[0]
-
         # Clear logs
         self.clear_logs()
+
+        my_module = self.modulemanager.instances[0]
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -662,17 +652,12 @@ class TestModuleWs(AlignakTest):
 
         self.modulemanager.stop_all()
 
-    @pytest.mark.skip("To be fixed")
+    @pytest.mark.skip("To be fixed - unauthorized mode is broken !")
     def test_module_zzz_unauthorized(self):
         """Test the module basic API - authorization disabled
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -685,15 +670,22 @@ class TestModuleWs(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
             # Disable authorization
-            'authorization': '0'
+            'authorization': 0
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -742,11 +734,6 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -759,6 +746,9 @@ class TestModuleWs(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -766,8 +756,12 @@ class TestModuleWs(AlignakTest):
             'authorization': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -842,11 +836,6 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -862,12 +851,19 @@ class TestModuleWs(AlignakTest):
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Ensable authorization
-            'authorization': '1'
+            'authorization': 1
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -934,11 +930,6 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -951,9 +942,9 @@ class TestModuleWs(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
-            # Activate CherryPy file logs
-            'log_access': '/tmp/alignak-module-ws-access.log',
-            'log_error': '/tmp/alignak-module-ws-error.log',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Ensable authorization
             'authorization': '1',
             # Activate CherryPy file logs
@@ -961,8 +952,12 @@ class TestModuleWs(AlignakTest):
             'log_error': '/tmp/alignak-module-ws-error.log',
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -1056,11 +1051,6 @@ class TestModuleWs(AlignakTest):
 
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1076,13 +1066,20 @@ class TestModuleWs(AlignakTest):
             'alignak_port': 7770,
             # Ensable authorization
             'authorization': '1',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module

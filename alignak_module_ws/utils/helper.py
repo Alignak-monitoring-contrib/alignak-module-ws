@@ -1,23 +1,22 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2015-2017:
-#   Frederic Mohier, frederic.mohier@alignak.net
 #
-# This file is part of (WebUI).
+# Copyright (C) 2015-2018: Alignak contrib team, see AUTHORS.txt file for contributors
 #
-# (WebUI) is free software: you can redistribute it and/or modify
+# This file is part of Alignak contrib projet.
+#
+# Alignak is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# (WebUI) is distributed in the hope that it will be useful,
+# Alignak is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with (WebUI).  If not, see <http://www.gnu.org/licenses/>.
+# along with Alignak.  If not, see <http://www.gnu.org/licenses/>.
 
 """
     This module contains helper functions used in HTML application templates.

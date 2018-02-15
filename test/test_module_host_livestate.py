@@ -38,6 +38,7 @@ from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set an environment variable to print debug information for the backend
 os.environ['ALIGNAK_BACKEND_PRINT'] = '1'
@@ -149,17 +150,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         """Test the module /host API - host creation and livestate
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -181,6 +171,9 @@ class TestModuleWsHostLivestate(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
@@ -192,8 +185,12 @@ class TestModuleWsHostLivestate(AlignakTest):
             'alignak_backend_livestate_update': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -416,17 +413,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         """Test the module /host API - host with multiple livestate
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -448,6 +434,9 @@ class TestModuleWsHostLivestate(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
@@ -457,8 +446,12 @@ class TestModuleWsHostLivestate(AlignakTest):
             'allow_service_creation': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -637,17 +630,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         """Test the module /host API - service creation and livestate
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -667,13 +649,20 @@ class TestModuleWsHostLivestate(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -985,17 +974,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         """Test the module /host API - service with multiple livestate
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1015,13 +993,20 @@ class TestModuleWsHostLivestate(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module

@@ -38,6 +38,7 @@ from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -140,17 +141,6 @@ class TestModuleWsEvent(AlignakTest):
         """Test the module /event endpoint
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -166,10 +156,17 @@ class TestModuleWsEvent(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module

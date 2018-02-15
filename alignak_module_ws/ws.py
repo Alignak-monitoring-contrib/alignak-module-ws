@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+
 #
-# Copyright (C) 2015-2016: Alignak contrib team, see AUTHORS.txt file for contributors
+# Copyright (C) 2015-2018: Alignak contrib team, see AUTHORS.txt file for contributors
 #
 # This file is part of Alignak contrib projet.
 #
@@ -16,17 +17,14 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with Alignak.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
 
 """
 This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
 import os
-import sys
 import copy
-import base64
+import traceback
 import json
 import time
 import datetime
@@ -47,7 +45,7 @@ from alignak.stats import Stats
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
-from alignak_module_ws.utils.daemon import HTTPDaemon
+from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
 from alignak_module_ws.utils.ws_server import WSInterface
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -69,7 +67,8 @@ SESSION_KEY = 'alignak_web_services'
 def get_instance(mod_conf):
     """Return a module instance for the modules manager
 
-    :param mod_conf: the module properties as defined globally in this file
+    :param mod_conf: the module item created by the Alignak arbiter
+    :rtype alignak.objects.Module
     :return:
     """
     logger.info("Give an instance of %s for alias: %s", mod_conf.python_name, mod_conf.module_alias)
@@ -93,7 +92,6 @@ class AlignakWebServices(BaseModule):
         "UNREACHABLE": 4
     }
 
-    """Web services module main class"""
     def __init__(self, mod_conf):
         """
         Module initialization
@@ -102,14 +100,16 @@ class AlignakWebServices(BaseModule):
         - all the variables declared in the module configuration file
         - a 'properties' value that is the module properties as defined globally in this file
 
-        :param mod_conf: module configuration file as a dictionary
+        :param mod_conf: the module item created by the Alignak arbiter
+        :rtype alignak.objects.Module
         """
         BaseModule.__init__(self, mod_conf)
 
         # pylint: disable=global-statement
         global logger
         logger = logging.getLogger('alignak.module.%s' % self.alias)
-        logger.setLevel(getattr(mod_conf, 'log_level', logging.INFO))
+        if getattr(mod_conf, 'log_level', logging.INFO) in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+            logger.setLevel(getattr(mod_conf, 'log_level'))
 
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
@@ -160,20 +160,30 @@ class AlignakWebServices(BaseModule):
 
         logger.info("Alignak backend endpoint: %s", self.backend_url)
 
-        self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        try:
+            self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        except ValueError:
+            self.client_processes = 1
         logger.info("Number of processes used by backend client: %s", self.client_processes)
 
         self.backend_username = getattr(mod_conf, 'username', '')
         self.backend_password = getattr(mod_conf, 'password', '')
         self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
 
-        self.alignak_backend_polling_period = int(
-            getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+        try:
+            self.alignak_backend_polling_period = int(getattr(mod_conf,
+                                                              'alignak_backend_polling_period',
+                                                              '10'))
+        except ValueError:
+            self.alignak_backend_polling_period = 10
 
         # Backend behavior part
         self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
         self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
-        self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        try:
+            self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        except ValueError:
+            self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
                                                         'alignak_backend_livestate_update',
                                                         '1') == '0'
@@ -184,7 +194,10 @@ class AlignakWebServices(BaseModule):
 
         # Alignak Arbiter host / post
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
-        self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        try:
+            self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        except ValueError:
+            self.alignak_port = 7770
         if not self.alignak_host:
             logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
                            'disabled and some information will not be available.')
@@ -194,11 +207,16 @@ class AlignakWebServices(BaseModule):
 
         # Alignak polling
         self.alignak_is_alive = False
-        self.alignak_polling_period = \
-            int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        try:
+            self.alignak_polling_period = int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        except ValueError:
+            self.alignak_polling_period = 5
         logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
-        self.alignak_daemons_polling_period = \
-            int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+        try:
+            self.alignak_daemons_polling_period = \
+                int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+        except ValueError:
+            self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
@@ -250,7 +268,10 @@ class AlignakWebServices(BaseModule):
 
         # Host / post listening to...
         self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        self.port = int(getattr(mod_conf, 'port', '8888'))
+        try:
+            self.port = int(getattr(mod_conf, 'port', '8888'))
+        except ValueError:
+            self.port = 8888
         self.log_error = getattr(mod_conf, 'log_error', None)
         self.log_access = getattr(mod_conf, 'log_access', None)
 
@@ -1766,15 +1787,20 @@ class AlignakWebServices(BaseModule):
         :return: None
         """
         logger.info("HTTP main thread running")
-
         # The main thing is to have a pool of X concurrent requests for the http_daemon,
         # so "no_lock" calls can always be directly answer without having a "locked" version to
         # finish
         try:
             self.http_daemon.run()
+        except PortNotFree as exp:
+            # print("Exception: %s" % str(exp))
+            logger.exception('The HTTP daemon port is not free: %s', exp)
+            raise
         except Exception as exp:  # pylint: disable=W0703
+            # self.exit_on_exception(exp)
             logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            raise Exception(exp)
+            logger.critical("Back trace of the error:\n%s", traceback.format_exc())
+            raise
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):
@@ -1894,8 +1920,9 @@ class AlignakWebServices(BaseModule):
         logger.info("stopping...")
 
         if self.http_daemon:
-            logger.info("shutting down http_daemon...")
-            self.http_daemon.request_stop()
+            logger.info("Shutting down the HTTP daemon...")
+            self.http_daemon.stop()
+            self.http_daemon = None
 
         if self.http_thread:
             logger.info("joining http_thread...")
@@ -1910,29 +1937,3 @@ class AlignakWebServices(BaseModule):
                     pass
 
         logger.info("stopped")
-
-
-if __name__ == '__main__':
-    logging.getLogger("alignak_backend_client").setLevel(logging.DEBUG)
-    logger.setLevel(logging.DEBUG)
-
-    # Create an Alignak module
-    mod = Module({
-        'module_alias': 'web-services',
-        'module_types': 'web-services',
-        'python_name': 'alignak_module_ws',
-        # Alignak backend configuration
-        'alignak_backend': 'http://127.0.0.1:5000',
-        # 'token': '1489219787082-4a226588-9c8b-4e17-8e56-c1b5d31db28e',
-        'username': 'admin', 'password': 'admin',
-        # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-        'alignak_host': '',
-        'alignak_port': 7770,
-    })
-    # Create the modules manager for a daemon type
-    modulemanager = ModulesManager('receiver', None)
-    # Load and initialize the module
-    modulemanager.load_and_init([mod])
-    my_module = modulemanager.instances[0]
-    # Start external modules
-    modulemanager.start_external_instances()

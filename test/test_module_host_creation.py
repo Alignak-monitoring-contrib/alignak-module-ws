@@ -157,31 +157,18 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         """Test the module /host API - host creation - admin user
         :return:
         """
-        self.print_header()
         self._module_host_creation('admin', 'admin')
 
     def test_module_zzz_host_creation_user(self):
         """Test the module /host API - host creation - admin user
         :return:
         """
-        self.print_header()
         self._module_host_creation('test', 'test')
 
     def _module_host_creation(self, username, password):
         """Test the module /host API - host creation
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -202,6 +189,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
@@ -212,8 +202,12 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             'alignak_backend_livestate_update': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -490,7 +484,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         """Test the module /host API - service creation
         :return:
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
@@ -520,13 +513,20 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module

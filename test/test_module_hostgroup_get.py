@@ -140,7 +140,6 @@ class TestModuleWsHostgroup(AlignakTest):
 
         :return: None
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
@@ -171,7 +170,7 @@ class TestModuleWsHostgroup(AlignakTest):
         })
 
         # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
