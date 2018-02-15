@@ -28,7 +28,7 @@ coveralls
 
 # Static code and doc analysis libraries
 pylint
-pep8
+pycodestyle
 pep257
 
 # UWSGI Pyphton Web application server
