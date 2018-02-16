@@ -1765,15 +1765,20 @@ class AlignakWebServices(BaseModule):
         :return: None
         """
         logger.info("HTTP main thread running")
-
         # The main thing is to have a pool of X concurrent requests for the http_daemon,
         # so "no_lock" calls can always be directly answer without having a "locked" version to
         # finish
         try:
             self.http_daemon.run()
+        except PortNotFree as exp:
+            # print("Exception: %s" % str(exp))
+            logger.exception('The HTTP daemon port is not free: %s', exp)
+            raise
         except Exception as exp:  # pylint: disable=W0703
-            logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            raise Exception(exp)
+            self.exit_on_exception(exp)
+            # logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
+            # logger.critical("Back trace of the error:\n%s", traceback.format_exc())
+            # raise
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):
@@ -1893,8 +1898,9 @@ class AlignakWebServices(BaseModule):
         logger.info("stopping...")
 
         if self.http_daemon:
-            logger.info("shutting down http_daemon...")
-            self.http_daemon.request_stop()
+            logger.info("Shutting down the HTTP daemon...")
+            self.http_daemon.stop()
+            self.http_daemon = None
 
         if self.http_thread:
             logger.info("joining http_thread...")
