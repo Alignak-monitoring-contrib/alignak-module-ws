@@ -433,12 +433,13 @@ class AlignakTest(unittest2.TestCase):
         if os.path.exists('/tmp/etc/alignak'):
             shutil.rmtree('/tmp/etc/alignak')
 
-        shutil.copytree('../etc', '/tmp/etc/alignak')
-        files = ['/tmp/etc/alignak/alignak.ini']
-        replacements = {
-            '_dist=/usr/local/': '_dist=/tmp'
-        }
-        self._files_update(files, replacements)
+        if os.path.exists('../etc'):
+            shutil.copytree('../etc', '/tmp/etc/alignak')
+            files = ['/tmp/etc/alignak/alignak.ini']
+            replacements = {
+                '_dist=/usr/local/': '_dist=/tmp'
+            }
+            self._files_update(files, replacements)
         print("Prepared")
 
         # Initialize the Arbiter with no daemon configuration file
@@ -528,6 +529,17 @@ class AlignakTest(unittest2.TestCase):
         print("All daemons WS: %s" % ["%s:%s" % (link.address, link.port) for link in self._arbiter.dispatcher.all_daemons_links])
         # Simulate the daemons HTTP interface (very simple simulation !)
         with requests_mock.mock() as mr:
+            data = {}
+            for link in self._arbiter.dispatcher.all_daemons_links:
+                if link.type not in data:
+                    data[link.type] = []
+                data[link.type].append({
+                    'type': link.type,
+                    'name': link.name,
+                    '%s_name' % link.type: link.name})
+
+            mr.get('http://%s:%s/get_all_states' % (link.address, link.port), json=data)
+
             for link in self._arbiter.dispatcher.all_daemons_links:
                 mr.get('http://%s:%s/ping' % (link.address, link.port), json='pong')
                 mr.get('http://%s:%s/get_running_id' % (link.address, link.port), json=123456.123456)
@@ -618,6 +630,7 @@ class AlignakTest(unittest2.TestCase):
                 pushed_configuration = receiver.unit_test_pushed_configuration
                 self._receiver_daemon.new_conf = pushed_configuration
                 self._receiver_daemon.setup_new_conf()
+                print("Got a default receiver daemon: %s\n-----" % self._receiver_daemon)
                 self._receiver = receiver
                 print("Got a default receiver: %s\n-----" % self._receiver)
 

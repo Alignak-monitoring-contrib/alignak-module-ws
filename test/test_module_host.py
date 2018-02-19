@@ -39,6 +39,7 @@ from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -150,17 +151,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -190,10 +180,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -201,9 +198,6 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -293,7 +287,6 @@ class TestModuleWsHost(AlignakTest):
                 u'max_check_attempts': 3,
                 u'notes': u'',
                 u'passive_checks_enabled': True,
-                u'retry_interval': 1
             }
         })
 
@@ -616,17 +609,6 @@ class TestModuleWsHost(AlignakTest):
         """Simulate an host on the /host API - no feedback
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -648,10 +630,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -847,17 +836,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -882,10 +860,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -1397,11 +1382,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1426,10 +1406,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -1674,11 +1661,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1703,10 +1685,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -2060,11 +2049,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2089,10 +2073,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -2515,11 +2506,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2545,10 +2531,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -2728,11 +2721,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables * no feedback in the response
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2757,10 +2745,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -2768,9 +2763,6 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -2960,11 +2952,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables * no result in the response
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2989,10 +2976,17 @@ class TestModuleWsHost(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -3000,9 +2994,6 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -3140,11 +3131,6 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables * no result in the response
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -3155,24 +3141,31 @@ class TestModuleWsHost(AlignakTest):
             'username': 'admin',
             'password': 'admin',
             # Do not set a timestamp in the built external commands
-            'set_timestamp': '0',
+            'set_timestamp': 0,
             # Do not give feedback data
-            'give_feedback': '0',
+            'give_feedback': 0,
             # Do not give result data
-            'give_result': '1',
+            'give_result': 1,
             # Do not allow host/service creation
-            'allow_host_creation': '0',
-            'allow_service_creation': '0',
+            'allow_host_creation': 0,
+            'allow_service_creation': 0,
             # Ignore unknown host/service
-            'ignore_unknown_host': '1',
-            'ignore_unknown_service': '1',
+            'ignore_unknown_host': 1,
+            'ignore_unknown_service': 1,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -3180,9 +3173,6 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
-
-        # Clear logs
-        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()

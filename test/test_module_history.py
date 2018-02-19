@@ -37,6 +37,7 @@ import pytest
 from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -197,27 +198,15 @@ class TestModuleWsHistory(AlignakTest):
         """Test the module log collection functions
         :return:
         """
-        self.print_header()
         self._get_history("admin", "admin")
 
     def test_module_zzz_get_history_test(self):
         """Test the module log collection functions
         :return:
         """
-        self.print_header()
         self._get_history("test", "test")
 
     def _get_history(self, username, password):
-
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
@@ -231,13 +220,20 @@ class TestModuleWsHistory(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -798,7 +794,7 @@ class TestModuleWsHistory(AlignakTest):
         })
 
         # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module

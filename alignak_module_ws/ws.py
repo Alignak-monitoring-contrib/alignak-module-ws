@@ -23,9 +23,8 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
 import os
-import sys
 import copy
-import base64
+import traceback
 import json
 import time
 import datetime
@@ -46,7 +45,7 @@ from alignak.stats import Stats
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
-from alignak_module_ws.utils.daemon import HTTPDaemon
+from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
 from alignak_module_ws.utils.ws_server import WSInterface
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -68,7 +67,8 @@ SESSION_KEY = 'alignak_web_services'
 def get_instance(mod_conf):
     """Return a module instance for the modules manager
 
-    :param mod_conf: the module properties as defined globally in this file
+    :param mod_conf: the module item created by the Alignak arbiter
+    :rtype alignak.objects.Module
     :return:
     """
     logger.info("Give an instance of %s for alias: %s", mod_conf.python_name, mod_conf.module_alias)
@@ -92,7 +92,6 @@ class AlignakWebServices(BaseModule):
         "UNREACHABLE": 4
     }
 
-    """Web services module main class"""
     def __init__(self, mod_conf):
         """
         Module initialization
@@ -101,14 +100,16 @@ class AlignakWebServices(BaseModule):
         - all the variables declared in the module configuration file
         - a 'properties' value that is the module properties as defined globally in this file
 
-        :param mod_conf: module configuration file as a dictionary
+        :param mod_conf: the module item created by the Alignak arbiter
+        :rtype alignak.objects.Module
         """
         BaseModule.__init__(self, mod_conf)
 
         # pylint: disable=global-statement
         global logger
         logger = logging.getLogger('alignak.module.%s' % self.alias)
-        logger.setLevel(getattr(mod_conf, 'log_level', logging.INFO))
+        if getattr(mod_conf, 'log_level', logging.INFO) in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+            logger.setLevel(getattr(mod_conf, 'log_level'))
 
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
@@ -133,7 +134,7 @@ class AlignakWebServices(BaseModule):
         # 0: no feedback
         # 1: feedback only for host
         # 2: feedback for host and services
-        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        self.give_feedback = getattr(mod_conf, 'give_feedback', 1)
         logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
 
         self.feedback_host = getattr(mod_conf, 'feedback_host', '')
@@ -147,7 +148,7 @@ class AlignakWebServices(BaseModule):
             logger.info("Alignak service feedback list: %s", self.feedback_service)
 
         # Give some results of the executed commands
-        self.give_result = getattr(mod_conf, 'give_result', '0') == '1'
+        self.give_result = getattr(mod_conf, 'give_result', 0) == 1
         logger.info("Alignak update, set give_result: %s", self.give_result)
 
         # Alignak Backend part
@@ -159,7 +160,7 @@ class AlignakWebServices(BaseModule):
 
         logger.info("Alignak backend endpoint: %s", self.backend_url)
 
-        self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        self.client_processes = getattr(mod_conf, 'client_processes', 1)
         logger.info("Number of processes used by backend client: %s", self.client_processes)
 
         self.backend_username = getattr(mod_conf, 'username', '')
@@ -170,12 +171,11 @@ class AlignakWebServices(BaseModule):
             getattr(mod_conf, 'alignak_backend_polling_period', '10'))
 
         # Backend behavior part
-        self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
-        self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
-        self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', 1) == 1
+        self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', 0) == 1
+        self.alignak_backend_timeshift = getattr(mod_conf, 'alignak_backend_timeshift', 0)
         self.alignak_backend_livestate_update = getattr(mod_conf,
-                                                        'alignak_backend_livestate_update',
-                                                        '1') == '0'
+                                                        'alignak_backend_livestate_update', 1) == 0
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -183,7 +183,7 @@ class AlignakWebServices(BaseModule):
 
         # Alignak Arbiter host / post
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
-        self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        self.alignak_port = getattr(mod_conf, 'alignak_port', 7770)
         if not self.alignak_host:
             logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
                            'disabled and some information will not be available.')
@@ -193,15 +193,14 @@ class AlignakWebServices(BaseModule):
 
         # Alignak polling
         self.alignak_is_alive = False
-        self.alignak_polling_period = \
-            int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        self.alignak_polling_period = getattr(mod_conf, 'alignak_polling_period', 5)
         logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
         self.alignak_daemons_polling_period = \
-            int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+            getattr(mod_conf, 'alignak_daemons_polling_period', 10)
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
-        self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
+        self.use_ssl = getattr(mod_conf, 'use_ssl', 0) == 1
 
         self.ca_cert = os.path.abspath(
             getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
@@ -249,7 +248,7 @@ class AlignakWebServices(BaseModule):
 
         # Host / post listening to...
         self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        self.port = int(getattr(mod_conf, 'port', '8888'))
+        self.port = getattr(mod_conf, 'port', 8888)
         self.log_error = getattr(mod_conf, 'log_error', None)
         self.log_access = getattr(mod_conf, 'log_access', None)
 
@@ -260,7 +259,7 @@ class AlignakWebServices(BaseModule):
         logger.info("configuration, listening on: %s", self.uri)
 
         # HTTP authorization
-        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        self.authorization = getattr(mod_conf, 'authorization', 1) in [1, '']
         if not self.authorization:
             logger.warning("HTTP autorization is not enabled, this is not recommended. "
                            "You should consider enabling authorization!")
@@ -292,15 +291,15 @@ class AlignakWebServices(BaseModule):
 
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
-                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
+                    getattr(mod_conf, 'statsd_port', 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                    (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+                    (getattr(mod_conf, 'statsd_enabled', 0) != 0))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
+                               statsd_port=getattr(mod_conf, 'statsd_port', 8125),
                                statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', 0) != 0))
 
         # Count received commands
         self.received_commands = 0
@@ -1775,10 +1774,10 @@ class AlignakWebServices(BaseModule):
             logger.exception('The HTTP daemon port is not free: %s', exp)
             raise
         except Exception as exp:  # pylint: disable=W0703
-            self.exit_on_exception(exp)
-            # logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            # logger.critical("Back trace of the error:\n%s", traceback.format_exc())
-            # raise
+            # self.exit_on_exception(exp)
+            logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
+            logger.critical("Back trace of the error:\n%s", traceback.format_exc())
+            raise
         logger.info("HTTP main thread exiting")
 
     def do_loop_turn(self):
@@ -1915,29 +1914,3 @@ class AlignakWebServices(BaseModule):
                     pass
 
         logger.info("stopped")
-
-
-if __name__ == '__main__':
-    logging.getLogger("alignak_backend_client").setLevel(logging.DEBUG)
-    logger.setLevel(logging.DEBUG)
-
-    # Create an Alignak module
-    mod = Module({
-        'module_alias': 'web-services',
-        'module_types': 'web-services',
-        'python_name': 'alignak_module_ws',
-        # Alignak backend configuration
-        'alignak_backend': 'http://127.0.0.1:5000',
-        # 'token': '1489219787082-4a226588-9c8b-4e17-8e56-c1b5d31db28e',
-        'username': 'admin', 'password': 'admin',
-        # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-        'alignak_host': '',
-        'alignak_port': 7770,
-    })
-    # Create the modules manager for a daemon type
-    modulemanager = ModulesManager('receiver', None)
-    # Load and initialize the module
-    modulemanager.load_and_init([mod])
-    my_module = modulemanager.instances[0]
-    # Start external modules
-    modulemanager.start_external_instances()

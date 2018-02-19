@@ -171,7 +171,7 @@ class TestModuleWsHostgroup(AlignakTest):
         })
 
         # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
