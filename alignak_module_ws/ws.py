@@ -134,7 +134,7 @@ class AlignakWebServices(BaseModule):
         # 0: no feedback
         # 1: feedback only for host
         # 2: feedback for host and services
-        self.give_feedback = getattr(mod_conf, 'give_feedback', 1)
+        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
         logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
 
         self.feedback_host = getattr(mod_conf, 'feedback_host', '')
@@ -148,7 +148,7 @@ class AlignakWebServices(BaseModule):
             logger.info("Alignak service feedback list: %s", self.feedback_service)
 
         # Give some results of the executed commands
-        self.give_result = getattr(mod_conf, 'give_result', 0) == 1
+        self.give_result = getattr(mod_conf, 'give_result', '0') == '1'
         logger.info("Alignak update, set give_result: %s", self.give_result)
 
         # Alignak Backend part
@@ -160,22 +160,33 @@ class AlignakWebServices(BaseModule):
 
         logger.info("Alignak backend endpoint: %s", self.backend_url)
 
-        self.client_processes = getattr(mod_conf, 'client_processes', 1)
+        try:
+            self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        except ValueError:
+            self.client_processes = 1
         logger.info("Number of processes used by backend client: %s", self.client_processes)
 
         self.backend_username = getattr(mod_conf, 'username', '')
         self.backend_password = getattr(mod_conf, 'password', '')
         self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
 
-        self.alignak_backend_polling_period = int(
-            getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+        try:
+            self.alignak_backend_polling_period = int(getattr(mod_conf,
+                                                              'alignak_backend_polling_period',
+                                                              '10'))
+        except ValueError:
+            self.alignak_backend_polling_period = 10
 
         # Backend behavior part
-        self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', 1) == 1
-        self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', 0) == 1
-        self.alignak_backend_timeshift = getattr(mod_conf, 'alignak_backend_timeshift', 0)
+        self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
+        self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
+        try:
+            self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        except ValueError:
+            self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
-                                                        'alignak_backend_livestate_update', 1) == 0
+                                                        'alignak_backend_livestate_update',
+                                                        '1') == '0'
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -183,7 +194,10 @@ class AlignakWebServices(BaseModule):
 
         # Alignak Arbiter host / post
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
-        self.alignak_port = getattr(mod_conf, 'alignak_port', 7770)
+        try:
+            self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        except ValueError:
+            self.alignak_port = 7770
         if not self.alignak_host:
             logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
                            'disabled and some information will not be available.')
@@ -193,14 +207,20 @@ class AlignakWebServices(BaseModule):
 
         # Alignak polling
         self.alignak_is_alive = False
-        self.alignak_polling_period = getattr(mod_conf, 'alignak_polling_period', 5)
+        try:
+            self.alignak_polling_period = int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        except ValueError:
+            self.alignak_polling_period = 5
         logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
-        self.alignak_daemons_polling_period = \
-            getattr(mod_conf, 'alignak_daemons_polling_period', 10)
+        try:
+            self.alignak_daemons_polling_period = \
+                int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+        except ValueError:
+            self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
         # SSL configuration
-        self.use_ssl = getattr(mod_conf, 'use_ssl', 0) == 1
+        self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
 
         self.ca_cert = os.path.abspath(
             getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
@@ -248,7 +268,10 @@ class AlignakWebServices(BaseModule):
 
         # Host / post listening to...
         self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        self.port = getattr(mod_conf, 'port', 8888)
+        try:
+            self.port = int(getattr(mod_conf, 'port', '8888'))
+        except ValueError:
+            self.port = 8888
         self.log_error = getattr(mod_conf, 'log_error', None)
         self.log_access = getattr(mod_conf, 'log_access', None)
 
@@ -259,7 +282,7 @@ class AlignakWebServices(BaseModule):
         logger.info("configuration, listening on: %s", self.uri)
 
         # HTTP authorization
-        self.authorization = getattr(mod_conf, 'authorization', 1) in [1, '']
+        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
         if not self.authorization:
             logger.warning("HTTP autorization is not enabled, this is not recommended. "
                            "You should consider enabling authorization!")
@@ -291,15 +314,15 @@ class AlignakWebServices(BaseModule):
 
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
-                    getattr(mod_conf, 'statsd_port', 8125),
+                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                    (getattr(mod_conf, 'statsd_enabled', 0) != 0))
+                    (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=getattr(mod_conf, 'statsd_port', 8125),
+                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                                statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', 0) != 0))
+                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
 
         # Count received commands
         self.received_commands = 0

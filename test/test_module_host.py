@@ -140,6 +140,8 @@ class TestModuleWsHost(AlignakTest):
 
         cls.modulemanager = None
 
+        cls.maxDiff = None
+
     @classmethod
     def tearDown(cls):
         cls.p.kill()
@@ -151,6 +153,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -163,7 +169,7 @@ class TestModuleWsHost(AlignakTest):
             # Do not set a timestamp in the built external commands
             'set_timestamp': '0',
             # Give result data
-            'give_result': '1',
+            'give_result': 1,
             # Give some feedback about host and services
             'give_feedback': '2',
             'feedback_host': 'alias,notes,location,active_checks_enabled,max_check_attempts,check_interval,retry_interval,passive_checks_enabled,check_freshness,freshness_state,freshness_threshold,_overall_state_id',
@@ -198,6 +204,9 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -281,12 +290,13 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
                 u'notes': u'',
                 u'passive_checks_enabled': True,
+                u'retry_interval': 1
             }
         })
 
@@ -308,7 +318,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -336,7 +346,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -378,7 +388,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -456,7 +466,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -496,7 +506,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -569,7 +579,7 @@ class TestModuleWsHost(AlignakTest):
                 u'check_freshness': False,
                 u'check_interval': 1,
                 u'freshness_state': u'x',
-                u'freshness_threshold': -1,
+                u'freshness_threshold': 3600,
                 u'location': {u'coordinates': [48.858293, 2.294601],
                               u'type': u'Point'},
                 u'max_check_attempts': 3,
@@ -577,19 +587,19 @@ class TestModuleWsHost(AlignakTest):
                 u'passive_checks_enabled': True,
                 u'retry_interval': 1,
                 u'services': [
-                    {u'active_checks_enabled': False, u'alias': u'test_ok_0',
+                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_0',
                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 5, u'freshness_threshold': -1,
+                     u'retry_interval': 1, u'_overall_state_id': 5, u'freshness_threshold': 3600,
                      u'passive_checks_enabled': False, u'check_interval': 1,
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_0'},
-                    {u'active_checks_enabled': True, u'alias': u'test_ok_1',
+                    {u'active_checks_enabled': True, u'alias': u'test_host_0 test_ok_1',
                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
                      u'passive_checks_enabled': True, u'check_interval': 1,
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_1'},
-                    {u'active_checks_enabled': False, u'alias': u'test_ok_2',
+                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_2',
                      u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': -1,
+                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
                      u'passive_checks_enabled': True, u'check_interval': 1,
                      u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_2'}
                 ]
@@ -609,6 +619,10 @@ class TestModuleWsHost(AlignakTest):
         """Simulate an host on the /host API - no feedback
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -836,6 +850,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1382,6 +1400,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -1661,6 +1683,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2049,6 +2075,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2506,6 +2536,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API - enable / disable active / passive checks - manage unchanged
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2516,18 +2550,18 @@ class TestModuleWsHost(AlignakTest):
             'username': 'admin',
             'password': 'admin',
             # Do not set a timestamp in the built external commands
-            'set_timestamp': '0',
+            'set_timestamp': 0,
             # No feedback
-            'give_feedback': '1',
+            'give_feedback': 1,
             'feedback_host': 'active_checks_enabled,check_interval,passive_checks_enabled,freshness_threshold',
             # Give result data
-            'give_result': '1',
+            'give_result': 1,
             # Do not allow host/service creation
-            'allow_host_creation': '1',
-            'allow_service_creation': '1',
+            'allow_host_creation': 1,
+            'allow_service_creation': 1,
             # Errors for unknown host/service
-            'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0',
+            'ignore_unknown_host': 0,
+            'ignore_unknown_service': 0,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -2721,6 +2755,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables * no feedback in the response
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2731,17 +2769,17 @@ class TestModuleWsHost(AlignakTest):
             'username': 'admin',
             'password': 'admin',
             # Do not set a timestamp in the built external commands
-            'set_timestamp': '0',
+            'set_timestamp': 0,
             # Do not give feedback data
-            'give_feedback': '0',
+            'give_feedback': 0,
             # Give result data
-            'give_result': '1',
+            'give_result': 1,
             # Do not allow host/service creation
-            'allow_host_creation': '0',
-            'allow_service_creation': '0',
+            'allow_host_creation': 0,
+            'allow_service_creation': 0,
             # Errors for unknown host/service
-            'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0',
+            'ignore_unknown_host': 0,
+            'ignore_unknown_service': 0,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -2763,6 +2801,9 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -2952,6 +2993,10 @@ class TestModuleWsHost(AlignakTest):
         """Test the module /host API * create/update custom variables * no result in the response
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -2962,17 +3007,17 @@ class TestModuleWsHost(AlignakTest):
             'username': 'admin',
             'password': 'admin',
             # Do not set a timestamp in the built external commands
-            'set_timestamp': '0',
+            'set_timestamp': 0,
             # Do not give feedback data
-            'give_feedback': '0',
+            'give_feedback': 0,
             # Do not give result data
-            'give_result': '0',
+            'give_result': 0,
             # Do not allow host/service creation
-            'allow_host_creation': '0',
-            'allow_service_creation': '0',
+            'allow_host_creation': 0,
+            'allow_service_creation': 0,
             # Errors for unknown host/service
-            'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0',
+            'ignore_unknown_host': 0,
+            'ignore_unknown_service': 0,
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
@@ -2994,6 +3039,10 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.show_logs()
+        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()
@@ -3128,9 +3177,13 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.stop_all()
 
     def test_module_zzz_host_ignore(self):
-        """Test the module /host API * create/update custom variables * no result in the response
+        """Test the module /host API * ignore unknown host or service
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -3141,7 +3194,7 @@ class TestModuleWsHost(AlignakTest):
             'username': 'admin',
             'password': 'admin',
             # Do not set a timestamp in the built external commands
-            'set_timestamp': 0,
+            'set_timestamp': '0',
             # Do not give feedback data
             'give_feedback': 0,
             # Do not give result data
@@ -3173,6 +3226,9 @@ class TestModuleWsHost(AlignakTest):
         self.modulemanager.load_and_init([mod])
 
         my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
 
         # Start external modules
         self.modulemanager.start_external_instances()

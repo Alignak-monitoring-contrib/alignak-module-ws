@@ -187,6 +187,9 @@ class TestModuleWs(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
         })
 
         # Create the modules manager for a daemon type

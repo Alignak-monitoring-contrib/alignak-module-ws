@@ -768,7 +768,6 @@ class TestModuleWsHistory(AlignakTest):
 
         :return:
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
