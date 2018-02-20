@@ -46,7 +46,7 @@ from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
 # from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
-from alignak_module_ws.utils.ws_server import WSInterface
+from alignak_module_ws.utils.ws_server import WSInterface, SESSION_KEY
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 for handler in logger.parent.handlers:
@@ -60,8 +60,6 @@ properties = {
     'external': True,
     'phases': ['running'],
 }
-
-SESSION_KEY = 'alignak_web_services'
 
 
 def get_instance(mod_conf):
@@ -134,7 +132,10 @@ class AlignakWebServices(BaseModule):
         # 0: no feedback
         # 1: feedback only for host
         # 2: feedback for host and services
-        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        try:
+            self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        except ValueError:
+            self.give_feedback = 1
         logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
 
         self.feedback_host = getattr(mod_conf, 'feedback_host', '')
@@ -219,91 +220,25 @@ class AlignakWebServices(BaseModule):
             self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
-        # # SSL configuration
-        # self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
-        #
-        # self.ca_cert = os.path.abspath(
-        #     getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
-        # )
-        # if self.use_ssl and not os.path.exists(self.ca_cert):
-        #     logger.error('The CA certificate %s is missing (ca_cert). '
-        #                  'Please fix it in your configuration', self.ca_cert)
-        #     self.use_ssl = False
-        #
-        # self.server_cert = os.path.abspath(
-        #     getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.crt')
-        # )
-        # if self.use_ssl and not os.path.exists(self.server_cert):
-        #     logger.error("The SSL certificate '%s' is missing (server_cert). "
-        #                  "Please fix it in your configuration", self.server_cert)
-        #     self.use_ssl = False
-        #
-        # self.server_key = os.path.abspath(
-        #     getattr(mod_conf, 'server_key', '/usr/local/etc/alignak/certs/server.key')
-        # )
-        # if self.use_ssl and not os.path.exists(self.server_key):
-        #     logger.error('The SSL key %s is missing (server_key). '
-        #                  'Please fix it in your configuration', self.server_key)
-        #     self.use_ssl = False
-        #
-        # self.server_dh = os.path.abspath(
-        #     getattr(mod_conf, 'server_dh', '/usr/local/etc/alignak/certs/server.pem')
-        # )
-        # if self.use_ssl and not os.path.exists(self.server_dh):
-        #     logger.error('The SSL DH %s is missing (server_dh). '
-        #                  'Please fix it in your configuration', self.server_dh)
-        #     self.use_ssl = False
-        #
-        # self.hard_ssl_name_check = getattr(mod_conf, 'hard_ssl_name_check', '0') == '0'
-        #
-        # # SSL information log
-        # if self.use_ssl:
-        #     logger.info("Using SSL CA certificate: %s", self.ca_cert)
-        #     logger.info("Using SSL server files: %s/%s", self.server_cert, self.server_key)
-        #     if self.hard_ssl_name_check:
-        #         logger.info("Enabling hard SSL server name verification")
-        # else:
-        #     logger.info("SSL is not enabled, this is not recommended. "
-        #                 "You should consider enabling SSL!")
-        #
-        # # Host / post listening to...
-        # self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        # try:
-        #     self.port = int(getattr(mod_conf, 'port', '8888'))
-        # except ValueError:
-        #     self.port = 8888
-        # self.uri = '%s://%s:%s' % ('https' if self.use_ssl else 'http', self.host, self.port)
-        # logger.info("configuration, listening on: %s", self.uri)
-        #
-        # self.log_error = getattr(mod_conf, 'log_error', None)
-        # self.log_access = getattr(mod_conf, 'log_access', None)
-        #
-        # # HTTP authorization
-        # self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
-        # if not self.authorization:
-        #     logger.warning("HTTP autorization is not enabled, this is not recommended. "
-        #                    "You should consider enabling authorization!")
+        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        if not self.authorization:
+            logger.warning("HTTP autorization is not enabled, this is not recommended. "
+                           "You should consider enabling authorization!")
 
-        # # My own HTTP interface...
-        # cherrypy.config.update({"tools.wsauth.on": self.authorization})
-        # cherrypy.config.update({"tools.sessions.on": True})
-        # cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
-        # if self.log_error:
-        #     cherrypy.config.update({"log.error_file": self.log_error})
-        # if self.log_access:
-        #     cherrypy.config.update({"log.access_file": self.log_access})
-        # self.http_interface = WSInterface(self)
-        #
-        # My thread pool (simultaneous connections)
-
-
+        cherrypy.config.update({"tools.sessions.on": True,
+                                "tools.sessions.name": getattr(self, 'name',
+                                                               getattr(self, 'alias'))})
 
         # This application config overrides the default processors
         # so we put them back in case we need them
         config = {
-            '/ws': {
+            '/': {
                 'tools.gzip.on': True,
-                'tools.gzip.mime_types': ['text/*', 'application/json']
+                'tools.gzip.mime_types': ['text/*', 'application/json'],
+                'tools.ws_auth.on': self.authorization,
+                'tools.sessions.on': True,
+                'tools.sessions.debug': True,
+                # 'tools.sessions.name': 'alignak-fred'
             }
         }
 
@@ -1787,30 +1722,6 @@ class AlignakWebServices(BaseModule):
             logger.warning("Response: %s", exp.response)
             return exp.response
 
-    def http_daemon_thread(self):
-        """Main function of the http daemon thread.
-
-        It will loop forever unless we stop the main process
-
-        :return: None
-        """
-        logger.info("HTTP main thread running")
-        # The main thing is to have a pool of X concurrent requests for the http_daemon,
-        # so "no_lock" calls can always be directly answer without having a "locked" version to
-        # finish
-        try:
-            self.http_daemon.run()
-        except PortNotFree as exp:
-            # print("Exception: %s" % str(exp))
-            logger.exception('The HTTP daemon port is not free: %s', exp)
-            raise
-        except Exception as exp:  # pylint: disable=W0703
-            # self.exit_on_exception(exp)
-            logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            logger.critical("Back trace of the error:\n%s", traceback.format_exc())
-            raise
-        logger.info("HTTP main thread exiting")
-
     def do_loop_turn(self):
         """This function is present because of an abstract function in the BaseModule class"""
         logger.info("In loop")
@@ -1830,12 +1741,6 @@ class AlignakWebServices(BaseModule):
         logger.info("starting...")
 
         try:
-            # logger.info("starting http_daemon thread..")
-            # self.http_thread = threading.Thread(target=self.http_daemon_thread, name='http_thread')
-            # self.http_thread.daemon = True
-            # self.http_thread.start()
-            # logger.info("HTTP daemon thread started")
-
             # Polling period (-100 to get sure to poll on the first loop iteration)
             ping_alignak_backend_next_time = time.time() - 100
             ping_alignak_next_time = time.time() - 100
@@ -1922,26 +1827,5 @@ class AlignakWebServices(BaseModule):
                 time.sleep(0.1)
         except Exception as exp:
             logger.error("Exception: %s", exp)
-
-        logger.info("stopping...")
-
-        # if self.http_daemon:
-        #     logger.info("Shutting down the HTTP daemon...")
-        #     self.http_daemon.stop()
-        #     self.http_daemon = None
-        #
-        # if self.http_thread:
-        #     logger.info("Checking HTTP thread...")
-        #     # Let a few seconds to exit
-        #     self.http_thread.join(timeout=3)
-        #     if self.http_thread.is_alive():  # pragma: no cover, should never happen...
-        #         logger.warning("HTTP thread did not terminated. Force stopping the thread..")
-        #         try:
-        #             self.http_thread._Thread__stop()  # pylint: disable=E1101
-        #         except Exception as exp:  # pylint: disable=broad-except
-        #             print("Exception: %s" % exp)
-        #     else:
-        #         logger.info("HTTP thread exited")
-        #     self.http_thread = None
 
         logger.info("stopped")

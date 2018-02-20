@@ -27,6 +27,7 @@ import json
 import time
 import logging
 import inspect
+import traceback
 import cherrypy
 from cherrypy.lib import httpauth
 
@@ -46,33 +47,30 @@ def protect(*args, **kwargs):
 
     authenticated = False
 
+    # A condition is just a callable that returns true or false
     conditions = cherrypy.request.config.get('auth.require', None)
-
     if conditions is not None:
-        logger.debug("conditions: %s", conditions)
-        # A condition is just a callable that returns true or false
         app = cherrypy.request.app.root.app
+
         try:
             logger.debug("Checking session: %s", SESSION_KEY)
+            cherrypy.log("Checking session: %s" % SESSION_KEY)
             # check if there is an active session
             # sessions are turned on so we just have to know if there is
             # something inside of cherrypy.session[SESSION_KEY]:
             session_token = cherrypy.session[SESSION_KEY]
             logger.debug("Session: %s", session_token)
+            cherrypy.log("Session: %s" % session_token)
 
             # Not sure if I need to do this myself or what
             cherrypy.session.regenerate()
             cherrypy.request.login = cherrypy.session[SESSION_KEY]
 
-            # token = app.backendLogin(cherrypy.request.login, None)
             authenticated = True
-            # logger.debug("Authenticated with session: %s / %s", this_session, token)
-
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
             # Now check if the request includes HTTP Authorization?
             authorization = cherrypy.request.headers.get('Authorization')
-            logger.debug("Authorization: %s", authorization)
             if authorization:
                 logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
@@ -80,6 +78,8 @@ def protect(*args, **kwargs):
                 # Get module application from cherrypy request
                 logger.debug("Requesting login for %s@%s...",
                              ah['username'], cherrypy.request.remote.ip)
+                cherrypy.log("Requesting login for %s@%s..."
+                             % (ah['username'], cherrypy.request.remote.ip))
                 token = app.backend_token(username=ah['username'], password=ah['password'])
                 if token:
                     cherrypy.session.regenerate()
@@ -87,16 +87,22 @@ def protect(*args, **kwargs):
                     cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
                     authenticated = True
                     logger.debug("Authenticated with backend")
+                    cherrypy.log("Authenticated with backend")
                 else:
                     logger.warning("Failed attempt to log in with authorization header for %s..",
                                    cherrypy.request.remote.ip)
+                    cherrypy.session[SESSION_KEY] = ''
             else:
                 logger.warning("Missing authorization header for %s.", cherrypy.request.remote.ip)
                 cherrypy.session[SESSION_KEY] = ''
 
-        except:  # pylint: disable=bare-except
+        except Exception as exp:  # pylint: disable=bare-except
+            cherrypy.log("Exception: %s" % exp)
+            cherrypy.log("Back trace of the error:\n%s" % traceback.format_exc())
             logger.warning("Client %s has no valid session and did not provided "
                            "HTTP Authorization credentials.", cherrypy.request.remote.ip)
+            cherrypy.log("Client %s has no valid session and did not provided "
+                         "HTTP Authorization credentials." % cherrypy.request.remote.ip)
             cherrypy.session[SESSION_KEY] = ''
 
         if authenticated:
@@ -108,7 +114,7 @@ def protect(*args, **kwargs):
             raise cherrypy.HTTPError("401 Unauthorized")
 
 
-cherrypy.tools.wsauth = cherrypy.Tool('before_handler', protect)
+cherrypy.tools.ws_auth = cherrypy.Tool('before_handler', protect)
 
 
 def require(*conditions):
