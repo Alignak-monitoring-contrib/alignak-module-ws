@@ -57,28 +57,15 @@ class PortNotFree(Exception):
 
 class HTTPDaemon(object):
     """HTTP Server class. Mostly based on Cherrypy
-    It uses CherryPyWSGIServer and daemon http_interface as Application
     """
-    # pylint: disable=too-many-arguments, unused-argument
-    def __init__(self, host, port, http_interface, use_ssl, ca_cert,
-                 ssl_key, ssl_cert, server_dh, thread_pool_size, log_file=None):
+    def __init__(self, module, http_interface):
         """
         Initialize HTTP daemon
 
-        :param host: host address
-        :param port: listening port
-        :param http_interface:
-        :param use_ssl:
-        :param ca_cert:
-        :param ssl_key:
-        :param ssl_cert:
-        :param thread_pool_size:
+        :param module: the Alignak module
+        :param http_interface: the exposed application base class
         """
-        self.port = port
-        self.host = host
-        self.use_ssl = use_ssl
-
-        self.uri = '%s://%s:%s' % ('https' if self.use_ssl else 'http', self.host, self.port)
+        self.uri = '%s://%s:%s' % ('https' if module.use_ssl else 'http', module.host, module.port)
         logger.info("Configured HTTP server on %s", self.uri)
 
         # This application config overrides the default processors
@@ -94,50 +81,50 @@ class HTTPDaemon(object):
             }
         }
 
-        # For embedding into a WSGI server
-        # cherrypy.config.update({'environment': 'embedded'})
+        # Configure HTTP server
+        # from cherrypy._cpserver import Server
+        # self.server = Server()
+        # self.server.thread_pool = module.daemon_thread_pool_size
+        # self.server.socket_host = module.host
+        # self.server.socket_port = module.port
+        # self.server.subscribe()
+        # cherrypy.config.update({'engine.autoreload.on': False,
+        #                         'server.thread_pool': module.daemon_thread_pool_size,
+        #                         'server.socket_host': module.host,
+        #                         'server.socket_port': module.port})
 
-        # Configure server interface
-        cherrypy.config.update({'engine.autoreload.on': False,
-                                'server.thread_pool': thread_pool_size,
-                                'server.socket_host': self.host,
-                                'server.socket_port': self.port})
-
-        # Default is to disable CherryPy logging
-        cherrypy.config.update({'log.screen': False,
-                                'log.access_file': '',
-                                'log.error_file': ''})
-        if log_file:
-            # Build log files name based on the provided daemon log file name
-            # todo: this to have a specific file which name is based upon provided log file name...
-            # if log_file is True:
-            #     dir=os.path.dirname(log_file)
-            #     base=os.path.basename(log_file).split('.')
-            #     access_log = os.path.join(dir, base[0] + '_access.log')
-            #     error_log = os.path.join(dir, base[0] + '_error.log')
-            # else:
-            # Log into the provided log file
-            access_log = error_log = log_file
-            cherrypy.config.update({'log.screen': True,
-                                    'log.access_file': access_log,
-                                    'log.error_file': error_log})
-            cherrypy.log.access_log.setLevel(logging.DEBUG)
-            cherrypy.log.error_log.setLevel(logging.DEBUG)
-            cherrypy.log("CherryPy logging: %s" % (log_file))
-
-        if use_ssl:
-            # Configure SSL server certificate and private key
-            cherrypy.config.update({'server.ssl_certificate': ssl_cert,
-                                    'server.ssl_private_key': ssl_key})
-            cherrypy.log("Using PyOpenSSL: %s" % (PYOPENSSL))
-            if not PYOPENSSL:
-                # Use CherryPy built-in module if PyOpenSSL is not installed
-                cherrypy.config.update({'server.ssl_module': 'builtin'})
-            cherrypy.log("Using SSL certificate: %s" % (ssl_cert))
-            cherrypy.log("Using SSL private key: %s" % (ssl_key))
-            if ca_cert:
-                cherrypy.config.update({'server.ssl_certificate_chain': ca_cert})
-                cherrypy.log("Using SSL CA certificate: %s" % ca_cert)
+        # # Default is to disable CherryPy logging
+        # cherrypy.config.update({'log.screen': False,
+        #                         'log.access_file': '',
+        #                         'log.error_file': ''})
+        # # My own HTTP interface...
+        # cherrypy.config.update({"tools.wsauth.on": module.authorization})
+        # cherrypy.config.update({"tools.sessions.on": True,
+        #                         "tools.sessions.name": getattr(module, 'name',
+        #                                                        getattr(module, 'alias'))})
+        #
+        # if module.log_error:
+        #     cherrypy.config.update({'log.screen': True,
+        #                             'log.error_file': str(module.log_error)})
+        #     cherrypy.log.error_log.setLevel(logging.DEBUG)
+        # if module.log_access:
+        #     cherrypy.config.update({'log.screen': True,
+        #                             'log.access_file': str(module.log_access)})
+        #     cherrypy.log.access_log.setLevel(logging.DEBUG)
+        #
+        # if module.use_ssl:
+        #     # Configure SSL server certificate and private key
+        #     cherrypy.config.update({'server.ssl_certificate': module.ssl_cert,
+        #                             'server.ssl_private_key': module.ssl_key})
+        #     cherrypy.log("Using PyOpenSSL: %s" % (PYOPENSSL))
+        #     if not PYOPENSSL:
+        #         # Use CherryPy built-in module if PyOpenSSL is not installed
+        #         cherrypy.config.update({'server.ssl_module': 'builtin'})
+        #     cherrypy.log("Using SSL certificate: %s" % (module.ssl_cert))
+        #     cherrypy.log("Using SSL private key: %s" % (module.ssl_key))
+        #     if module.ca_cert:
+        #         cherrypy.config.update({'server.ssl_certificate_chain': module.ca_cert})
+        #         cherrypy.log("Using SSL CA certificate: %s" % module.ca_cert)
 
         cherrypy.log("Serving application: %s" % http_interface)
 
@@ -145,20 +132,7 @@ class HTTPDaemon(object):
         # Daemonizer(cherrypy.engine).subscribe()
 
         # Mount the main application (an Alignak daemon interface)
-        cherrypy.tree.mount(http_interface, '/', config)
-        # cherrypy.engine.signals.subscribe()
-
-        # todo: daemonize the process thanks to CherryPy plugin
-        # if hasattr(cherrypy.engine, 'block'):
-        #     # 3.1 syntax
-        #     cherrypy.engine.start()
-        #     cherrypy.engine.block()
-        # else:
-        #     # 3.0 syntax
-        #     cherrypy.server.quickstart()
-        #     cherrypy.engine.start()
-        #
-        # atexit.register(cherrypy.engine.stop)
+        cherrypy.tree.mount(http_interface, '/ws', config)
 
     def run(self):
         """Wrapper to start the CherryPy server
@@ -167,6 +141,7 @@ class HTTPDaemon(object):
 
         :return: None
         """
+        return
         def _started_callback():
             """Callback function when Cherrypy Engine is started"""
             cherrypy.log("CherryPy engine started and listening...")
@@ -187,14 +162,77 @@ class HTTPDaemon(object):
         :return: None
         """
         cherrypy.log("Stopping CherryPy engine (current state: %s)..." % cherrypy.engine.state)
+        return
         try:
             cherrypy.engine.exit()
         except RuntimeWarning:
             pass
         except SystemExit:
             cherrypy.log('SystemExit raised: shutting down bus')
-            # self.exit()        # if cherrypy.engine.state == cherrypy.process.bus.states.STARTED:
-        #     cherrypy.engine.stop()
-        # else:
-        #     cherrypy.engine.exit()
         cherrypy.log("Stopped")
+
+
+
+if __name__ == '__main__':
+    print("Starting...")
+    # Simulate Alignak receiver daemon
+    class ReceiverItf(object):
+        @cherrypy.expose
+        def index(self):
+            return "I am the Receiver daemon!"
+    from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+    http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                 False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+    def run_http_1():
+        print("Thread !")
+        http_daemon1.run()
+    import threading
+    http_thread1 = threading.Thread(target=run_http_1, name='http_thread_1')
+    # http_thread1.daemon = True
+    http_thread1.start()
+    print("Thread started")
+
+    print(cherrypy.server)
+
+    # from cherrypy._cpserver import Server
+    # server = Server()
+    # server.thread_pool = 8
+    # server.socket_host = '0.0.0.0'
+    # server.socket_port = 7773
+    # server.subscribe()
+    #
+    # cherrypy.quickstart(ReceiverItf())
+
+    from alignak.objects import Module
+    mod = Module({
+        'module_alias': 'web-services',
+        'module_types': 'web-services',
+        'python_name': 'alignak_module_ws',
+        # Activate CherryPy file logs
+        'log_access': '/tmp/alignak-module-ws-access.log',
+        'log_error': '/tmp/alignak-module-ws-error.log',
+        # Alignak backend
+        'alignak_backend': 'http://127.0.0.1:5000',
+        'username': 'admin',
+        'password': 'admin',
+        # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+        'alignak_host': '',
+        'alignak_port': 7770,
+        # Set module to listen on all interfaces
+        'host': '0.0.0.0',
+        'port': 7773,
+        # Enable authorization
+        'authorization': 1
+    })
+    from alignak_module_ws.ws import AlignakWebServices
+    module = AlignakWebServices(mod)
+
+    # module.alias = 'WS'
+    module.host = '0.0.0.0'
+    module.port = 8888
+
+    from alignak_module_ws.utils.ws_server import WSInterface
+
+    # cherrypy.engine.stop()
+    http_daemon2 = HTTPDaemon(module, WSInterface(module))
+    # http_daemon2.run()

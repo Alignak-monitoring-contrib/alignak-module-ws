@@ -180,16 +180,7 @@ class TestModuleWs(AlignakTest):
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # Activate CherryPy file logs
-            'log_access': '/tmp/alignak-module-ws-access.log',
-            'log_error': '/tmp/alignak-module-ws-error.log',
-            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-            'alignak_host': '',
-            'alignak_port': 7770,
-            # Set module to listen on all interfaces
-            'host': '0.0.0.0',
-            'port': 8888,
+            'python_name': 'alignak_module_ws'
         })
 
         # Create the modules manager for a daemon type
@@ -332,7 +323,10 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match("Shutting down modules...", 0)
         self.assert_log_match("Request external process to stop for web-services", 1)
         self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), 2)
-        self.assert_log_match("External process stopped.", 3)
+        self.assert_log_match(re.escape("'web-services' is still living after a normal kill, I help it to die"), 3)
+        self.assert_log_match(re.escape("Killing external module (pid"), 4)
+        self.assert_log_match(re.escape("External module killed"), 5)
+        self.assert_log_match("External process stopped.", 6)
 
     def test_module_start_default(self):
         """
@@ -405,7 +399,15 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("configuration, listening on: http://0.0.0.0:8888"), 18)
         self.assert_log_match(
-            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: False"), 19)
+            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: True"), 19)
+        self.assert_log_match(
+            re.escape("Sending web-services daemon statistics to: localhost:8125, prefix: alignak"), 20)
+        self.assert_log_match(
+            re.escape("Trying to contact StatsD server..."), 21)
+        self.assert_log_match(
+            re.escape("StatsD server contacted"), 22)
+        self.assert_log_match(
+            re.escape("Alignak internal statistics are sent to StatsD."), 23)
 
     def test_module_start_parameters(self):
         """
@@ -466,7 +468,7 @@ class TestModuleWs(AlignakTest):
         self.assert_log_match(
             re.escape("Alignak service feedback list: ['']"), 8)
         self.assert_log_match(
-            re.escape("Alignak update, set give_result: True"), 9)
+            re.escape("Alignak update, set give_result: False"), 9)
         self.assert_log_match(
             re.escape("Alignak Backend is not configured. "
                       "Some module features will not be available."), 10)
