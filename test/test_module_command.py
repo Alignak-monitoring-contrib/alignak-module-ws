@@ -58,6 +58,24 @@ class TestModuleWsCommand(AlignakTest):
     @classmethod
     def setUpClass(cls):
 
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
+
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
         os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-command'
@@ -137,6 +155,14 @@ class TestModuleWsCommand(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
+    def setUp(self):
+        super(TestModuleWsCommand, self).setUp()
+
+    def tearDown(self):
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
+
     def test_module_zzz_command(self):
         """ Test the WS /command endpoint
         :return:
@@ -153,10 +179,7 @@ class TestModuleWsCommand(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
-            # Set module to listen on all interfaces
-            'host': '0.0.0.0',
-            'port': 8888,
-            'authorization': 1
+            'authorization': '1'
         })
 
         # Create a receiver daemon
@@ -192,7 +215,7 @@ class TestModuleWsCommand(AlignakTest):
         time.sleep(1)
 
         # Do not allow GET request on /command - not yet authorized
-        response = requests.get('http://127.0.0.1:8888/command')
+        response = requests.get(self.ws_endpoint + '/command')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -200,12 +223,12 @@ class TestModuleWsCommand(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # Allowed request on /command
-        response = session.get('http://127.0.0.1:8888/command')
+        response = session.get(self.ws_endpoint + '/command')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -216,7 +239,7 @@ class TestModuleWsCommand(AlignakTest):
         # You must have parameters when POSTing on /command
         headers = {'Content-Type': 'application/json'}
         data = {}
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -232,7 +255,7 @@ class TestModuleWsCommand(AlignakTest):
             "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -247,7 +270,7 @@ class TestModuleWsCommand(AlignakTest):
             "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -263,7 +286,7 @@ class TestModuleWsCommand(AlignakTest):
             "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
@@ -277,7 +300,7 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host;test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -292,7 +315,7 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host;test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -306,7 +329,7 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host/test_service",    # Accept / as an host/service separator
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -321,7 +344,7 @@ class TestModuleWsCommand(AlignakTest):
             "service": "test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -337,7 +360,7 @@ class TestModuleWsCommand(AlignakTest):
             "user": "test_user",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -346,7 +369,7 @@ class TestModuleWsCommand(AlignakTest):
                          'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')

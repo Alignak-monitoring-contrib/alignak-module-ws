@@ -65,6 +65,12 @@ This module for Alignak exposes some Alignak Web Services:
 
     * `GET /alignak_map` that will return the map and status of all the Alignak running daemons
 
+    * `GET /host` to get an host information
+
+    * `GET /hostgroup` to get an hostgroup information
+
+    * `GET /alignak_logs` to view the Alignak events history from an Alignak backend
+
     * `POST /alignak_command` that will notify an external command to the Alignak framework
 
     * `PATCH /host/<host_name>` that allows to send live state for an host and its services, update host custom variables, enable/disable host checks

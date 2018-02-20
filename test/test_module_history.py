@@ -57,6 +57,24 @@ class TestModuleWsHistory(AlignakTest):
     @classmethod
     def setUpClass(cls):
 
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
+
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
         os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-history'
@@ -163,10 +181,7 @@ class TestModuleWsHistory(AlignakTest):
         cls.p.kill()
 
     def setUp(self):
-        """Create resources in backend
-
-        :return: None
-        """
+        super(TestModuleWsHistory, self).setUp()
 
     def tearDown(self):
         for resource in ['logcheckresult', 'history']:
@@ -540,7 +555,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Do not allow GET request on /alignak_logs - not yet authorized!
-        response = requests.get('http://127.0.0.1:8888/alignak_logs')
+        response = requests.get(self.ws_endpoint + '/alignak_logs')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -548,13 +563,13 @@ class TestModuleWsHistory(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': username, 'password': password}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # ---
         # Get the alignak default history
-        response = session.get('http://127.0.0.1:8888/alignak_logs')
+        response = session.get(self.ws_endpoint + '/alignak_logs')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         # Remove fields that will obviously be different!
@@ -576,7 +591,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only check.result
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:check.result')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=type:check.result')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -586,13 +601,13 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only for a user
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Alignak')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=user_name:Alignak')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 4)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Me')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=user_name:Me')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -602,41 +617,41 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only for an host
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
         # Implicit host_name
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
         # Unknown search field
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=name:chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=name:chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         # All history items because name is not aknown search field! So we get all items...
         self.assertEqual(len(result['items']), 5)
 
         # Some other hosts...
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:denice')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:srv001')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:srv001')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
 
         # Several hosts...
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice host_name:srv001')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:denice host_name:srv001')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 4)   # 2 for each host
 
         # Not an host...
         # TODO: looks that ths criteria is not correctly implemented :(
-        # response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!denice')
+        # response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:!denice')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # self.assertEqual(len(result['items']), 3)
@@ -645,7 +660,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
         # Get the alignak default history, NOT for an host
         # todo: temporarily skipped
-        # response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!Chazay')
+        # response = requests.get(self.ws_endpoint + '/alignak_logs?search=host_name:!Chazay')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # for item in result['items']:
@@ -655,7 +670,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, only for a service
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=service_name:Processus')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=service_name:Processus')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -666,7 +681,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
         # Get the alignak default history, for an host and a service
         # todo multi search query to be improved!
-        # response = session.get('http://127.0.0.1:8888/alignak_logs?search="host_name:chazay service_name=Processus"')
+        # response = session.get(self.ws_endpoint + '/alignak_logs?search="host_name:chazay service_name=Processus"')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # for item in result['items']:
@@ -676,7 +691,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, unknown event type
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:XXX')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=type:XXX')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -686,44 +701,44 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, page count
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=0&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=0&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=1&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=1&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=2&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=2&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=3&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=3&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=4&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=4&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
         # Over the limits !
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=5&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=5&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 0)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=50&count=50')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=50&count=50')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -733,7 +748,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak history, page count greater than the number of items
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=1&count=25')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=1&count=25')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         pprint(result)
@@ -742,7 +757,7 @@ class TestModuleWsHistory(AlignakTest):
         self.assertEqual(result['_meta']['page'], 1)
         self.assertEqual(result['_meta']['total'], 5)
 
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=0&count=50')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=0&count=50')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         pprint(result)
@@ -754,7 +769,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')

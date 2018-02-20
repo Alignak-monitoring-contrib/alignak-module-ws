@@ -36,17 +36,17 @@ import cherrypy
 
 from alignak_backend_client.client import Backend, BackendException
 
-# Used for the main function to run module independently
-from alignak.objects.module import Module
-from alignak.modulesmanager import ModulesManager
+# # Used for the main function to run module independently
+# from alignak.objects.module import Module
+# from alignak.modulesmanager import ModulesManager
 
 from alignak.stats import Stats
 
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
-from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
-from alignak_module_ws.utils.ws_server import WSInterface
+# from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
+from alignak_module_ws.utils.ws_server import WSInterface, SESSION_KEY
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 for handler in logger.parent.handlers:
@@ -60,8 +60,6 @@ properties = {
     'external': True,
     'phases': ['running'],
 }
-
-SESSION_KEY = 'alignak_web_services'
 
 
 def get_instance(mod_conf):
@@ -134,7 +132,10 @@ class AlignakWebServices(BaseModule):
         # 0: no feedback
         # 1: feedback only for host
         # 2: feedback for host and services
-        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        try:
+            self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        except ValueError:
+            self.give_feedback = 1
         logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
 
         self.feedback_host = getattr(mod_conf, 'feedback_host', '')
@@ -219,89 +220,30 @@ class AlignakWebServices(BaseModule):
             self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
-        # SSL configuration
-        self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
-
-        self.ca_cert = os.path.abspath(
-            getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
-        )
-        if self.use_ssl and not os.path.exists(self.ca_cert):
-            logger.error('The CA certificate %s is missing (ca_cert). '
-                         'Please fix it in your configuration', self.ca_cert)
-            self.use_ssl = False
-
-        self.server_cert = os.path.abspath(
-            getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.crt')
-        )
-        if self.use_ssl and not os.path.exists(self.server_cert):
-            logger.error("The SSL certificate '%s' is missing (server_cert). "
-                         "Please fix it in your configuration", self.server_cert)
-            self.use_ssl = False
-
-        self.server_key = os.path.abspath(
-            getattr(mod_conf, 'server_key', '/usr/local/etc/alignak/certs/server.key')
-        )
-        if self.use_ssl and not os.path.exists(self.server_key):
-            logger.error('The SSL key %s is missing (server_key). '
-                         'Please fix it in your configuration', self.server_key)
-            self.use_ssl = False
-
-        self.server_dh = os.path.abspath(
-            getattr(mod_conf, 'server_dh', '/usr/local/etc/alignak/certs/server.pem')
-        )
-        if self.use_ssl and not os.path.exists(self.server_dh):
-            logger.error('The SSL DH %s is missing (server_dh). '
-                         'Please fix it in your configuration', self.server_dh)
-            self.use_ssl = False
-
-        self.hard_ssl_name_check = getattr(mod_conf, 'hard_ssl_name_check', '0') == '0'
-
-        # SSL information log
-        if self.use_ssl:
-            logger.info("Using SSL CA certificate: %s", self.ca_cert)
-            logger.info("Using SSL server files: %s/%s", self.server_cert, self.server_key)
-            if self.hard_ssl_name_check:
-                logger.info("Enabling hard SSL server name verification")
-        else:
-            logger.info("SSL is not enabled, this is not recommended. "
-                        "You should consider enabling SSL!")
-
-        # Host / post listening to...
-        self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        try:
-            self.port = int(getattr(mod_conf, 'port', '8888'))
-        except ValueError:
-            self.port = 8888
-        self.log_error = getattr(mod_conf, 'log_error', None)
-        self.log_access = getattr(mod_conf, 'log_access', None)
-
-        protocol = 'http'
-        if self.use_ssl:
-            protocol = 'https'
-        self.uri = '%s://%s:%s' % (protocol, self.host, self.port)
-        logger.info("configuration, listening on: %s", self.uri)
-
-        # HTTP authorization
-        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        self.authorization = getattr(mod_conf, 'authorization', '1') in ['1', '']
         if not self.authorization:
             logger.warning("HTTP autorization is not enabled, this is not recommended. "
                            "You should consider enabling authorization!")
 
-        # My own HTTP interface...
-        cherrypy.config.update({"tools.wsauth.on": self.authorization})
-        cherrypy.config.update({"tools.sessions.on": True})
-        cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
-        if self.log_error:
-            cherrypy.config.update({"log.error_file": self.log_error})
-        if self.log_access:
-            cherrypy.config.update({"log.access_file": self.log_access})
-        self.http_interface = WSInterface(self)
+        self.app_name = str(getattr(self, 'name', getattr(self, 'alias')))
+        # cherrypy.config.update({"tools.sessions.on": True,
+        #                         "tools.sessions.name": self.app_name})
+        # This application config overrides the default processors
+        # so we put them back in case we need them
+        config = {
+            '/': {
+                'tools.gzip.on': True,
+                'tools.gzip.mime_types': ['text/*', 'application/json'],
+                'tools.ws_auth.on': self.authorization,
+                'tools.sessions.on': True,
+                'tools.sessions.debug': True,
+                'tools.sessions.name': self.app_name
+            }
+        }
 
-        # My thread pool (simultaneous connections)
-        self.daemon_thread_pool_size = 8
-
-        self.http_daemon = None
-        self.http_thread = None
+        cherrypy.log("Serving application for %s" % self.app_name)
+        # Mount the main application (an Alignak daemon interface)
+        cherrypy.tree.mount(WSInterface(self), '/ws', config)
 
         # Our Alignak daemons map
         self.daemons_map = {}
@@ -399,7 +341,7 @@ class AlignakWebServices(BaseModule):
         :param password: str. User's password
         :return: str or None
         """
-        logger.debug("Retrieving token with credentials: %s / %s", username, password)
+        logger.debug("Retrieving token for user: %s (hidden password)", username)
 
         token = None
 
@@ -1779,30 +1721,6 @@ class AlignakWebServices(BaseModule):
             logger.warning("Response: %s", exp.response)
             return exp.response
 
-    def http_daemon_thread(self):
-        """Main function of the http daemon thread.
-
-        It will loop forever unless we stop the main process
-
-        :return: None
-        """
-        logger.info("HTTP main thread running")
-        # The main thing is to have a pool of X concurrent requests for the http_daemon,
-        # so "no_lock" calls can always be directly answer without having a "locked" version to
-        # finish
-        try:
-            self.http_daemon.run()
-        except PortNotFree as exp:
-            # print("Exception: %s" % str(exp))
-            logger.exception('The HTTP daemon port is not free: %s', exp)
-            raise
-        except Exception as exp:  # pylint: disable=W0703
-            # self.exit_on_exception(exp)
-            logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            logger.critical("Back trace of the error:\n%s", traceback.format_exc())
-            raise
-        logger.info("HTTP main thread exiting")
-
     def do_loop_turn(self):
         """This function is present because of an abstract function in the BaseModule class"""
         logger.info("In loop")
@@ -1821,119 +1739,92 @@ class AlignakWebServices(BaseModule):
 
         logger.info("starting...")
 
-        logger.info("starting http_daemon thread..")
-        self.http_daemon = HTTPDaemon(self.host, self.port, self.http_interface,
-                                      self.use_ssl, self.ca_cert, self.server_key,
-                                      self.server_cert, self.server_dh,
-                                      self.daemon_thread_pool_size)
+        try:
+            # Polling period (-100 to get sure to poll on the first loop iteration)
+            ping_alignak_backend_next_time = time.time() - 100
+            ping_alignak_next_time = time.time() - 100
+            get_daemons_next_time = time.time() - 100
 
-        self.http_thread = threading.Thread(target=self.http_daemon_thread, name='http_thread')
-        self.http_thread.daemon = True
-        self.http_thread.start()
-        logger.info("HTTP daemon thread started")
+            # Endless loop...
+            while not self.interrupted:
+                start = time.time()
 
-        # Polling period (-100 to get sure to poll on the first loop iteration)
-        ping_alignak_backend_next_time = time.time() - 100
-        ping_alignak_next_time = time.time() - 100
-        get_daemons_next_time = time.time() - 100
-
-        # Endless loop...
-        while not self.interrupted:
-            start = time.time()
-
-            if self.to_q:
-                # Get messages in the queue
-                try:
-                    message = self.to_q.get_nowait()
-                    if isinstance(message, ExternalCommand):
-                        logger.debug("Got an external command: %s", message.cmd_line)
-                        # Send external command to my Alignak daemon...
-                        self.from_q.put(message)
-                        self.received_commands += 1
-                    else:
-                        logger.warning("Got a message that is not an external command: %s", message)
-                except Queue.Empty:
-                    # logger.debug("No message in the module queue")
-                    pass
-
-            if self.backend_url and self.alignak_backend_polling_period > 0:
-                # Check backend connection
-                if ping_alignak_backend_next_time < start:
-                    ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
-
-                    self._backend_available()
-                    time.sleep(0.1)
-
-            if not self.alignak_host:
-                # Do not check Alignak daemons...
-                continue
-
-            if ping_alignak_next_time < start:
-                ping_alignak_next_time = start + self.alignak_polling_period
-
-                try:
-                    # Ping Alignak Arbiter
-                    response = requests.get("http://%s:%s/ping" %
-                                            (self.alignak_host, self.alignak_port))
-                    if response.status_code == 200:
-                        if response.json() == 'pong':
-                            self.alignak_is_alive = True
+                if self.to_q:
+                    # Get messages in the queue
+                    try:
+                        message = self.to_q.get_nowait()
+                        if isinstance(message, ExternalCommand):
+                            logger.debug("Got an external command: %s", message.cmd_line)
+                            # Send external command to my Alignak daemon...
+                            self.from_q.put(message)
+                            self.received_commands += 1
                         else:
-                            logger.error("arbiter ping/pong failed!")
-                except requests.ConnectionError as exp:
-                    logger.warning("Alignak arbiter is currently not available.")
-                    logger.debug("Exception: %s", exp)
-                time.sleep(0.1)
+                            logger.warning("Got a message that is not an external command: %s", message)
+                    except Queue.Empty:
+                        # logger.debug("No message in the module queue")
+                        pass
 
-            # Get daemons map / status only if Alignak is alive and polling period
-            if self.alignak_is_alive and get_daemons_next_time < start:
-                get_daemons_next_time = start + self.alignak_daemons_polling_period
+                if self.backend_url and self.alignak_backend_polling_period > 0:
+                    # Check backend connection
+                    if ping_alignak_backend_next_time < start:
+                        ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
 
-                # Get Arbiter all states
-                response = requests.get("http://%s:%s/get_all_states" %
-                                        (self.alignak_host, self.alignak_port))
-                if response.status_code != 200:
+                        self._backend_available()
+                        time.sleep(0.1)
+
+                if not self.alignak_host:
+                    # Do not check Alignak daemons...
                     continue
 
-                response_dict = response.json()
-                for daemon_type in response_dict:
-                    if daemon_type not in self.daemons_map:
-                        self.daemons_map[daemon_type] = {}
+                if ping_alignak_next_time < start:
+                    ping_alignak_next_time = start + self.alignak_polling_period
 
-                    for daemon in response_dict[daemon_type]:
-                        daemon_name = daemon[daemon_type + '_name']
-                        if daemon_name not in self.daemons_map:
-                            self.daemons_map[daemon_type][daemon_name] = {}
+                    try:
+                        # Ping Alignak Arbiter
+                        response = requests.get("http://%s:%s/ping" %
+                                                (self.alignak_host, self.alignak_port))
+                        if response.status_code == 200:
+                            if response.json() == 'pong':
+                                self.alignak_is_alive = True
+                            else:
+                                logger.error("arbiter ping/pong failed!")
+                    except requests.ConnectionError as exp:
+                        logger.warning("Alignak arbiter is currently not available.")
+                        logger.debug("Exception: %s", exp)
+                    time.sleep(0.1)
 
-                        for prop in self.daemon_properties:
-                            try:
-                                self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
-                            except (ValueError, KeyError):
-                                self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
+                # Get daemons map / status only if Alignak is alive and polling period
+                if self.alignak_is_alive and get_daemons_next_time < start:
+                    get_daemons_next_time = start + self.alignak_daemons_polling_period
+
+                    # Get Arbiter all states
+                    response = requests.get("http://%s:%s/get_all_states" %
+                                            (self.alignak_host, self.alignak_port))
+                    if response.status_code != 200:
+                        continue
+
+                    response_dict = response.json()
+                    for daemon_type in response_dict:
+                        if daemon_type not in self.daemons_map:
+                            self.daemons_map[daemon_type] = {}
+
+                        for daemon in response_dict[daemon_type]:
+                            daemon_name = daemon[daemon_type + '_name']
+                            if daemon_name not in self.daemons_map:
+                                self.daemons_map[daemon_type][daemon_name] = {}
+
+                            for prop in self.daemon_properties:
+                                try:
+                                    self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                                except (ValueError, KeyError):
+                                    self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
+                    time.sleep(0.1)
+
+                # Really too verbose :(
+                # logger.debug("time to manage queue and Alignak state: %d seconds",
+                # time.time() - start)
                 time.sleep(0.1)
-
-            # Really too verbose :(
-            # logger.debug("time to manage queue and Alignak state: %d seconds",
-            # time.time() - start)
-            time.sleep(0.1)
-
-        logger.info("stopping...")
-
-        if self.http_daemon:
-            logger.info("Shutting down the HTTP daemon...")
-            self.http_daemon.stop()
-            self.http_daemon = None
-
-        if self.http_thread:
-            logger.info("joining http_thread...")
-
-            # Add a timeout to join so that we can manually quit
-            self.http_thread.join(timeout=15)
-            if self.http_thread.is_alive():
-                logger.warning("http_thread failed to terminate. Calling _Thread__stop")
-                try:
-                    self.http_thread._Thread__stop()  # pylint: disable=protected-access
-                except Exception:
-                    pass
+        except Exception as exp:
+            logger.error("Exception: %s", exp)
 
         logger.info("stopped")
