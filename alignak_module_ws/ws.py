@@ -228,6 +228,7 @@ class AlignakWebServices(BaseModule):
         cherrypy.config.update({"tools.sessions.on": True,
                                 "tools.sessions.name": getattr(self, 'name',
                                                                getattr(self, 'alias'))})
+        cherrypy.session[SESSION_KEY] = ''
 
         # This application config overrides the default processors
         # so we put them back in case we need them

@@ -30,14 +30,12 @@ import json
 import shlex
 import subprocess
 
-import logging
-
 import requests
 
 from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
-from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -56,6 +54,24 @@ class TestModuleWsHostServiceCreation(AlignakTest):
 
     @classmethod
     def setUpClass(cls):
+
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
@@ -144,14 +160,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
-    @classmethod
-    def tearDown(cls):
+    def setUp(self):
+        super(TestModuleWsHostServiceCreation, self).setUp()
+
+    def tearDown(self):
         """Delete resources in backend
 
         :return: None
         """
         for resource in ['host', 'service']:
-            requests.delete(cls.endpoint + '/' + resource, auth=cls.auth)
+            requests.delete(self.endpoint + '/' + resource, auth=self.auth)
 
     def test_module_zzz_host_creation_admin(self):
         """Test the module /host API - host creation - admin user
@@ -235,7 +253,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         time.sleep(1)
 
         # Do not allow GET request on /host - not authorized
-        response = requests.get('http://127.0.0.1:8888/host')
+        response = requests.get(self.ws_endpoint + '/host')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -243,7 +261,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': username, 'password': password}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
@@ -253,7 +271,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         print(result)
@@ -285,7 +303,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -309,7 +327,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -344,7 +362,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -387,7 +405,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -437,7 +455,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -472,7 +490,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(new_host_4['ls_perf_data'], "'counter1'=2")
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -554,7 +572,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         time.sleep(1)
 
         # Do not allow GET request on /host - not authorized
-        response = requests.get('http://127.0.0.1:8888/host')
+        response = requests.get(self.ws_endpoint + '/host')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -562,7 +580,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
@@ -576,7 +594,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -619,7 +637,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             ]
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -688,7 +706,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             ]
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -754,7 +772,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             ]
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -793,7 +811,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         }
         self.assertEqual(expected, service['customs'])
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')

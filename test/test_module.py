@@ -157,6 +157,9 @@ class TestModuleWs(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
+    def setUp(self):
+        super(TestModuleWs, self).setUp()
+
     def test_module_loading(self):
         """
         Test arbiter, broker, ... auto-generated modules
@@ -699,12 +702,18 @@ class TestModuleWs(AlignakTest):
 
         self.modulemanager.stop_all()
 
-    @pytest.mark.skip("To be fixed - unauthorized mode is broken !")
+    @pytest.mark.skip("To be fixed - unauthorized mode is broken ! "
+                      "Update the _new_auth_backend function to use the configured backend "
+                      "credentials as a token when authorization is set to '0'!")
     def test_module_zzz_unauthorized(self):
         """Test the module basic API - authorization disabled
 
         :return:
         """
+        self.setup_with_file('./cfg/cfg_default.cfg')
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -718,7 +727,7 @@ class TestModuleWs(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
             # Disable authorization
-            'authorization': 0
+            'authorization': '0'
         })
 
         # Create a receiver daemon
@@ -760,7 +769,7 @@ class TestModuleWs(AlignakTest):
         api_list = response.json()
         for endpoint in api_list:
             print("Trying %s" % (endpoint))
-            response = requests.get(self.ws_endpoint + endpoint)
+            response = requests.get(self.ws_endpoint + '/' + endpoint)
             print("Response %d: %s" % (response.status_code, response.content))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
@@ -882,7 +891,7 @@ class TestModuleWs(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
             # Ensable authorization
-            'authorization': 1
+            'authorization': '1'
         })
 
         # Create a receiver daemon

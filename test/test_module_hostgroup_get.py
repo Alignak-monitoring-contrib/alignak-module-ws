@@ -140,6 +140,8 @@ class TestModuleWsHostgroup(AlignakTest):
 
         :return: None
         """
+        super(TestModuleWsHostgroup, self).setUp()
+
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
@@ -202,7 +204,7 @@ class TestModuleWsHostgroup(AlignakTest):
             time.sleep(1)
             self.modulemanager.stop_all()
 
-    def test_module_zzz_hostgroup_get(self):
+    def test_module_hostgroup_get(self):
         """Test the module /hostgroup API - hostgroup get information
         :return:
         """
