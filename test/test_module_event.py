@@ -158,6 +158,11 @@ class TestModuleWsEvent(AlignakTest):
     def setUp(self):
         super(TestModuleWsEvent, self).setUp()
 
+    def tearDown(self):
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
+
     def test_module_zzz_event(self):
         """Test the module /event endpoint
         :return:
@@ -171,15 +176,10 @@ class TestModuleWsEvent(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
-            # Activate CherryPy file logs
-            'log_access': '/tmp/alignak-module-ws-access.log',
-            'log_error': '/tmp/alignak-module-ws-error.log',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
-            # Set module to listen on all interfaces
-            'host': '0.0.0.0',
-            'port': 8888,
+            'authorization': '1',
         })
 
         # Create a receiver daemon

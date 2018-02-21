@@ -158,6 +158,11 @@ class TestModuleWsCommand(AlignakTest):
     def setUp(self):
         super(TestModuleWsCommand, self).setUp()
 
+    def tearDown(self):
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
+
     def test_module_zzz_command(self):
         """ Test the WS /command endpoint
         :return:

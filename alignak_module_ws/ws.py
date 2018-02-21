@@ -220,14 +220,14 @@ class AlignakWebServices(BaseModule):
             self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
-        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        self.authorization = getattr(mod_conf, 'authorization', '1') in ['1', '']
         if not self.authorization:
             logger.warning("HTTP autorization is not enabled, this is not recommended. "
                            "You should consider enabling authorization!")
 
+        self.app_name = str(getattr(self, 'name', getattr(self, 'alias')))
         cherrypy.config.update({"tools.sessions.on": True,
-                                "tools.sessions.name": str(getattr(self, 'name',
-                                                                   getattr(self, 'alias')))})
+                                "tools.sessions.name": self.app_name})
         # This application config overrides the default processors
         # so we put them back in case we need them
         config = {
@@ -241,7 +241,7 @@ class AlignakWebServices(BaseModule):
             }
         }
 
-        cherrypy.log("Serving application: %s" % WSInterface(self))
+        cherrypy.log("Serving application for %s" % self.app_name)
         # Mount the main application (an Alignak daemon interface)
         cherrypy.tree.mount(WSInterface(self), '/ws', config)
 
@@ -341,7 +341,7 @@ class AlignakWebServices(BaseModule):
         :param password: str. User's password
         :return: str or None
         """
-        logger.debug("Retrieving token with credentials: %s / %s", username, password)
+        logger.debug("Retrieving token for user: %s (hidden password)", username)
 
         token = None
 

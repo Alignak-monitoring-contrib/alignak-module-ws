@@ -46,7 +46,6 @@ def protect(*args, **kwargs):
     """
 
     authenticated = False
-    cherrypy.session[SESSION_KEY] = ''
 
 # A condition is just a callable that returns true or false
     conditions = cherrypy.request.config.get('auth.require', None)
@@ -85,7 +84,7 @@ def protect(*args, **kwargs):
                 if token:
                     cherrypy.session.regenerate()
                     # This line of code is discussed in doc/sessions-and-auth.markdown
-                    cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
+                    cherrypy.session[SESSION_KEY] = token
                     authenticated = True
                     logger.debug("Authenticated with backend")
                     cherrypy.log("Authenticated with backend")
