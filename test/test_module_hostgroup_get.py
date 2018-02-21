@@ -56,6 +56,24 @@ class TestModuleWsHostgroup(AlignakTest):
     @classmethod
     def setUpClass(cls):
 
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
+
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
         os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-hostgroup'
@@ -209,7 +227,7 @@ class TestModuleWsHostgroup(AlignakTest):
         :return:
         """
         # Do not allow GET request on /hostgroup - not yet authorized!
-        response = requests.get('http://127.0.0.1:8888/hostgroup')
+        response = requests.get(self.ws_endpoint + '/hostgroup')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -217,13 +235,13 @@ class TestModuleWsHostgroup(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # -----
         # Get a non-existing host - 1st: use parameters in the request
-        response = session.get('http://127.0.0.1:8888/hostgroup', auth=self.auth,
+        response = session.get(self.ws_endpoint + '/hostgroup', auth=self.auth,
                                 params={'name': 'fake-hostgroup'})
         result = response.json()
         self.assertEqual(result, {
@@ -235,7 +253,7 @@ class TestModuleWsHostgroup(AlignakTest):
         })
 
         # Get a non-existing host - 2nd: use hostgroup name in the URI
-        response = session.get('http://127.0.0.1:8888/hostgroup/fake-hostgroup', auth=self.auth)
+        response = session.get(self.ws_endpoint + '/hostgroup/fake-hostgroup', auth=self.auth)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
@@ -247,7 +265,7 @@ class TestModuleWsHostgroup(AlignakTest):
 
         # -----
         # Get all hostgroups ... no parameters!
-        response = session.get('http://127.0.0.1:8888/hostgroup', auth=self.auth)
+        response = session.get(self.ws_endpoint + '/hostgroup', auth=self.auth)
         result = response.json()
         # from pprint import pprint
         # pprint(result)
@@ -257,7 +275,7 @@ class TestModuleWsHostgroup(AlignakTest):
 
         # -----
         # Get a specific hostgroup - 1st: use parameters in the request
-        response = session.get('http://127.0.0.1:8888/hostgroup', auth=self.auth,
+        response = session.get(self.ws_endpoint + '/hostgroup', auth=self.auth,
                                 params={'name': 'hostgroup_01'})
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -265,7 +283,7 @@ class TestModuleWsHostgroup(AlignakTest):
         self.assertEqual(result['_result'][0]['name'], 'hostgroup_01')
 
         # Get a specific hostgroup - 2nd: use hostgroup name in the URI
-        response = session.get('http://127.0.0.1:8888/hostgroup/hostgroup_01', auth=self.auth)
+        response = session.get(self.ws_endpoint + '/hostgroup/hostgroup_01', auth=self.auth)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertIsNot(result['_result'], {})
@@ -279,7 +297,7 @@ class TestModuleWsHostgroup(AlignakTest):
         # })
 
         # Get a specific hostgroup - embed related items
-        response = session.get('http://127.0.0.1:8888/hostgroup/hostgroup_01', auth=self.auth,
+        response = session.get(self.ws_endpoint + '/hostgroup/hostgroup_01', auth=self.auth,
                                 params={'embedded': True})
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -298,7 +316,7 @@ class TestModuleWsHostgroup(AlignakTest):
 
         # -----
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
