@@ -168,9 +168,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
 
         :return: None
         """
-        if cls.modulemanager:
+        if self.modulemanager:
             time.sleep(1)
-            cls.modulemanager.stop_all()
+            self.modulemanager.stop_all()
 
         for resource in ['host', 'service']:
             requests.delete(self.endpoint + '/' + resource, auth=self.auth)

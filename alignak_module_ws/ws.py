@@ -226,8 +226,8 @@ class AlignakWebServices(BaseModule):
                            "You should consider enabling authorization!")
 
         self.app_name = str(getattr(self, 'name', getattr(self, 'alias')))
-        cherrypy.config.update({"tools.sessions.on": True,
-                                "tools.sessions.name": self.app_name})
+        # cherrypy.config.update({"tools.sessions.on": True,
+        #                         "tools.sessions.name": self.app_name})
         # This application config overrides the default processors
         # so we put them back in case we need them
         config = {
@@ -237,7 +237,7 @@ class AlignakWebServices(BaseModule):
                 'tools.ws_auth.on': self.authorization,
                 'tools.sessions.on': True,
                 'tools.sessions.debug': True,
-                # 'tools.sessions.name': 'alignak-fred'
+                'tools.sessions.name': self.app_name
             }
         }
 
