@@ -162,9 +162,6 @@ class TestModuleWsHost(AlignakTest):
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
-        if cls.modulemanager:
-            time.sleep(1)
-            cls.modulemanager.stop_all()
 
     def setUp(self):
         super(TestModuleWsHost, self).setUp()

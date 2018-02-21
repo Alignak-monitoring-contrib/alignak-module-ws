@@ -151,7 +151,17 @@ class TestModuleWsHostLivestate(AlignakTest):
         cls.modulemanager = None
 
     @classmethod
-    def tearDown(cls):
+    def tearDownClass(cls):
+        """Delete resources in backend
+
+        :return: None
+        """
+        cls.p.kill()
+
+    def setUp(self):
+        super(TestModuleWsHostLivestate, self).setUp()
+
+    def tearDownClass(cls):
         """Delete resources in backend
 
         :return: None
@@ -159,12 +169,8 @@ class TestModuleWsHostLivestate(AlignakTest):
         for resource in ['logcheckresult']:
             requests.delete('http://127.0.0.1:5000/' + resource, auth=cls.auth)
 
-        cls.p.kill()
         if cls.modulemanager:
             cls.modulemanager.stop_all()
-
-    def setUp(self):
-        super(TestModuleWsHostLivestate, self).setUp()
 
     def test_module_host_livestate(self):
         """Test the module /host API - host creation and livestate

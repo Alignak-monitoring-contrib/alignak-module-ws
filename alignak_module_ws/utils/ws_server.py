@@ -46,8 +46,9 @@ def protect(*args, **kwargs):
     """
 
     authenticated = False
+    cherrypy.session[SESSION_KEY] = ''
 
-    # A condition is just a callable that returns true or false
+# A condition is just a callable that returns true or false
     conditions = cherrypy.request.config.get('auth.require', None)
     if conditions is not None:
         app = cherrypy.request.app.root.app
