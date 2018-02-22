@@ -713,7 +713,6 @@ class AlignakWebServices(BaseModule):
             return ws_result
 
         update = None
-        logger.debug("Got host: %s", host)
 
         # Update host check state
         if 'active_checks_enabled' in data:
@@ -1264,7 +1263,8 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             if self.give_feedback > 1:
-                service = backend.get('/'.join(['service', service['_id']]))
+                # Do not get from the backend, we already did this before...
+                # service = backend.get('/'.join(['service', service['_id']]))
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
@@ -1292,7 +1292,8 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             if self.give_feedback > 1:
-                service = backend.get('/'.join(['service', service['_id']]))
+                # Do not get from the backend, we already did this before...
+                # service = backend.get('/'.join(['service', service['_id']]))
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
