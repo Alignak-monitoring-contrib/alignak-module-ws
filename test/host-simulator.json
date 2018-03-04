@@ -6,6 +6,13 @@
          "passive_checks_enabled": true,
          "_sub_realm": false,
 
+         "template": {
+            "alias": "My host...",
+            "_templates": ["windows-passive-host", "important"]
+         },
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+
          "services": {
             "fake_service": {
                "name": "fake",
@@ -65,18 +72,47 @@
                "active_checks_enabled": false,
                "passive_checks_enabled": true
             }
-             "test_service": {
-                 "name": "nsca_uptime"
-             },
-             "test_service2": {
-                 "name": "nsca_cpu"
-             },
-             "test_service3": {
-                 "name": "nsca_memory"
-             },
-             "test_service4": {
-                 "name": "nsca_disk"
-             }
+         }
+      },
+      {
+         "name": "win-passive-bis-[%02d-0-9]",
+         "active_checks_enabled": false,
+         "passive_checks_enabled": true,
+
+         "template": {
+            "_templates": ["windows-passive-host", "normal"]
+         },
+
+         "services": {
+            "fake_service": {
+               "name": "fake",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true,
+                "livestate": {
+                    "state": "OK",
+                    "output": "WS output - I am always ok!"
+                }
+            },
+            "test_service": {
+               "name": "nsca_uptime",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service2": {
+               "name": "nsca_cpu",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service3": {
+               "name": "nsca_memory",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            },
+            "test_service4": {
+               "name": "nsca_disk",
+               "active_checks_enabled": false,
+               "passive_checks_enabled": true
+            }
          }
       }
    ]
