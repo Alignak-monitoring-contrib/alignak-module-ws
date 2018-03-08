@@ -269,8 +269,9 @@ class WSInterface(object):
         """ Declare an host and its data
         :return:
         """
-        if cherrypy.request.method not in ["GET", "PATCH"]:
-            return {'_status': 'ERR', '_error': 'You must only GET or PATCH on this endpoint.'}
+        if cherrypy.request.method not in ["GET", "PATCH", "POST"]:
+            return {'_status': 'ERR',
+                    '_error': 'You must only GET, PATCH or POST on this endpoint.'}
 
         # Get an host
         # ---
@@ -296,7 +297,7 @@ class WSInterface(object):
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
         _ts = time.time()
-        logger.debug("Patch /host: %s", cherrypy.request.json)
+        logger.debug("Update /host: %s", cherrypy.request.json)
         data = {
             'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
             'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),

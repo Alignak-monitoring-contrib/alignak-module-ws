@@ -83,9 +83,8 @@ class TestModuleWsCommand(AlignakTest):
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
         exit_code = subprocess.call(
-            shlex.split(
-                'mongo %s --eval "db.dropDatabase()"' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
-        )
+            shlex.split('mongo %s --eval "db.dropDatabase()"'
+                        % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME']))
         assert exit_code == 0
 
         fnull = open(os.devnull, 'w')
@@ -104,7 +103,7 @@ class TestModuleWsCommand(AlignakTest):
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
-            stdout=fnull, stderr=fnull
+            # stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
         print("Fed")

@@ -124,6 +124,11 @@ class AlignakWebServices(BaseModule):
         self.ignore_unknown_service = getattr(mod_conf, 'ignore_unknown_service', '1') == '1'
         logger.info("Alignak unknown service is ignored: %s", self.ignore_unknown_service)
 
+        self.realm_case = getattr(mod_conf, 'realm_case', '')
+        if self.realm_case not in ['upper', 'lower', 'capitalize']:
+            self.realm_case = ''
+        logger.info("Alignak realm case: %s", self.realm_case)
+
         # Set timestamp
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
         logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
@@ -182,7 +187,8 @@ class AlignakWebServices(BaseModule):
         self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
         self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
         try:
-            self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+            self.alignak_backend_timeshift = int(getattr(mod_conf,
+                                                         'alignak_backend_timeshift', '0'))
         except ValueError:
             self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
@@ -489,12 +495,14 @@ class AlignakWebServices(BaseModule):
         default_realm = self._default_realm()
         if '_realm' not in post_data and default_realm:
             logger.info("add default realm (%s) to the data", default_realm['_id'])
+            print("add default realm (%s) to the data", default_realm['_id'])
             post_data.update({'_realm': default_realm['_id']})
 
         if '_id' in post_data:
             post_data.pop('_id')
 
         logger.debug("post_data: %s", post_data)
+        print("post_data: %s", post_data)
         return post_data
 
     def get_host_group(self, name, embedded=False):
@@ -677,6 +685,16 @@ class AlignakWebServices(BaseModule):
 
                 if 'template' not in data:
                     data['template'] = None
+
+                # Change Realm case
+                if data['template'] and '_realm' in data['template']:
+                    if data['template']['_realm'] != 'All':
+                        if self.realm_case == 'upper':
+                            data['template']['_realm'] = data['template']['_realm'].upper()
+                        if self.realm_case == 'lower':
+                            data['template']['_realm'] = data['template']['_realm'].lower()
+                        if self.realm_case == 'capitalize':
+                            data['template']['_realm'] = data['template']['_realm'].capitalize()
 
                 # Request data for host creation (no service)
                 post_data = self.backend_creation_data(host_name, None, data['template'])
@@ -1049,7 +1067,12 @@ class AlignakWebServices(BaseModule):
                 # Change Realm case
                 if data['template'] and '_realm' in data['template']:
                     if data['template']['_realm'] != 'All':
-                        data['template']['_realm'] = data['template']['_realm'].upper()
+                        if self.realm_case == 'upper':
+                            data['template']['_realm'] = data['template']['_realm'].upper()
+                        if self.realm_case == 'lower':
+                            data['template']['_realm'] = data['template']['_realm'].lower()
+                        if self.realm_case == 'capitalize':
+                            data['template']['_realm'] = data['template']['_realm'].capitalize()
 
                 # Request data for service creation
                 post_data = self.backend_creation_data(host['name'], service_name, data['template'])
@@ -1760,7 +1783,8 @@ class AlignakWebServices(BaseModule):
                             self.from_q.put(message)
                             self.received_commands += 1
                         else:
-                            logger.warning("Got a message that is not an external command: %s", message)
+                            logger.warning("Got a message that is not an external command: %s",
+                                           message)
                     except Queue.Empty:
                         # logger.debug("No message in the module queue")
                         pass

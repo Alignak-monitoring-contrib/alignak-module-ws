@@ -1555,7 +1555,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' updated."],
+                         u"Host 'test_host_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -1564,7 +1564,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -1597,7 +1598,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -1631,7 +1633,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -1670,7 +1673,8 @@ class TestModuleWsHost(AlignakTest):
         #     u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified'
         # }
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
         }
@@ -1850,7 +1854,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
             u'_MY_ARRAY': [
@@ -1937,7 +1942,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
             u'_MY_ARRAY': [
@@ -2039,7 +2045,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
-                         u"Service 'test_host_0/test_ok_0' updated"],
+                         u"Service 'test_host_0/test_ok_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -2055,7 +2061,9 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from all the host variables
         expected = {
-            u'_DISPLAY_NAME': u'test_ok_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_ok_0',
+            u'_DISPLAY_NAME': [u'test_host_0', u'test_ok_0'],
+            u'_TEMPLATE': u'generic',
             u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
             u'_ICON_IMAGE_ALT': u'icon alt string',
             u'_CUSTNAME': u'custvalue',
@@ -2867,8 +2875,10 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux'
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
+            u'_OSLICENSE': u'gpl',
+            u'_OSTYPE': u'gnulinux'
         }
         self.assertEqual(expected, test_host_0['customs'])
 
@@ -2919,7 +2929,8 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         test_host_0 = resp['_items'][0]
         expected = {
-            u'_DISPLAY_NAME': u'test_host_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_host_0',
+            u'_TEMPLATE': u'generic',
             u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
             u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
         }
@@ -2966,7 +2977,9 @@ class TestModuleWsHost(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_DISPLAY_NAME': u'test_ok_0', u'_TEMPLATE': u'generic',
+            # u'_DISPLAY_NAME': u'test_ok_0',
+            u'_DISPLAY_NAME': [u'test_host_0', u'test_ok_0'],
+            u'_TEMPLATE': u'generic',
             u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
             u'_ICON_IMAGE_ALT': u'icon alt string',
             u'_CUSTNAME': u'custvalue',

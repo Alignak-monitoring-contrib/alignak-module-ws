@@ -125,14 +125,6 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         resp = response.json()
         cls.realmAll_id = resp['_items'][0]['_id']
 
-        # Add a realm
-        data = {'name': 'test_realm'}
-        response = requests.post(cls.endpoint + '/realm', json=data, headers=headers,
-                                 auth=cls.auth)
-        resp = response.json()
-        cls.realmTest_id = resp['_id']
-        print("Created a new realm: %s" % resp)
-
         # Add a user
         data = {'name': 'test', 'password': 'test', 'back_role_super_admin': False,
                 'host_notification_period': cls.user_admin['host_notification_period'],
@@ -172,7 +164,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             time.sleep(1)
             self.modulemanager.stop_all()
 
-        for resource in ['host', 'service']:
+        for resource in ['realm', 'host', 'service']:
             requests.delete(self.endpoint + '/' + resource, auth=self.auth)
 
     def test_module_zzz_host_creation_admin(self):
@@ -181,16 +173,37 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         """
         self._module_host_creation('admin', 'admin')
 
+    def test_module_zzz_host_creation_admin_post(self):
+        """Test the module /host API - host creation - admin user - POST method
+        :return:
+        """
+        self._module_host_creation('admin', 'admin', 'POST')
+
     def test_module_zzz_host_creation_user(self):
         """Test the module /host API - host creation - admin user
         :return:
         """
         self._module_host_creation('test', 'test')
 
-    def _module_host_creation(self, username, password):
+    def test_module_zzz_host_creation_user_post(self):
+        """Test the module /host API - host creation - admin user
+        :return:
+        """
+        self._module_host_creation('test', 'test', 'POST')
+
+    def _module_host_creation(self, username, password, method='PATCH'):
         """Test the module /host API - host creation
         :return:
         """
+        # Add a realm
+        data = {'name': 'test_realm'}
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(self.endpoint + '/realm', json=data, headers=headers,
+                                 auth=self.auth)
+        resp = response.json()
+        self.realmTest_id = resp['_id']
+        print("Created a new realm: %s" % resp)
+
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -275,10 +288,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        print(result)
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [
@@ -307,7 +319,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             "name": "new_host_10",
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -331,7 +343,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -366,7 +378,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -409,7 +421,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -459,7 +471,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
             }
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        response = session.request(method, self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -822,3 +834,142 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(result['_result'], 'Logged out')
 
         self.modulemanager.stop_all()
+
+    def test_host_realm_creation(self):
+        self._host_realm_creation('new_host_realm', '')
+
+    def test_host_realm_creation_upper(self):
+        self._host_realm_creation('new_host_upper_realm', 'upper')
+
+    def test_host_realm_creation_lower(self):
+        self._host_realm_creation('new_host_lower_realm', 'lower')
+
+    def test_host_realm_creation_capitalize(self):
+        self._host_realm_creation('new_host_capitalize_realm', 'capitalize')
+
+    def _host_realm_creation(self, host_name='', realm_case=''):
+        """Test the module /host API - host creation
+        :return:
+        """
+        # Add a realm
+        realm = {'name': 'Host_Realm'}
+        if realm_case == 'upper':
+            realm = {'name': 'host_realm'.upper()}
+        if realm_case == 'lower':
+            realm = {'name': 'host_realm'.lower()}
+        if realm_case == 'capitalize':
+            realm = {'name': 'host_realm'.capitalize()}
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(self.endpoint + '/realm', json=realm, headers=headers,
+                                 auth=self.auth)
+        resp = response.json()
+        self.realmTest = resp['_id']
+        print("Created a new realm: %s" % realm['name'])
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            'log_level': 'DEBUG',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            'give_result': '1',
+            'give_feedback': '1',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
+            # Activate CherryPy file logs
+            'log_access': '/tmp/alignak-module-ws-access.log',
+            'log_error': '/tmp/alignak-module-ws-error.log',
+            # Allow host/service creation
+            'allow_host_creation': '1',
+            'allow_service_creation': '1',
+            'realm_case': realm_case,
+            # Force Alignak backend update by the module (default is not force!)
+            'alignak_backend_livestate_update': '1'
+        })
+
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # Login with username/password (real backend login)
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+
+        # Request to create an host - no provided data
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": host_name,
+            "template": {
+                "_realm": 'Host_Realm'  # Do not care about realm case...
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        print(result)
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'%s is alive :)' % host_name,
+                u"Requested host '%s' does not exist." % host_name,
+                u"Requested host '%s' created." % host_name],
+            u'_feedback': {
+                u'name': host_name
+            }
+        })
+        # Host created with default check_command and in default user realm
+
+        # Get new host to confirm creation
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': host_name})})
+        resp = response.json()
+        new_host = resp['_items'][0]
+        self.assertEqual(host_name, new_host['name'])
+        self.assertEqual(self.realmTest, new_host['_realm'])

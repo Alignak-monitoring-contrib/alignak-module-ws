@@ -106,7 +106,7 @@ class TestModuleWs(AlignakTest):
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete -u admin -p admin %s/cfg/cfg_default.cfg' % test_dir),
-            stdout=fnull, stderr=fnull
+            # stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
         print("Fed")
@@ -159,6 +159,9 @@ class TestModuleWs(AlignakTest):
 
     def setUp(self):
         super(TestModuleWs, self).setUp()
+
+    def tearDown(self):
+        super(TestModuleWs, self).tearDown()
 
     def test_module_loading(self):
         """
@@ -392,6 +395,9 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak unknown service is ignored: True"), idx)
         idx += 1
         self.assert_log_match(
+            re.escape("Alignak realm case:"), idx)
+        idx += 1
+        self.assert_log_match(
             re.escape("Alignak external commands, set timestamp: True"), idx)
         idx += 1
         self.assert_log_match(
@@ -495,6 +501,9 @@ class TestModuleWs(AlignakTest):
         idx += 1
         self.assert_log_match(
             re.escape("Alignak unknown service is ignored: False"), idx)
+        idx += 1
+        self.assert_log_match(
+            re.escape("Alignak realm case:"), idx)
         idx += 1
         self.assert_log_match(
             re.escape("Alignak external commands, set timestamp: False"), idx)

@@ -21,14 +21,10 @@ script:
   - pylint --rcfile=.pylintrc alignak_module_ws/
   # Code dynamic analysis
   - cd test
-  # Delete previously existing coverage results
-  - coverage erase
 
   # Run test suite with py.test running its coverage plugin
-  - pytest -v --cov=alignak_module_ws --cov-config .coveragerc test_*.py
+  - pytest -v --no-print-logs --cov=alignak_module_ws --cov-config .coveragerc test_*.py
 
-  # Report about coverage
-  - coverage report -m
   - cd ..
 # specific call to launch coverage data into coveralls.io
 after_success:
