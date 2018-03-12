@@ -377,7 +377,7 @@ class TestModuleWs(AlignakTest):
             'allow_service_creation': '0',
             # Errors for unknown host/service
             'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0'
+            'ignore_unknown_service': '1'
         })
 
         instance = alignak_module_ws.get_instance(mod)
