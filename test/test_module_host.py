@@ -286,7 +286,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u"Requested host 'test_host' does not exist"]})
+                                  u'_issues': [u"Requested host 'test_host' does not exist. Note that host creation is not allowed."]})
 
         # Host name may be the last part of the URI
         data = {
@@ -576,48 +576,57 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
+            u'_status': u'OK',
+            u'_result': [
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
-                # u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
-                # u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated.",
+                # u"Service 'test_host_0/test_ok_0' unchanged.",
+                # u"Service 'test_host_0/test_ok_1' unchanged.",
+                # u"Service 'test_host_0/test_ok_2' unchanged."
             ],
             u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
+                u'active_checks_enabled': True, u'_overall_state_id': 3, u'freshness_state': u'x',
+                u'notes': u'', u'retry_interval': 1, u'name': u'test_host_0', u'alias': u'up_0',
                 u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
+                u'location': {u'type': u'Point', u'coordinates': [48.858293, 2.294601]},
+                u'check_interval': 1,
+                u'max_check_attempts': 3, u'check_freshness': False,
                 u'passive_checks_enabled': True,
-                u'retry_interval': 1,
+
                 u'services': [
-                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_0',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 5, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': False, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_0'},
-                    {u'active_checks_enabled': True, u'alias': u'test_host_0 test_ok_1',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': True, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_1'},
-                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_2',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': True, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_2'}
+                    {
+                        u'name': u'test_ok_0', u'alias': u'test_host_0 test_ok_0',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 5,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': False,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': False,
+                    },
+                    {
+                        u'name': u'test_ok_1', u'alias': u'test_host_0 test_ok_1',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 3,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': True,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': True,
+                    },
+                    {
+                        u'name': u'test_ok_2', u'alias': u'test_host_0 test_ok_2',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 3,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': False,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': True,
+                    }
                 ]
             }
         })
@@ -957,7 +966,8 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u"Requested host 'test_host' does not exist"]})
+                                  u'_issues': [u"Requested host 'test_host' does not exist. "
+                                               u"Note that host creation is not allowed."]})
 
         # Host name may be the last part of the URI
         headers = {'Content-Type': 'application/json'}
@@ -1534,7 +1544,8 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
+                                               u"Note that host creation is not allowed."]})
 
 
         # ----------
@@ -1680,6 +1691,213 @@ class TestModuleWsHost(AlignakTest):
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
+
+        # Logout
+        response = session.get(self.ws_endpoint + '/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_host_unknown_service(self):
+        """Test the module /host API * unknown service
+        give result, no feedback, do not ignore
+        :return:
+        """
+        extra_conf = {
+            # Give result data
+            'give_result': '1',
+            # No feedback
+            'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0'
+        }
+        expected_result = {
+            u'_status': u'ERR',
+            u'_issues': [
+                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            ],
+            u'_result': [u'test_host_0 is alive :)'],
+        }
+        self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
+
+    def test_module_zzz_host_unknown_service_2(self):
+        """Test the module /host API * unknown service
+        give result, give feedback, do not ignore
+        :return:
+        """
+        extra_conf = {
+            # Give result data
+            'give_result': '1',
+            # No feedback
+            'give_feedback': '1',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0'
+        }
+        expected_result = {
+            u'_status': u'ERR',
+            u'_feedback': {},
+            u'_issues': [
+                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            ],
+            u'_result': [u'test_host_0 is alive :)'],
+        }
+        self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
+
+    def test_module_zzz_host_unknown_service_3(self):
+        """Test the module /host API * unknown service
+        give result, no feedback, ignore unknown host and service
+        :return:
+        """
+        extra_conf = {
+            # Give result data
+            'give_result': '1',
+            # No feedback
+            'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '1',
+            'ignore_unknown_service': '1'
+        }
+        expected_result = {
+            u'_status': u'OK',
+            u'_result': [
+                u'test_host_0 is alive :)',
+                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            ]
+        }
+        self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
+
+    def _manage_host_unknown_service(self, extra_conf=None, expected_result=None):
+        """Test the module /host API * unknown service and no creation allowed
+        :return:
+        """
+        self.setup_with_file('./cfg/cfg_default.cfg', unit_test=False)
+        self.assertTrue(self.conf_is_correct)
+        self.show_configuration_logs()
+
+        # Create an Alignak module
+        mod_conf = {
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            'username': 'admin',
+            'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # Give result data
+            'give_result': '1',
+            # No feedback
+            'give_feedback': '0',
+            # Do not allow host/service creation
+            'allow_host_creation': '0',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+        }
+        mod_conf.update(extra_conf)
+        mod = Module(mod_conf)
+
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Get host data to confirm tha the host still exists
+        # ---
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'test_host_0'})})
+        resp = response.json()
+        test_host_0 = resp['_items'][0]
+        # ---
+
+        # Alignak WS connection
+        # ---
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        session = requests.Session()
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        self.token = resp['_result'][0]
+        self.auth_ws = requests.auth.HTTPBasicAuth(self.token, '')
+
+        # Update host service - service does not exist
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "name": "test_host_0",
+            "services": [
+                {
+                    "name": "unknown_service_0",
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output...",
+                        "long_output": "Long output...",
+                        "perf_data": "'counter'=1"
+                    }
+                },
+                {
+                    "name": "unknown_service_1",
+                    "livestate": {
+                        "state": "OK",
+                        "output": "Output..."
+                    }
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, expected_result)
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')
@@ -1998,7 +2216,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result, {
             u'_status': u'ERR',
             u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist"]
+            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist. "
+                         u"Note that service creation is not allowed."]
         })
         # ----------
 
@@ -2899,7 +3118,8 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
+                                               u"Note that host creation is not allowed."]})
 
 
         # ----------
@@ -3124,7 +3344,8 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
+                                               u"Note that host creation is not allowed."]})
 
 
         # ----------
@@ -3308,7 +3529,7 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         self.assertEqual(result, {
             u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist"],
+            u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
             u'_status': u'ERR'
         })
         # ----------

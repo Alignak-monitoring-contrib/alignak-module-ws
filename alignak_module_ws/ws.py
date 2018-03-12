@@ -177,9 +177,8 @@ class AlignakWebServices(BaseModule):
         self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
 
         try:
-            self.alignak_backend_polling_period = int(getattr(mod_conf,
-                                                              'alignak_backend_polling_period',
-                                                              '10'))
+            self.alignak_backend_polling_period = int(
+                getattr(mod_conf, 'alignak_backend_polling_period', '10'))
         except ValueError:
             self.alignak_backend_polling_period = 10
 
@@ -187,13 +186,13 @@ class AlignakWebServices(BaseModule):
         self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
         self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
         try:
-            self.alignak_backend_timeshift = int(getattr(mod_conf,
-                                                         'alignak_backend_timeshift', '0'))
+            self.alignak_backend_timeshift = int(
+                getattr(mod_conf, 'alignak_backend_timeshift', '0'))
         except ValueError:
             self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
                                                         'alignak_backend_livestate_update',
-                                                        '1') == '0'
+                                                        '0') == '0'
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -242,7 +241,7 @@ class AlignakWebServices(BaseModule):
                 'tools.gzip.mime_types': ['text/*', 'application/json'],
                 'tools.ws_auth.on': self.authorization,
                 'tools.sessions.on': True,
-                'tools.sessions.debug': True,
+                # 'tools.sessions.debug': True,
                 'tools.sessions.name': self.app_name
             }
         }
@@ -263,7 +262,7 @@ class AlignakWebServices(BaseModule):
         logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
                     getattr(mod_conf, 'statsd_host', 'localhost'),
                     int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
-                    getattr(mod_conf, 'statsd_prefix', 'alignak'),
+                    getattr(mod_conf, 'statsd_prefix', 'alignak.modules'),
                     (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
@@ -275,7 +274,7 @@ class AlignakWebServices(BaseModule):
         # Count received commands
         self.received_commands = 0
 
-    def _new_backend(self):
+    def _backend(self):
         """
         Return a new Client Backend instance
         :return: backend.Client
@@ -283,17 +282,15 @@ class AlignakWebServices(BaseModule):
         backend = Backend(self.backend_url, self.client_processes)
         return backend
 
-    def _new_auth_backend(self):
+    def _auth_backend(self):
         """
         Return a new Client Backend instance with authenticated user
         User is an external user (for CherryPy)
         :return: backend.Client
         """
-        backend = self._new_backend()
-        # backend.set_token(cherrypy.session[SESSION_KEY])
-        # if SESSION_KEY not in cherrypy.session:
-        #     raise HTTPError(401)
-        backend.token = cherrypy.session[SESSION_KEY]
+        backend = self._backend()
+        if self.authorization:
+            backend.token = cherrypy.session[SESSION_KEY]
         return backend
 
     def _backend_available(self):
@@ -309,7 +306,7 @@ class AlignakWebServices(BaseModule):
         if not self.backend_generate:
             generate = 'disabled'
 
-        backend = self._new_backend()
+        backend = self._backend()
         try:
             available = backend.login(self.backend_username, self.backend_password, generate)
         except BackendException as err:  # pragma: no cover, should not happen
@@ -329,7 +326,7 @@ class AlignakWebServices(BaseModule):
         default_realm = None
 
         try:
-            backend = self._new_auth_backend()
+            backend = self._auth_backend()
             result = backend.get('/realm', {'max_results': 1, 'sort': '_level'})
             default_realm = result['_items'][0]
             logger.debug("Got default realm: %s", default_realm)
@@ -350,9 +347,7 @@ class AlignakWebServices(BaseModule):
         logger.debug("Retrieving token for user: %s (hidden password)", username)
 
         token = None
-
         if not username and not password:
-            # Nothing to test
             return token
 
         if username and not password:
@@ -360,7 +355,7 @@ class AlignakWebServices(BaseModule):
             logger.debug("Returning the username as token (no password supplied)")
             return username
 
-        backend = self._new_backend()
+        backend = self._backend()
         try:
             backend.login(username, password)
             token = backend.token
@@ -398,8 +393,8 @@ class AlignakWebServices(BaseModule):
         :return: data to post on element creation
         """
 
-        backend = self._new_auth_backend()
-
+        backend = self._auth_backend()
+        #
         post_data = {}
 
         host_creation = True
@@ -495,14 +490,12 @@ class AlignakWebServices(BaseModule):
         default_realm = self._default_realm()
         if '_realm' not in post_data and default_realm:
             logger.info("add default realm (%s) to the data", default_realm['_id'])
-            print("add default realm (%s) to the data", default_realm['_id'])
             post_data.update({'_realm': default_realm['_id']})
 
         if '_id' in post_data:
             post_data.pop('_id')
 
         logger.debug("post_data: %s", post_data)
-        print("post_data: %s", post_data)
         return post_data
 
     def get_host_group(self, name, embedded=False):
@@ -519,7 +512,7 @@ class AlignakWebServices(BaseModule):
         """
         hostgroups = []
 
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
@@ -599,7 +592,7 @@ class AlignakWebServices(BaseModule):
         """
         hosts = []
 
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
@@ -653,82 +646,88 @@ class AlignakWebServices(BaseModule):
         host = None
         host_created = False
 
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name],
                      '_issues': []}
 
-        try:
-            start = time.time()
-            result = backend.get('/host', {'where': json.dumps({'name': host_name})})
-            self.statsmgr.counter('backend-get.host', 1)
-            self.statsmgr.timer('backend-get-time.host', time.time() - start)
-            logger.debug("Get host, got: %s", result)
-            if not result['_items']:
-                if not self.allow_host_creation:
-                    if not self.ignore_unknown_host:
-                        ws_result['_status'] = 'ERR'
-                        ws_result['_issues'].append("Requested host '%s' does not exist"
-                                                    % host_name)
-                    else:
-                        ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
-
-                    if not self.give_feedback and '_feedback' in ws_result:
-                        ws_result.pop('_feedback')
-                    return ws_result
-
-            if not result['_items'] and self.allow_host_creation:
-                # Tries to create the host
-                logger.info("Requested host '%s' does not exist. Trying to create a new host...",
-                            host_name)
-                ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
-
-                if 'template' not in data:
-                    data['template'] = None
-
-                # Change Realm case
-                if data['template'] and '_realm' in data['template']:
-                    if data['template']['_realm'] != 'All':
-                        if self.realm_case == 'upper':
-                            data['template']['_realm'] = data['template']['_realm'].upper()
-                        if self.realm_case == 'lower':
-                            data['template']['_realm'] = data['template']['_realm'].lower()
-                        if self.realm_case == 'capitalize':
-                            data['template']['_realm'] = data['template']['_realm'].capitalize()
-
-                # Request data for host creation (no service)
-                post_data = self.backend_creation_data(host_name, None, data['template'])
-                logger.debug("Post host, data: %s", post_data)
+        if self.backend_url:
+            try:
                 start = time.time()
-                result = backend.post('host', data=post_data)
-                self.statsmgr.counter('backend-post.host', 1)
-                self.statsmgr.timer('backend-post-time.host', time.time() - start)
-                logger.debug("Post host, response: %s", result)
-                if result['_status'] != 'OK':
-                    logger.warning("Post host, error: %s", result)
-                    ws_result['_status'] = 'ERR'
-                    ws_result['_issues'].append("Requested host '%s' creation failed." % host_name)
-                    if not self.give_feedback and '_feedback' in ws_result:
-                        ws_result.pop('_feedback')
+                result = backend.get('/host', {'where': json.dumps({'name': host_name})})
+                self.statsmgr.counter('backend-get.host', 1)
+                self.statsmgr.timer('backend-get-time.host', time.time() - start)
+                logger.debug("Get host, got: %s", result)
+                if not result['_items']:
+                    if not self.allow_host_creation:
+                        if not self.ignore_unknown_host:
+                            ws_result['_status'] = 'ERR'
+                            ws_result['_issues'].append("Requested host '%s' does not exist. "
+                                                        "Note that host creation is not allowed."
+                                                        % host_name)
+                        else:
+                            ws_result['_result'] = ["Requested host '%s' does not exist"
+                                                    % host_name]
 
-                    return ws_result
+                        if not self.give_feedback and '_feedback' in ws_result:
+                            ws_result.pop('_feedback')
+                        return ws_result
 
-                # Get the newly created host
-                ws_result['_result'].append("Requested host '%s' created." % host_name)
-                host = backend.get('/'.join(['host', result['_id']]))
-                logger.debug("Get host, got: %s", host)
-                logger.info("Created a new host: %s", host_name)
-                self.statsmgr.counter('host-created', 1)
-                host_created = True
-            else:
-                host = result['_items'][0]
-        except BackendException as exp:  # pragma: no cover, should not happen
-            logger.warning("Alignak backend exception for updateHost: %s", exp.response)
-            ws_result['_status'] = 'ERR'
-            ws_result['_issues'].append("Alignak backend error. Exception, updateHost: %s"
-                                        % str(exp))
-            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
-            return ws_result
+                if not result['_items'] and self.allow_host_creation:
+                    # Tries to create the host
+                    logger.info("Requested host '%s' does not exist. "
+                                "Trying to create a new host...", host_name)
+                    ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
+
+                    if 'template' not in data:
+                        data['template'] = None
+
+                    # Change Realm case
+                    if data['template'] and '_realm' in data['template']:
+                        if data['template']['_realm'] != 'All':
+                            if self.realm_case == 'upper':
+                                data['template']['_realm'] = data['template']['_realm'].upper()
+                            if self.realm_case == 'lower':
+                                data['template']['_realm'] = data['template']['_realm'].lower()
+                            if self.realm_case == 'capitalize':
+                                data['template']['_realm'] = data['template']['_realm'].capitalize()
+
+                    # Request data for host creation (no service)
+                    post_data = self.backend_creation_data(host_name, None, data['template'])
+                    logger.debug("Post host, data: %s", post_data)
+                    start = time.time()
+                    result = backend.post('host', data=post_data)
+                    self.statsmgr.counter('backend-post.host', 1)
+                    self.statsmgr.timer('backend-post-time.host', time.time() - start)
+                    logger.debug("Post host, response: %s", result)
+                    if result['_status'] != 'OK':
+                        logger.warning("Post host, error: %s", result)
+                        ws_result['_status'] = 'ERR'
+                        ws_result['_issues'].append("Requested host '%s' creation failed."
+                                                    % host_name)
+                        if not self.give_feedback and '_feedback' in ws_result:
+                            ws_result.pop('_feedback')
+
+                        return ws_result
+
+                    # Get the newly created host
+                    ws_result['_result'].append("Requested host '%s' created." % host_name)
+                    host = backend.get('/'.join(['host', result['_id']]))
+                    logger.debug("Get host, got: %s", host)
+                    logger.info("Created a new host: %s", host_name)
+                    self.statsmgr.counter('host-created', 1)
+                    host_created = True
+                else:
+                    host = result['_items'][0]
+            except BackendException as exp:
+                logger.warning("Alignak backend exception for updateHost: %s", exp.response)
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend error. Exception, updateHost: %s"
+                                            % str(exp))
+                ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+                return ws_result
+        if not host:
+            host = {'name': host_name}
 
         update = None
 
@@ -758,7 +757,7 @@ class AlignakWebServices(BaseModule):
             data.pop('check_freshness')
 
         # Update host variables
-        if data['variables']:
+        if 'variables' in data and data['variables']:
             if update is None:
                 update = False
             customs = host['customs']
@@ -810,9 +809,9 @@ class AlignakWebServices(BaseModule):
                 try:
                     timestamp = int(livestate.get('timestamp', 'ABC'))
                     if timestamp < last_ts:
-                        logger.warning("Got unordered timestamp for the host: %s. "
-                                       "The Alignak scheduler may not handle the check result!",
-                                       host['name'])
+                        logger.info("Got unordered timestamp for the host: %s. "
+                                    "The Alignak scheduler may not handle the check result!",
+                                    host['name'])
                     last_ts = timestamp
                 except ValueError:
                     pass
@@ -828,10 +827,9 @@ class AlignakWebServices(BaseModule):
                         try:
                             timestamp = int(livestate.get('timestamp', 'ABC'))
                             if timestamp < last_ts:
-                                logger.warning("Got unordered timestamp for the service: %s/%s"
-                                               "The Alignak scheduler may not handle "
-                                               "the check result!",
-                                               host['name'], service['name'])
+                                logger.info("Got unordered timestamp for the service: %s/%s. "
+                                            "The Alignak scheduler may not handle "
+                                            "the check result!", host['name'], service['name'])
                             last_ts = timestamp
                         except ValueError:
                             pass
@@ -872,26 +870,29 @@ class AlignakWebServices(BaseModule):
             ws_result['_feedback']['services'] = []
 
             # Get all current host services from the backend
-            try:
-                start = time.time()
-                result = backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
-                self.statsmgr.counter('backend-getall.service', 1)
-                self.statsmgr.timer('backend-getall-time.service', time.time() - start)
-                logger.debug("Get host services, got: %s", result)
-                if not result['_items']:
-                    if not self.allow_service_creation:
-                        ws_result['_issues'].append("No services exist for the host '%s'"
-                                                    % host['name'])
-                        if not self.ignore_unknown_service:
-                            ws_result['_status'] = 'ERR'
-                        return ws_result
+            services = copy.deepcopy(data['services'])
+            if self.backend_url:
+                try:
+                    start = time.time()
+                    result = backend.get_all('service',
+                                             {'where': json.dumps({'host': host['_id']})})
+                    self.statsmgr.counter('backend-getall.service', 1)
+                    self.statsmgr.timer('backend-getall-time.service', time.time() - start)
+                    logger.debug("Get host services, got: %s", result)
+                    if not result['_items']:
+                        if not self.allow_service_creation:
+                            ws_result['_issues'].append("No services exist for the host '%s'"
+                                                        % host['name'])
+                            if not self.ignore_unknown_service:
+                                ws_result['_status'] = 'ERR'
+                            return ws_result
 
-                services = result['_items']
-            except BackendException as exp:  # pragma: no cover, should not happen
-                logger.warning("Alignak backend exception, updateService.")
-                logger.warning("Exception: %s", exp)
-                logger.warning("Exception response: %s", exp.response)
-                return exp.response
+                    services = result['_items']
+                except BackendException as exp:  # pragma: no cover, should not happen
+                    logger.warning("Alignak backend exception, updateService.")
+                    logger.warning("Exception: %s", exp)
+                    logger.warning("Exception response: %s", exp.response)
+                    return exp.response
 
             for service in data['services']:
                 service_name = service.get('name', None)
@@ -1049,7 +1050,7 @@ class AlignakWebServices(BaseModule):
         """
         service = None
 
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         ws_result = {'_status': 'OK', '_result': [], '_issues': []}
         try:
@@ -1107,11 +1108,18 @@ class AlignakWebServices(BaseModule):
             return exp.response
 
         if not service:
-            # Raise an error for a non existing service
-            logger.info("Requested service '%s/%s' does not exist. ",
-                        host['name'], service_name)
-            ws_result['_issues'].append("Requested service '%s/%s' does not exist"
-                                        % (host['name'], service_name))
+            # Raise an information for a non existing service
+            message = "Requested service '%s/%s' does not exist." \
+                      % (host['name'], service_name)
+            if not self.allow_service_creation:
+                message += " Note that service creation is not allowed."
+            logger.info(message)
+            if not self.ignore_unknown_service:
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append(message)
+            else:
+                ws_result['_result'].append(message)
+
             return ws_result
 
         update = None
@@ -1145,6 +1153,7 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                        self.received_commands += 1
                 else:
                     data.pop('active_checks_enabled')
             else:
@@ -1181,6 +1190,7 @@ class AlignakWebServices(BaseModule):
                         ws_result['_result'].append('Sent external command: %s.' % command_line)
                         logger.debug("Sending command: %s", command_line)
                         self.from_q.put(ExternalCommand(command_line))
+                        self.received_commands += 1
                 else:
                     data.pop('passive_checks_enabled')
             else:
@@ -1320,7 +1330,7 @@ class AlignakWebServices(BaseModule):
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
-                for prop in host:
+                for prop in service:
                     if prop in self.feedback_service:
                         ws_result['_feedback'].update({prop: service[prop]})
             else:
@@ -1392,8 +1402,6 @@ class AlignakWebServices(BaseModule):
         :return: command line
         """
 
-        backend = self._new_auth_backend()
-
         if service_name:
             command_line = 'ADD_SVC_COMMENT'
             if timestamp:
@@ -1412,8 +1420,15 @@ class AlignakWebServices(BaseModule):
         # Add a command to get managed
         logger.debug("Sending command: %s", command_line)
         self.from_q.put(ExternalCommand(command_line))
+        self.received_commands += 1
 
         result = {'_status': 'OK', '_result': [command_line], '_issues': []}
+
+        # -----
+        # This to post an event in the Alignak backend
+        # todo: check if the exernal command raise is not enough !
+        # -----
+        backend = self._auth_backend()
 
         try:
             data = {
@@ -1454,7 +1469,7 @@ class AlignakWebServices(BaseModule):
         :param host_created: the host just got created
         :return: external command line
         """
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         now = time.time()
         past = None
@@ -1491,6 +1506,7 @@ class AlignakWebServices(BaseModule):
         if not host_created:
             # ... add a command to get managed by Alignak
             self.from_q.put(ExternalCommand(command_line))
+            self.received_commands += 1
             logger.debug("Sent command: %s", command_line)
 
         now = time.time()
@@ -1574,7 +1590,7 @@ class AlignakWebServices(BaseModule):
         :param host_created: the host just got created
         :return: external command line
         """
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         now = time.time()
         past = None
@@ -1613,6 +1629,7 @@ class AlignakWebServices(BaseModule):
         if not host_created:
             # Add a command to get managed by Alignak
             self.from_q.put(ExternalCommand(command_line))
+            self.received_commands += 1
             logger.debug("Sent command: %s", command_line)
 
         now = time.time()
@@ -1688,7 +1705,7 @@ class AlignakWebServices(BaseModule):
 
         :return: None
         """
-        backend = self._new_auth_backend()
+        backend = self._auth_backend()
 
         if not search:
             search = {}

@@ -94,7 +94,7 @@ class AlignakTest(unittest2.TestCase):
         self.my_pid = os.getpid()
 
         print "\n" + self.id()
-        print ("-" * 80)
+        print("-" * 80)
         print("Test current working directory: %s" % (os.getcwd()))
 
         # Configure Alignak logger with test configuration
@@ -157,11 +157,9 @@ class AlignakTest(unittest2.TestCase):
         print("set_debug_log")
         logger_ = logging.getLogger(ALIGNAK_LOGGER_NAME)
         for handler in logger_.handlers:
-            print("handler: %s" % handler)
             if getattr(handler, '_name', None) == 'unit_tests':
                 self.former_log_level = handler.level
                 handler.setLevel(logging.DEBUG)
-                print("handler debug!")
                 break
 
     def _files_update(self, files, replacements):
@@ -227,7 +225,7 @@ class AlignakTest(unittest2.TestCase):
             for proc in psutil.process_iter():
                 if daemon not in proc.name():
                     continue
-                if proc.pid == self.my_pid:
+                if getattr(self, 'my_pid', None) and proc.pid == self.my_pid:
                     continue
                 print("- killing %s" % (proc.name()))
                 try:
@@ -552,19 +550,9 @@ class AlignakTest(unittest2.TestCase):
                                                                          accept_unknown=True)
 
         print("All daemons WS: %s" % ["%s:%s" % (link.address, link.port) for link in self._arbiter.dispatcher.all_daemons_links])
+
         # Simulate the daemons HTTP interface (very simple simulation !)
         with requests_mock.mock() as mr:
-            data = {}
-            for link in self._arbiter.dispatcher.all_daemons_links:
-                if link.type not in data:
-                    data[link.type] = []
-                data[link.type].append({
-                    'type': link.type,
-                    'name': link.name,
-                    '%s_name' % link.type: link.name})
-
-            mr.get('http://%s:%s/get_all_states' % (link.address, link.port), json=data)
-
             for link in self._arbiter.dispatcher.all_daemons_links:
                 mr.get('http://%s:%s/ping' % (link.address, link.port), json='pong')
                 mr.get('http://%s:%s/get_running_id' % (link.address, link.port), json=123456.123456)
@@ -611,7 +599,7 @@ class AlignakTest(unittest2.TestCase):
                 pushed_configuration = scheduler.unit_test_pushed_configuration
                 self._scheduler_daemon.new_conf = pushed_configuration
                 self._scheduler_daemon.setup_new_conf()
-                assert self._scheduler_daemon.new_conf is None
+                assert self._scheduler_daemon.new_conf == {}
                 self._schedulers[scheduler.name] = self._scheduler_daemon.sched
 
                 # Store the last scheduler object to get used in some other functions!
@@ -634,6 +622,7 @@ class AlignakTest(unittest2.TestCase):
                 pushed_configuration = broker.unit_test_pushed_configuration
                 self._broker_daemon.new_conf = pushed_configuration
                 self._broker_daemon.setup_new_conf()
+                assert self._broker_daemon.new_conf == {}
                 print("Got a default broker daemon: %s\n-----" % self._broker_daemon)
 
             # Get my first broker link
@@ -656,11 +645,12 @@ class AlignakTest(unittest2.TestCase):
                 pushed_configuration = receiver.unit_test_pushed_configuration
                 self._receiver_daemon.new_conf = pushed_configuration
                 self._receiver_daemon.setup_new_conf()
+                assert self._receiver_daemon.new_conf == {}
                 self._receiver = receiver
                 print("Got a default receiver: %s\n-----" % self._receiver)
 
-                for scheduler in self._receiver_daemon.schedulers.values():
-                    scheduler.my_daemon = self._receiver_daemon
+                # for scheduler in self._receiver_daemon.schedulers.values():
+                #     scheduler.my_daemon = self._receiver_daemon
 
         self.ecm_mode = 'applyer'
 

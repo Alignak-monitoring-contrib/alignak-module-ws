@@ -160,6 +160,7 @@ class TestModuleWsHostLivestate(AlignakTest):
 
     def setUp(self):
         super(TestModuleWsHostLivestate, self).setUp()
+        self.set_debug_log()
 
     def tearDown(self):
         """Delete resources in backend
@@ -175,6 +176,14 @@ class TestModuleWsHostLivestate(AlignakTest):
     def test_module_host_livestate(self):
         """Test the module /host API - host creation and livestate
         :return:
+        """
+
+        """
+        When module is really loaded in Alignak:
+        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] inner properties: {'init_try': 0, 'illegal_char': <_sre.SRE_Pattern object at 0x808e03d50>, 'phases': ['running'], 'is_external': True, 'myconf': <'Module' u'web-services', module: u'alignak_module_ws', type(s): u'web-services' />, 'to_q': None, 'process': None, 'from_q': None, 'interrupted': False, 'loaded_into': 'unknown', 'props': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'kill_delay': 60, 'module_monitoring_period': 10, 'module_monitoring': False, 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'name': u'web-services'}
+        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] received configuration: {'enable_problem_impacts_states_change': u'1', 'log_notifications': u'1', 'statsd_prefix': u'alignak-fdj.modules', 'statsd_host': u'localhost', 'daemons_initial_port': u'7800', 'log_initial_states': u'0', 'group': u'alignak', 'uuid': u'f0b02b5dfa7a4e1484166a4ef9b1cad3', 'alignak_polling_period': u'60', 'notification_timeout': u'30', 'execute_service_checks': u'1', 'disable_old_nagios_parameters_whining': u'1', 'log_external_commands': u'1', 'tick_update_retention': u'1800', 'password': u'ipm-France2017', 'idontcareaboutsecurity': u'0', 'python_name': u'alignak_module_ws', 'daemon': u'unset', 'tick_update_program_status': u'10', 'name': u'web-services', 'statsd_enabled': False, 'alignak_host': u'alignak1', 'alignak_launched': u'1', 'tick_clean_queues': u'10', 'daemons_stop_timeout': u'10', 'old_properties': {}, 'max_plugins_output_length': u'65536', 'downtimes': {}, 'tags': set([]), 'log_event_handlers': u'1', 'enable_notifications': u'1', 'do_replace': u'1', 'definition_order': 100, 'alignak_backend': u'http://alignak_backend1:5000', 'logger_configuration': u'/usr/local//etc/alignak/alignak-logger.json', 'use': [], 'check_host_freshness': u'1', 'spare': u'0', 'log_host_retries': u'1', 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'set_timestamp': u'1', 'max_service_check_spread': u'5', 'execute_host_checks': u'1', 'host_freshness_check_interval': u'1200', 'retention_update_interval': u'60', 'log_snapshots': u'1', 'accept_passive_service_checks': u'1', 'service_freshness_check_interval': u'1800', 'module_alias': u'web-services', 'module_types': [u''], 'alignak_name': u'alignak-fdj', 'max_queue_size': u'0', 'alignak_port': u'7770', 'type': u'web-services', 'authorization': u'1', 'logdir': u'/usr/local//var/log/alignak', 'username': u'admin', 'feedback_host': u'active_checks_enabled,check_interval,retry_interval,passive_checks_enabled,freshness_threshold', 'conf_is_correct': True, 'log_passive_checks': u'0', 'etcdir': u'/usr/local//etc/alignak', 'check_service_freshness': u'0', 'daemons_check_period': u'5', 'configuration_warnings': [], 'imported_from': 'unknown', 'max_host_check_spread': u'5', 'config_name': u'Alignak FdJ configuration', 'statsd_port': 8125, 'accept_passive_host_checks': u'1', 'log_active_checks': u'0', 'allow_host_creation': u'1', 'no_event_handlers_during_downtimes': u'1', 'log_service_retries': u'1', 'accept_passive_unknown_check_results': u'1', 'alignak_backend_timeshift': u'5', 'allow_service_creation': u'0', 'use_ssl': u'0', 'daemons_log_folder': u'/usr/local//var/log/alignak', 'realm': u'All', 'realm_case': u'upper', 'polling_interval': u'5', 'enable_environment_macros': u'0', 'workdir': u'/usr/local//var/run/alignak', 'log_flappings': u'1', 'customs': {}, 'user': u'alignak', 'log_level': u'DEBUG', 'configuration_errors': [], 'register': True, 'alias': u'web-services'}
+        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] loaded into: unknown
+
         """
         # Create an Alignak module
         mod = Module({
@@ -309,7 +318,6 @@ class TestModuleWsHostLivestate(AlignakTest):
         resp = response.json()
         rl = resp['_items']
         self.assertEqual(len(rl), 0)
-
 
         # -----
         # Send an host livestate
@@ -632,6 +640,229 @@ class TestModuleWsHostLivestate(AlignakTest):
                 u"[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
                 u"Output...|'counter'=2\nLong output..." % (now - 1000),
                 # u"Host 'very_new_host_0' updated."
+            ]
+        })
+        # No errors!
+
+        # Logout
+        response = session.get(self.ws_endpoint + '/logout')
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_host_livestate_past(self):
+        """Test the module /host API - host with multiple livestate in the past
+        :return:
+        """
+        # Debug log level
+        # self.set_debug_log()
+
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            'log_level': 'DEBUG',
+            # # Alignak backend
+            'alignak_backend': 'http://127.0.0.1:5000',
+            # 'username': 'admin',
+            # 'password': 'admin',
+            # Do not set a timestamp in the built external commands
+            'set_timestamp': '0',
+            # # Send a log_check_result to the alignak backend
+            # 'alignak_backend_old_lcr': '1',
+            # 'alignak_backend_get_lcr': '0',
+            # 'alignak_backend_timeshift': '40000',
+            # Do not give feedback data
+            'give_feedback': '0',
+            'give_result': '1',
+            # # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            # 'alignak_host': '',
+            # 'alignak_port': 7770,
+            # # Allow host/service creation
+            'allow_host_creation': '1',
+            # 'allow_service_creation': '1'
+        })
+
+        # Create a receiver daemon
+        args = {'env_file': './cfg/alignak.ini', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        self.clear_logs()
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.show_logs()
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        my_module = self.modulemanager.instances[0]
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        # Alignak backend connection
+        # ---
+        self.endpoint = 'http://127.0.0.1:5000'
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        response = requests.post(self.endpoint + '/login', json=params, headers=headers)
+        resp = response.json()
+        self.token = resp['token']
+        self.auth = requests.auth.HTTPBasicAuth(self.token, '')
+
+        # Alignak WS connection
+        # ---
+        headers = {'Content-Type': 'application/json'}
+        params = {'username': 'admin', 'password': 'admin'}
+        session = requests.Session()
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
+        assert response.status_code == 200
+        resp = response.json()
+        self.token = resp['_result'][0]
+        self.auth_ws = requests.auth.HTTPBasicAuth(self.token, '')
+
+        # -----
+        # Create a new host with an host livestate (heartbeat / host is alive): livestate
+        data = {
+            "name": "past_host_0",
+            "livestate": {
+                # No timestamp in the livestate
+                "state": "UP",
+                "output": "Output...",
+                "long_output": "Long output...",
+                "perf_data": "'counter'=0",
+            }
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers,
+                                 auth=self.auth_ws)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'past_host_0 is alive :)',
+                u"Requested host 'past_host_0' does not exist.",
+                u"Requested host 'past_host_0' created.",
+                u"PROCESS_HOST_CHECK_RESULT;past_host_0;0;Output...|'counter'=0\nLong output...",
+                u"Host 'past_host_0' updated."
+            ]
+        })
+        # No errors!
+
+        # Get new host in the backend
+        response = requests.get(self.endpoint + '/host', auth=self.auth,
+                                params={'where': json.dumps({'name': 'past_host_0'})})
+        resp = response.json()
+        past_host_0 = resp['_items'][0]
+        self.assertEqual('past_host_0', past_host_0['name'])
+
+        # Get backend check results - no check result sent to the backend
+        response = requests.get(self.endpoint + '/logcheckresult', auth=self.auth)
+        resp = response.json()
+        rl = resp['_items']
+        self.assertEqual(len(rl), 0)
+        # No check result because the host just got created and
+        # then the livestate command is not sent to Alignak. If it was sent,
+        # the scheduler do not yet know the nely created host :(
+
+        self.show_logs()
+        self.clear_logs()
+
+        # -----
+        # Send an host multiple livestate with different timestamp in the past
+        now = int(time.time()) - 3600
+        data = {
+            "name": "past_host_0",
+            "livestate": [
+                {
+                    "timestamp": now,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                },
+                {
+                    "timestamp": now + 1000,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=2",
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers,
+                                 auth=self.auth_ws)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'past_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+                u"Host 'past_host_0' updated."
+            ]
+        })
+        # No errors!
+
+        self.show_logs()
+        self.clear_logs()
+
+        # -----
+        # Send an host multiple livestate with different timestamp (unordered!)
+        now = int(time.time()) - 3600
+        data = {
+            "name": "past_host_0",
+            "livestate": [
+                {
+                    "timestamp": now,
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=1",
+                },
+                {
+                    "timestamp": now - 1000,    # Older than the former one!
+                    "state": "UP",
+                    "output": "Output...",
+                    "long_output": "Long output...",
+                    "perf_data": "'counter'=2",
+                }
+            ]
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers,
+                                 auth=self.auth_ws)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {
+            u'_status': u'OK',
+            u'_result': [
+                u'past_host_0 is alive :)',
+                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                u"Output...|'counter'=1\nLong output..." % now,
+                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+                u"Host 'past_host_0' updated."
             ]
         })
         # No errors!
