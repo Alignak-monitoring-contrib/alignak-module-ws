@@ -276,6 +276,9 @@ class WSInterface(object):
         # Get an host
         # ---
         if cherrypy.request.method == "GET":
+            if not self.app.backend_url:
+                return {'_status': 'ERR', '_error': 'Not available without backend access.'}
+
             logger.debug("Get /host: %s", cherrypy.request.params)
             if cherrypy.request.params.get('name', None) is not None:
                 name = cherrypy.request.params.get('name', None)
@@ -298,17 +301,26 @@ class WSInterface(object):
 
         _ts = time.time()
         logger.debug("Update /host: %s", cherrypy.request.json)
-        data = {
-            'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
-            'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
-            'check_freshness': cherrypy.request.json.get('check_freshness', None),
-            'template': cherrypy.request.json.get('template', None),
-            'livestate': cherrypy.request.json.get('livestate', None),
-            'variables': cherrypy.request.json.get('variables', None),
-            'services': cherrypy.request.json.get('services', None)
-        }
+        if not self.app.backend_url:
+            # Without a backend access, only update the livestate for host and its services
+            data = {
+                'livestate': cherrypy.request.json.get('livestate', None),
+                'services': cherrypy.request.json.get('services', None)
+            }
 
-        response = self.app.update_host(name, data)
+            response = self.app.update_host(name, data)
+        else:
+            data = {
+                'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
+                'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
+                'check_freshness': cherrypy.request.json.get('check_freshness', None),
+                'template': cherrypy.request.json.get('template', None),
+                'livestate': cherrypy.request.json.get('livestate', None),
+                'variables': cherrypy.request.json.get('variables', None),
+                'services': cherrypy.request.json.get('services', None)
+            }
+
+            response = self.app.update_host(name, data)
 
         # Specific case where WS client credentials are not authorized
         if response and '_issues' in response:
@@ -334,6 +346,12 @@ class WSInterface(object):
         """
         if cherrypy.request.method not in ["GET"]:
             return {'_status': 'ERR', '_error': 'You must only GET on this endpoint.'}
+
+        if not self.app.backend_url:
+            return {'_status': 'ERR', '_error': 'Not available without backend access.'}
+
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
 
         # Get an hostgroup
         # ---
@@ -446,6 +464,9 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: dict
         """
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
+
         logger.debug("Get /alignak_log: %s", cherrypy.request.params)
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))
