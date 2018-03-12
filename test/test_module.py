@@ -372,10 +372,14 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
+            # Errors for unknown host/service
+            'allow_host_creation': '1',
+            'allow_service_creation': '0'
         })
 
         instance = alignak_module_ws.get_instance(mod)
         self.assertIsInstance(instance, BaseModule)
+        # print(alignak_module_ws.mod_conf)
 
         idx = 0
         self.assert_log_match(
@@ -478,8 +482,11 @@ class TestModuleWs(AlignakTest):
             # Give result data
             'give_result': 1,
             # Errors for unknown host/service
-            'ignore_unknown_host': 0,
-            'ignore_unknown_service': 0
+            'allow_host_creation': '1',
+            'allow_service_creation': '0',
+            # Errors for unknown host/service
+            'ignore_unknown_host': '0',
+            'ignore_unknown_service': '0'
         })
 
         instance = alignak_module_ws.get_instance(mod)
