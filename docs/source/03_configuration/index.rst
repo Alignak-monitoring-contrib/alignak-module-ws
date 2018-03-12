@@ -7,13 +7,14 @@
 Configuration
 =============
 
-Once installed, this module has its own configuration file in the */usr/local/etc/alignak/arbiter/modules* directory.
-The default configuration file is *mod-ws.cfg*. This file is commented to help configure all the parameters.
+On installation, this module ships its own configuration file in the */usr/local/etc/alignak* directory.
+The default configuration file is *alignak.module-ws.ini*. This file is commented to help configure all the parameters.
 
-To configure an Alignak daemon (*receiver* is the recommended daemon) to use this module:
+To configure an Alignak daemon (*receiver* is the recommended one) to use this module:
 
-    - edit your daemon configuration file (eg. *receiver-master.cfg*)
-    - add your module alias value (`web-services`) to the `modules` parameter of the daemon
+    - edit your Alignak configuration file (eg. *alignak.ini*)
+    - declare the module alias (defaults to `web-services`) in the `modules` parameter of the daemon
+    - add the example module configuration file content into the Alignak configuration file.
 
 **Note** that currently the SSL part of this module has not yet been tested!
 
@@ -31,4 +32,10 @@ The Alignak arbiter configuration part is not mandatory. It will only be used by
 The default ``mod-ws.cfg`` file:
 
     .. literalinclude:: ../../../alignak_module_ws/etc/arbiter/modules/mod-ws.cfg
+
+
+
+The default ``alignak.module-ws.ini`` file:
+
+    .. literalinclude:: ../../../alignak_module_ws/etc/alignak.module-ws.ini
 

@@ -242,7 +242,7 @@ class AlignakWebServices(BaseModule):
                 'tools.gzip.mime_types': ['text/*', 'application/json'],
                 'tools.ws_auth.on': self.authorization,
                 'tools.sessions.on': True,
-                'tools.sessions.debug': True,
+                # 'tools.sessions.debug': True,
                 'tools.sessions.name': self.app_name
             }
         }
@@ -290,10 +290,8 @@ class AlignakWebServices(BaseModule):
         :return: backend.Client
         """
         backend = self._new_backend()
-        # backend.set_token(cherrypy.session[SESSION_KEY])
-        # if SESSION_KEY not in cherrypy.session:
-        #     raise HTTPError(401)
-        backend.token = cherrypy.session[SESSION_KEY]
+        if self.authorization:
+            backend.token = cherrypy.session[SESSION_KEY]
         return backend
 
     def _backend_available(self):
@@ -398,8 +396,8 @@ class AlignakWebServices(BaseModule):
         :return: data to post on element creation
         """
 
-        backend = self._new_auth_backend()
-
+        # backend = self._new_auth_backend()
+        #
         post_data = {}
 
         host_creation = True
@@ -495,14 +493,12 @@ class AlignakWebServices(BaseModule):
         default_realm = self._default_realm()
         if '_realm' not in post_data and default_realm:
             logger.info("add default realm (%s) to the data", default_realm['_id'])
-            print("add default realm (%s) to the data", default_realm['_id'])
             post_data.update({'_realm': default_realm['_id']})
 
         if '_id' in post_data:
             post_data.pop('_id')
 
         logger.debug("post_data: %s", post_data)
-        print("post_data: %s", post_data)
         return post_data
 
     def get_host_group(self, name, embedded=False):

@@ -335,6 +335,9 @@ class WSInterface(object):
         if cherrypy.request.method not in ["GET"]:
             return {'_status': 'ERR', '_error': 'You must only GET on this endpoint.'}
 
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
+
         # Get an hostgroup
         # ---
         logger.debug("Get /hostgroup: %s", cherrypy.request.params)
@@ -446,6 +449,9 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: dict
         """
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
+
         logger.debug("Get /alignak_log: %s", cherrypy.request.params)
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))

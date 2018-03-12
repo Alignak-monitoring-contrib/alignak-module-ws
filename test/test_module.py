@@ -721,9 +721,6 @@ class TestModuleWs(AlignakTest):
 
         self.modulemanager.stop_all()
 
-    @pytest.mark.skip("To be fixed - unauthorized mode is broken ! "
-                      "Update the _new_auth_backend function to use the configured backend "
-                      "credentials as a token when authorization is set to '0'!")
     def test_module_zzz_unauthorized(self):
         """Test the module basic API - authorization disabled
 
@@ -738,10 +735,10 @@ class TestModuleWs(AlignakTest):
             'module_alias': 'web-services',
             'module_types': 'web-services',
             'python_name': 'alignak_module_ws',
-            # Alignak backend
-            'alignak_backend': 'http://127.0.0.1:5000',
-            'username': 'admin',
-            'password': 'admin',
+            # Alignak backend - not configured
+            'alignak_backend': '',
+            'username': '',
+            'password': '',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
