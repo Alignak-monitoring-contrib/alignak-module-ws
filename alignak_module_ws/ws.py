@@ -396,7 +396,7 @@ class AlignakWebServices(BaseModule):
         :return: data to post on element creation
         """
 
-        # backend = self._new_auth_backend()
+        backend = self._new_auth_backend()
         #
         post_data = {}
 
