@@ -670,9 +670,9 @@ class AlignakWebServices(BaseModule):
                         else:
                             ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
 
-                    if not self.give_feedback and '_feedback' in ws_result:
-                        ws_result.pop('_feedback')
-                    return ws_result
+                        if not self.give_feedback and '_feedback' in ws_result:
+                            ws_result.pop('_feedback')
+                        return ws_result
 
                 if not result['_items'] and self.allow_host_creation:
                     # Tries to create the host
@@ -894,14 +894,13 @@ class AlignakWebServices(BaseModule):
                     logger.warning("Exception response: %s", exp.response)
                     return exp.response
 
-            for service in services:
-                # service_name = service.get('name', None)
-                # if service_name is None:
-                #     ws_result['_issues'].append("A service does not have a 'name' property")
-                #     continue
-                # service.pop('name')
-                result = self.update_service(host, services, service.get('name', None),
-                                             service, host_created)
+            for service in data['services']:
+                service_name = service.get('name', None)
+                if service_name is None:
+                    ws_result['_issues'].append("A service does not have a 'name' property")
+                    continue
+                service.pop('name')
+                result = self.update_service(host, services, service_name, service, host_created)
                 if '_result' in result:
                     ws_result['_result'].extend(result['_result'])
                 if '_issues' in result:
