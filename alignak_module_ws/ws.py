@@ -1322,7 +1322,7 @@ class AlignakWebServices(BaseModule):
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
-                for prop in host:
+                for prop in service:
                     if prop in self.feedback_service:
                         ws_result['_feedback'].update({prop: service[prop]})
             else:
