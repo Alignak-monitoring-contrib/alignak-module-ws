@@ -160,7 +160,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
 
         :return: None
         """
-        if self.modulemanager:
+        if getattr(self, 'modulemanager', None):
             time.sleep(1)
             self.modulemanager.stop_all()
 

@@ -576,48 +576,57 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
+            u'_status': u'OK',
+            u'_result': [
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
-                # u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
-                # u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated.",
+                # u"Service 'test_host_0/test_ok_0' unchanged.",
+                # u"Service 'test_host_0/test_ok_1' unchanged.",
+                # u"Service 'test_host_0/test_ok_2' unchanged."
             ],
             u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
+                u'active_checks_enabled': True, u'_overall_state_id': 3, u'freshness_state': u'x',
+                u'notes': u'', u'retry_interval': 1, u'name': u'test_host_0', u'alias': u'up_0',
                 u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
+                u'location': {u'type': u'Point', u'coordinates': [48.858293, 2.294601]},
+                u'check_interval': 1,
+                u'max_check_attempts': 3, u'check_freshness': False,
                 u'passive_checks_enabled': True,
-                u'retry_interval': 1,
+
                 u'services': [
-                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_0',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 5, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': False, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_0'},
-                    {u'active_checks_enabled': True, u'alias': u'test_host_0 test_ok_1',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': True, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_1'},
-                    {u'active_checks_enabled': False, u'alias': u'test_host_0 test_ok_2',
-                     u'freshness_state': u'x', u'notes': u'just a notes string',
-                     u'retry_interval': 1, u'_overall_state_id': 3, u'freshness_threshold': 3600,
-                     u'passive_checks_enabled': True, u'check_interval': 1,
-                     u'max_check_attempts': 2, u'check_freshness': False, u'name': u'test_ok_2'}
+                    {
+                        u'name': u'test_ok_0', u'alias': u'test_host_0 test_ok_0',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 5,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': False,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': False,
+                    },
+                    {
+                        u'name': u'test_ok_1', u'alias': u'test_host_0 test_ok_1',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 3,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': True,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': True,
+                    },
+                    {
+                        u'name': u'test_ok_2', u'alias': u'test_host_0 test_ok_2',
+                        u'freshness_state': u'x', u'notes': u'just a notes string',
+                        u'retry_interval': 1, u'_overall_state_id': 3,
+                        u'freshness_threshold': 3600, u'check_interval': 1,
+                        u'max_check_attempts': 2,
+                        u'active_checks_enabled': False,
+                        u'check_freshness': False,
+                        u'passive_checks_enabled': True,
+                    }
                 ]
             }
         })
