@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+
 #
-# Copyright (C) 2015-2016: Alignak contrib team, see AUTHORS.txt file for contributors
+# Copyright (C) 2015-2018: Alignak contrib team, see AUTHORS.txt file for contributors
 #
 # This file is part of Alignak contrib projet.
 #
@@ -16,17 +17,14 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with Alignak.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
 
 """
 This module is an Alignak Receiver module that exposes a Web services interface.
 """
 
 import os
-import sys
 import copy
-import base64
+import traceback
 import json
 import time
 import datetime
@@ -38,17 +36,17 @@ import cherrypy
 
 from alignak_backend_client.client import Backend, BackendException
 
-# Used for the main function to run module independently
-from alignak.objects.module import Module
-from alignak.modulesmanager import ModulesManager
+# # Used for the main function to run module independently
+# from alignak.objects.module import Module
+# from alignak.modulesmanager import ModulesManager
 
 from alignak.stats import Stats
 
 from alignak.external_command import ExternalCommand
 from alignak.basemodule import BaseModule
 
-from alignak_module_ws.utils.daemon import HTTPDaemon
-from alignak_module_ws.utils.ws_server import WSInterface
+# from alignak_module_ws.utils.daemon import HTTPDaemon, PortNotFree
+from alignak_module_ws.utils.ws_server import WSInterface, SESSION_KEY
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 for handler in logger.parent.handlers:
@@ -63,13 +61,12 @@ properties = {
     'phases': ['running'],
 }
 
-SESSION_KEY = 'alignak_web_services'
-
 
 def get_instance(mod_conf):
     """Return a module instance for the modules manager
 
-    :param mod_conf: the module properties as defined globally in this file
+    :param mod_conf: the module item created by the Alignak arbiter
+    :rtype alignak.objects.Module
     :return:
     """
     logger.info("Give an instance of %s for alias: %s", mod_conf.python_name, mod_conf.module_alias)
@@ -93,7 +90,6 @@ class AlignakWebServices(BaseModule):
         "UNREACHABLE": 4
     }
 
-    """Web services module main class"""
     def __init__(self, mod_conf):
         """
         Module initialization
@@ -102,14 +98,16 @@ class AlignakWebServices(BaseModule):
         - all the variables declared in the module configuration file
         - a 'properties' value that is the module properties as defined globally in this file
 
-        :param mod_conf: module configuration file as a dictionary
+        :param mod_conf: the module item created by the Alignak arbiter
+        :rtype alignak.objects.Module
         """
         BaseModule.__init__(self, mod_conf)
 
         # pylint: disable=global-statement
         global logger
         logger = logging.getLogger('alignak.module.%s' % self.alias)
-        logger.setLevel(getattr(mod_conf, 'log_level', logging.INFO))
+        if getattr(mod_conf, 'log_level', logging.INFO) in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+            logger.setLevel(getattr(mod_conf, 'log_level'))
 
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
@@ -126,6 +124,11 @@ class AlignakWebServices(BaseModule):
         self.ignore_unknown_service = getattr(mod_conf, 'ignore_unknown_service', '1') == '1'
         logger.info("Alignak unknown service is ignored: %s", self.ignore_unknown_service)
 
+        self.realm_case = getattr(mod_conf, 'realm_case', '')
+        if self.realm_case not in ['upper', 'lower', 'capitalize']:
+            self.realm_case = ''
+        logger.info("Alignak realm case: %s", self.realm_case)
+
         # Set timestamp
         self.set_timestamp = getattr(mod_conf, 'set_timestamp', '1') == '1'
         logger.info("Alignak external commands, set timestamp: %s", self.set_timestamp)
@@ -134,7 +137,10 @@ class AlignakWebServices(BaseModule):
         # 0: no feedback
         # 1: feedback only for host
         # 2: feedback for host and services
-        self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        try:
+            self.give_feedback = int(getattr(mod_conf, 'give_feedback', '1'))
+        except ValueError:
+            self.give_feedback = 1
         logger.info("Alignak update, set give_feedback: %s", self.give_feedback)
 
         self.feedback_host = getattr(mod_conf, 'feedback_host', '')
@@ -160,20 +166,31 @@ class AlignakWebServices(BaseModule):
 
         logger.info("Alignak backend endpoint: %s", self.backend_url)
 
-        self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        try:
+            self.client_processes = int(getattr(mod_conf, 'client_processes', '1'))
+        except ValueError:
+            self.client_processes = 1
         logger.info("Number of processes used by backend client: %s", self.client_processes)
 
         self.backend_username = getattr(mod_conf, 'username', '')
         self.backend_password = getattr(mod_conf, 'password', '')
         self.backend_generate = getattr(mod_conf, 'allowgeneratetoken', False)
 
-        self.alignak_backend_polling_period = int(
-            getattr(mod_conf, 'alignak_backend_polling_period', '10'))
+        try:
+            self.alignak_backend_polling_period = int(getattr(mod_conf,
+                                                              'alignak_backend_polling_period',
+                                                              '10'))
+        except ValueError:
+            self.alignak_backend_polling_period = 10
 
         # Backend behavior part
         self.alignak_backend_old_lcr = getattr(mod_conf, 'alignak_backend_old_lcr', '1') == '1'
         self.alignak_backend_get_lcr = getattr(mod_conf, 'alignak_backend_get_lcr', '0') == '1'
-        self.alignak_backend_timeshift = int(getattr(mod_conf, 'alignak_backend_timeshift', '0'))
+        try:
+            self.alignak_backend_timeshift = int(getattr(mod_conf,
+                                                         'alignak_backend_timeshift', '0'))
+        except ValueError:
+            self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
                                                         'alignak_backend_livestate_update',
                                                         '1') == '0'
@@ -184,7 +201,10 @@ class AlignakWebServices(BaseModule):
 
         # Alignak Arbiter host / post
         self.alignak_host = getattr(mod_conf, 'alignak_host', '127.0.0.1')
-        self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        try:
+            self.alignak_port = int(getattr(mod_conf, 'alignak_port', '7770'))
+        except ValueError:
+            self.alignak_port = 7770
         if not self.alignak_host:
             logger.warning('Alignak Arbiter address is not configured. Alignak polling is '
                            'disabled and some information will not be available.')
@@ -194,93 +214,42 @@ class AlignakWebServices(BaseModule):
 
         # Alignak polling
         self.alignak_is_alive = False
-        self.alignak_polling_period = \
-            int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        try:
+            self.alignak_polling_period = int(getattr(mod_conf, 'alignak_polling_period', '5'))
+        except ValueError:
+            self.alignak_polling_period = 5
         logger.info("Alignak Arbiter polling period: %d", self.alignak_polling_period)
-        self.alignak_daemons_polling_period = \
-            int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+        try:
+            self.alignak_daemons_polling_period = \
+                int(getattr(mod_conf, 'alignak_daemons_polling_period', '10'))
+        except ValueError:
+            self.alignak_daemons_polling_period = 10
         logger.info("Alignak daemons get status period: %d", self.alignak_daemons_polling_period)
 
-        # SSL configuration
-        self.use_ssl = getattr(mod_conf, 'use_ssl', '0') == '1'
-
-        self.ca_cert = os.path.abspath(
-            getattr(mod_conf, 'ca_cert', '/usr/local/etc/alignak/certs/ca.pem')
-        )
-        if self.use_ssl and not os.path.exists(self.ca_cert):
-            logger.error('The CA certificate %s is missing (ca_cert). '
-                         'Please fix it in your configuration', self.ca_cert)
-            self.use_ssl = False
-
-        self.server_cert = os.path.abspath(
-            getattr(mod_conf, 'server_cert', '/usr/local/etc/alignak/certs/server.crt')
-        )
-        if self.use_ssl and not os.path.exists(self.server_cert):
-            logger.error("The SSL certificate '%s' is missing (server_cert). "
-                         "Please fix it in your configuration", self.server_cert)
-            self.use_ssl = False
-
-        self.server_key = os.path.abspath(
-            getattr(mod_conf, 'server_key', '/usr/local/etc/alignak/certs/server.key')
-        )
-        if self.use_ssl and not os.path.exists(self.server_key):
-            logger.error('The SSL key %s is missing (server_key). '
-                         'Please fix it in your configuration', self.server_key)
-            self.use_ssl = False
-
-        self.server_dh = os.path.abspath(
-            getattr(mod_conf, 'server_dh', '/usr/local/etc/alignak/certs/server.pem')
-        )
-        if self.use_ssl and not os.path.exists(self.server_dh):
-            logger.error('The SSL DH %s is missing (server_dh). '
-                         'Please fix it in your configuration', self.server_dh)
-            self.use_ssl = False
-
-        self.hard_ssl_name_check = getattr(mod_conf, 'hard_ssl_name_check', '0') == '0'
-
-        # SSL information log
-        if self.use_ssl:
-            logger.info("Using SSL CA certificate: %s", self.ca_cert)
-            logger.info("Using SSL server files: %s/%s", self.server_cert, self.server_key)
-            if self.hard_ssl_name_check:
-                logger.info("Enabling hard SSL server name verification")
-        else:
-            logger.info("SSL is not enabled, this is not recommended. "
-                        "You should consider enabling SSL!")
-
-        # Host / post listening to...
-        self.host = getattr(mod_conf, 'host', '0.0.0.0')
-        self.port = int(getattr(mod_conf, 'port', '8888'))
-        self.log_error = getattr(mod_conf, 'log_error', None)
-        self.log_access = getattr(mod_conf, 'log_access', None)
-
-        protocol = 'http'
-        if self.use_ssl:
-            protocol = 'https'
-        self.uri = '%s://%s:%s' % (protocol, self.host, self.port)
-        logger.info("configuration, listening on: %s", self.uri)
-
-        # HTTP authorization
-        self.authorization = getattr(mod_conf, 'authorization', '1') == '1'
+        self.authorization = getattr(mod_conf, 'authorization', '1') in ['1', '']
         if not self.authorization:
             logger.warning("HTTP autorization is not enabled, this is not recommended. "
                            "You should consider enabling authorization!")
 
-        # My own HTTP interface...
-        cherrypy.config.update({"tools.wsauth.on": self.authorization})
-        cherrypy.config.update({"tools.sessions.on": True})
-        cherrypy.config.update({"tools.sessions.name": "alignak_ws"})
-        if self.log_error:
-            cherrypy.config.update({"log.error_file": self.log_error})
-        if self.log_access:
-            cherrypy.config.update({"log.access_file": self.log_access})
-        self.http_interface = WSInterface(self)
+        self.app_name = str(getattr(self, 'name', getattr(self, 'alias')))
+        # cherrypy.config.update({"tools.sessions.on": True,
+        #                         "tools.sessions.name": self.app_name})
+        # This application config overrides the default processors
+        # so we put them back in case we need them
+        config = {
+            '/': {
+                'tools.gzip.on': True,
+                'tools.gzip.mime_types': ['text/*', 'application/json'],
+                'tools.ws_auth.on': self.authorization,
+                'tools.sessions.on': True,
+                # 'tools.sessions.debug': True,
+                'tools.sessions.name': self.app_name
+            }
+        }
 
-        # My thread pool (simultaneous connections)
-        self.daemon_thread_pool_size = 8
-
-        self.http_daemon = None
-        self.http_thread = None
+        cherrypy.log("Serving application for %s" % self.app_name)
+        # Mount the main application (an Alignak daemon interface)
+        cherrypy.tree.mount(WSInterface(self), '/ws', config)
 
         # Our Alignak daemons map
         self.daemons_map = {}
@@ -321,10 +290,8 @@ class AlignakWebServices(BaseModule):
         :return: backend.Client
         """
         backend = self._new_backend()
-        # backend.set_token(cherrypy.session[SESSION_KEY])
-        # if SESSION_KEY not in cherrypy.session:
-        #     raise HTTPError(401)
-        backend.token = cherrypy.session[SESSION_KEY]
+        if self.authorization:
+            backend.token = cherrypy.session[SESSION_KEY]
         return backend
 
     def _backend_available(self):
@@ -378,7 +345,7 @@ class AlignakWebServices(BaseModule):
         :param password: str. User's password
         :return: str or None
         """
-        logger.debug("Retrieving token with credentials: %s / %s", username, password)
+        logger.debug("Retrieving token for user: %s (hidden password)", username)
 
         token = None
 
@@ -430,7 +397,7 @@ class AlignakWebServices(BaseModule):
         """
 
         backend = self._new_auth_backend()
-
+        #
         post_data = {}
 
         host_creation = True
@@ -687,70 +654,84 @@ class AlignakWebServices(BaseModule):
         ws_result = {'_status': 'OK', '_result': ['%s is alive :)' % host_name],
                      '_issues': []}
 
-        try:
-            start = time.time()
-            result = backend.get('/host', {'where': json.dumps({'name': host_name})})
-            self.statsmgr.counter('backend-get.host', 1)
-            self.statsmgr.timer('backend-get-time.host', time.time() - start)
-            logger.debug("Get host, got: %s", result)
-            if not result['_items']:
-                if not self.allow_host_creation:
-                    if not self.ignore_unknown_host:
-                        ws_result['_status'] = 'ERR'
-                        ws_result['_issues'].append("Requested host '%s' does not exist"
-                                                    % host_name)
-                    else:
-                        ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
-
-                    if not self.give_feedback and '_feedback' in ws_result:
-                        ws_result.pop('_feedback')
-                    return ws_result
-
-            if not result['_items'] and self.allow_host_creation:
-                # Tries to create the host
-                logger.info("Requested host '%s' does not exist. Trying to create a new host...",
-                            host_name)
-                ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
-
-                if 'template' not in data:
-                    data['template'] = None
-
-                # Request data for host creation (no service)
-                post_data = self.backend_creation_data(host_name, None, data['template'])
-                logger.debug("Post host, data: %s", post_data)
+        if self.backend_url:
+            try:
                 start = time.time()
-                result = backend.post('host', data=post_data)
-                self.statsmgr.counter('backend-post.host', 1)
-                self.statsmgr.timer('backend-post-time.host', time.time() - start)
-                logger.debug("Post host, response: %s", result)
-                if result['_status'] != 'OK':
-                    logger.warning("Post host, error: %s", result)
-                    ws_result['_status'] = 'ERR'
-                    ws_result['_issues'].append("Requested host '%s' creation failed." % host_name)
-                    if not self.give_feedback and '_feedback' in ws_result:
-                        ws_result.pop('_feedback')
+                result = backend.get('/host', {'where': json.dumps({'name': host_name})})
+                self.statsmgr.counter('backend-get.host', 1)
+                self.statsmgr.timer('backend-get-time.host', time.time() - start)
+                logger.debug("Get host, got: %s", result)
+                if not result['_items']:
+                    if not self.allow_host_creation:
+                        if not self.ignore_unknown_host:
+                            ws_result['_status'] = 'ERR'
+                            ws_result['_issues'].append("Requested host '%s' does not exist"
+                                                        % host_name)
+                        else:
+                            ws_result['_result'] = ["Requested host '%s' does not exist"
+                                                    % host_name]
 
-                    return ws_result
+                        if not self.give_feedback and '_feedback' in ws_result:
+                            ws_result.pop('_feedback')
+                        return ws_result
 
-                # Get the newly created host
-                ws_result['_result'].append("Requested host '%s' created." % host_name)
-                host = backend.get('/'.join(['host', result['_id']]))
-                logger.debug("Get host, got: %s", host)
-                logger.info("Created a new host: %s", host_name)
-                self.statsmgr.counter('host-created', 1)
-                host_created = True
-            else:
-                host = result['_items'][0]
-        except BackendException as exp:  # pragma: no cover, should not happen
-            logger.warning("Alignak backend exception for updateHost: %s", exp.response)
-            ws_result['_status'] = 'ERR'
-            ws_result['_issues'].append("Alignak backend error. Exception, updateHost: %s"
-                                        % str(exp))
-            ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
-            return ws_result
+                if not result['_items'] and self.allow_host_creation:
+                    # Tries to create the host
+                    logger.info("Requested host '%s' does not exist. "
+                                "Trying to create a new host...", host_name)
+                    ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
+
+                    if 'template' not in data:
+                        data['template'] = None
+
+                    # Change Realm case
+                    if data['template'] and '_realm' in data['template']:
+                        if data['template']['_realm'] != 'All':
+                            if self.realm_case == 'upper':
+                                data['template']['_realm'] = data['template']['_realm'].upper()
+                            if self.realm_case == 'lower':
+                                data['template']['_realm'] = data['template']['_realm'].lower()
+                            if self.realm_case == 'capitalize':
+                                data['template']['_realm'] = data['template']['_realm'].capitalize()
+
+                    # Request data for host creation (no service)
+                    post_data = self.backend_creation_data(host_name, None, data['template'])
+                    logger.debug("Post host, data: %s", post_data)
+                    start = time.time()
+                    result = backend.post('host', data=post_data)
+                    self.statsmgr.counter('backend-post.host', 1)
+                    self.statsmgr.timer('backend-post-time.host', time.time() - start)
+                    logger.debug("Post host, response: %s", result)
+                    if result['_status'] != 'OK':
+                        logger.warning("Post host, error: %s", result)
+                        ws_result['_status'] = 'ERR'
+                        ws_result['_issues'].append("Requested host '%s' creation failed."
+                                                    % host_name)
+                        if not self.give_feedback and '_feedback' in ws_result:
+                            ws_result.pop('_feedback')
+
+                        return ws_result
+
+                    # Get the newly created host
+                    ws_result['_result'].append("Requested host '%s' created." % host_name)
+                    host = backend.get('/'.join(['host', result['_id']]))
+                    logger.debug("Get host, got: %s", host)
+                    logger.info("Created a new host: %s", host_name)
+                    self.statsmgr.counter('host-created', 1)
+                    host_created = True
+                else:
+                    host = result['_items'][0]
+            except BackendException as exp:
+                logger.warning("Alignak backend exception for updateHost: %s", exp.response)
+                ws_result['_status'] = 'ERR'
+                ws_result['_issues'].append("Alignak backend error. Exception, updateHost: %s"
+                                            % str(exp))
+                ws_result['_issues'].append("Alignak backend error. Response: %s" % exp.response)
+                return ws_result
+        if not host:
+            host = {'name': host_name}
 
         update = None
-        logger.debug("Got host: %s", host)
 
         # Update host check state
         if 'active_checks_enabled' in data:
@@ -778,7 +759,7 @@ class AlignakWebServices(BaseModule):
             data.pop('check_freshness')
 
         # Update host variables
-        if data['variables']:
+        if 'variables' in data and data['variables']:
             if update is None:
                 update = False
             customs = host['customs']
@@ -892,26 +873,29 @@ class AlignakWebServices(BaseModule):
             ws_result['_feedback']['services'] = []
 
             # Get all current host services from the backend
-            try:
-                start = time.time()
-                result = backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
-                self.statsmgr.counter('backend-getall.service', 1)
-                self.statsmgr.timer('backend-getall-time.service', time.time() - start)
-                logger.debug("Get host services, got: %s", result)
-                if not result['_items']:
-                    if not self.allow_service_creation:
-                        ws_result['_issues'].append("No services exist for the host '%s'"
-                                                    % host['name'])
-                        if not self.ignore_unknown_service:
-                            ws_result['_status'] = 'ERR'
-                        return ws_result
+            services = copy.deepcopy(data['services'])
+            if self.backend_url:
+                try:
+                    start = time.time()
+                    result = backend.get_all('service',
+                                             {'where': json.dumps({'host': host['_id']})})
+                    self.statsmgr.counter('backend-getall.service', 1)
+                    self.statsmgr.timer('backend-getall-time.service', time.time() - start)
+                    logger.debug("Get host services, got: %s", result)
+                    if not result['_items']:
+                        if not self.allow_service_creation:
+                            ws_result['_issues'].append("No services exist for the host '%s'"
+                                                        % host['name'])
+                            if not self.ignore_unknown_service:
+                                ws_result['_status'] = 'ERR'
+                            return ws_result
 
-                services = result['_items']
-            except BackendException as exp:  # pragma: no cover, should not happen
-                logger.warning("Alignak backend exception, updateService.")
-                logger.warning("Exception: %s", exp)
-                logger.warning("Exception response: %s", exp.response)
-                return exp.response
+                    services = result['_items']
+                except BackendException as exp:  # pragma: no cover, should not happen
+                    logger.warning("Alignak backend exception, updateService.")
+                    logger.warning("Exception: %s", exp)
+                    logger.warning("Exception response: %s", exp.response)
+                    return exp.response
 
             for service in data['services']:
                 service_name = service.get('name', None)
@@ -1087,7 +1071,12 @@ class AlignakWebServices(BaseModule):
                 # Change Realm case
                 if data['template'] and '_realm' in data['template']:
                     if data['template']['_realm'] != 'All':
-                        data['template']['_realm'] = data['template']['_realm'].upper()
+                        if self.realm_case == 'upper':
+                            data['template']['_realm'] = data['template']['_realm'].upper()
+                        if self.realm_case == 'lower':
+                            data['template']['_realm'] = data['template']['_realm'].lower()
+                        if self.realm_case == 'capitalize':
+                            data['template']['_realm'] = data['template']['_realm'].capitalize()
 
                 # Request data for service creation
                 post_data = self.backend_creation_data(host['name'], service_name, data['template'])
@@ -1301,7 +1290,8 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             if self.give_feedback > 1:
-                service = backend.get('/'.join(['service', service['_id']]))
+                # Do not get from the backend, we already did this before...
+                # service = backend.get('/'.join(['service', service['_id']]))
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
@@ -1329,11 +1319,12 @@ class AlignakWebServices(BaseModule):
                 return ws_result
 
             if self.give_feedback > 1:
-                service = backend.get('/'.join(['service', service['_id']]))
+                # Do not get from the backend, we already did this before...
+                # service = backend.get('/'.join(['service', service['_id']]))
                 if '_feedback' not in ws_result:
                     ws_result['_feedback'] = {}
                 ws_result['_feedback'].update({'name': service['name']})
-                for prop in host:
+                for prop in service:
                     if prop in self.feedback_service:
                         ws_result['_feedback'].update({prop: service[prop]})
             else:
@@ -1758,25 +1749,6 @@ class AlignakWebServices(BaseModule):
             logger.warning("Response: %s", exp.response)
             return exp.response
 
-    def http_daemon_thread(self):
-        """Main function of the http daemon thread.
-
-        It will loop forever unless we stop the main process
-
-        :return: None
-        """
-        logger.info("HTTP main thread running")
-
-        # The main thing is to have a pool of X concurrent requests for the http_daemon,
-        # so "no_lock" calls can always be directly answer without having a "locked" version to
-        # finish
-        try:
-            self.http_daemon.run()
-        except Exception as exp:  # pylint: disable=W0703
-            logger.exception('The HTTP daemon failed with the error %s, exiting', str(exp))
-            raise Exception(exp)
-        logger.info("HTTP main thread exiting")
-
     def do_loop_turn(self):
         """This function is present because of an abstract function in the BaseModule class"""
         logger.info("In loop")
@@ -1795,144 +1767,93 @@ class AlignakWebServices(BaseModule):
 
         logger.info("starting...")
 
-        logger.info("starting http_daemon thread..")
-        self.http_daemon = HTTPDaemon(self.host, self.port, self.http_interface,
-                                      self.use_ssl, self.ca_cert, self.server_key,
-                                      self.server_cert, self.server_dh,
-                                      self.daemon_thread_pool_size)
+        try:
+            # Polling period (-100 to get sure to poll on the first loop iteration)
+            ping_alignak_backend_next_time = time.time() - 100
+            ping_alignak_next_time = time.time() - 100
+            get_daemons_next_time = time.time() - 100
 
-        self.http_thread = threading.Thread(target=self.http_daemon_thread, name='http_thread')
-        self.http_thread.daemon = True
-        self.http_thread.start()
-        logger.info("HTTP daemon thread started")
+            # Endless loop...
+            while not self.interrupted:
+                start = time.time()
 
-        # Polling period (-100 to get sure to poll on the first loop iteration)
-        ping_alignak_backend_next_time = time.time() - 100
-        ping_alignak_next_time = time.time() - 100
-        get_daemons_next_time = time.time() - 100
-
-        # Endless loop...
-        while not self.interrupted:
-            start = time.time()
-
-            if self.to_q:
-                # Get messages in the queue
-                try:
-                    message = self.to_q.get_nowait()
-                    if isinstance(message, ExternalCommand):
-                        logger.debug("Got an external command: %s", message.cmd_line)
-                        # Send external command to my Alignak daemon...
-                        self.from_q.put(message)
-                        self.received_commands += 1
-                    else:
-                        logger.warning("Got a message that is not an external command: %s", message)
-                except Queue.Empty:
-                    # logger.debug("No message in the module queue")
-                    pass
-
-            if self.backend_url and self.alignak_backend_polling_period > 0:
-                # Check backend connection
-                if ping_alignak_backend_next_time < start:
-                    ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
-
-                    self._backend_available()
-                    time.sleep(0.1)
-
-            if not self.alignak_host:
-                # Do not check Alignak daemons...
-                continue
-
-            if ping_alignak_next_time < start:
-                ping_alignak_next_time = start + self.alignak_polling_period
-
-                try:
-                    # Ping Alignak Arbiter
-                    response = requests.get("http://%s:%s/ping" %
-                                            (self.alignak_host, self.alignak_port))
-                    if response.status_code == 200:
-                        if response.json() == 'pong':
-                            self.alignak_is_alive = True
+                if self.to_q:
+                    # Get messages in the queue
+                    try:
+                        message = self.to_q.get_nowait()
+                        if isinstance(message, ExternalCommand):
+                            logger.debug("Got an external command: %s", message.cmd_line)
+                            # Send external command to my Alignak daemon...
+                            self.from_q.put(message)
+                            self.received_commands += 1
                         else:
-                            logger.error("arbiter ping/pong failed!")
-                except requests.ConnectionError as exp:
-                    logger.warning("Alignak arbiter is currently not available.")
-                    logger.debug("Exception: %s", exp)
-                time.sleep(0.1)
+                            logger.warning("Got a message that is not an external command: %s",
+                                           message)
+                    except Queue.Empty:
+                        # logger.debug("No message in the module queue")
+                        pass
 
-            # Get daemons map / status only if Alignak is alive and polling period
-            if self.alignak_is_alive and get_daemons_next_time < start:
-                get_daemons_next_time = start + self.alignak_daemons_polling_period
+                if self.backend_url and self.alignak_backend_polling_period > 0:
+                    # Check backend connection
+                    if ping_alignak_backend_next_time < start:
+                        ping_alignak_backend_next_time = start + self.alignak_backend_polling_period
 
-                # Get Arbiter all states
-                response = requests.get("http://%s:%s/get_all_states" %
-                                        (self.alignak_host, self.alignak_port))
-                if response.status_code != 200:
+                        self._backend_available()
+                        time.sleep(0.1)
+
+                if not self.alignak_host:
+                    # Do not check Alignak daemons...
                     continue
 
-                response_dict = response.json()
-                for daemon_type in response_dict:
-                    if daemon_type not in self.daemons_map:
-                        self.daemons_map[daemon_type] = {}
+                if ping_alignak_next_time < start:
+                    ping_alignak_next_time = start + self.alignak_polling_period
 
-                    for daemon in response_dict[daemon_type]:
-                        daemon_name = daemon[daemon_type + '_name']
-                        if daemon_name not in self.daemons_map:
-                            self.daemons_map[daemon_type][daemon_name] = {}
+                    try:
+                        # Ping Alignak Arbiter
+                        response = requests.get("http://%s:%s/ping" %
+                                                (self.alignak_host, self.alignak_port))
+                        if response.status_code == 200:
+                            if response.json() == 'pong':
+                                self.alignak_is_alive = True
+                            else:
+                                logger.error("arbiter ping/pong failed!")
+                    except requests.ConnectionError as exp:
+                        logger.warning("Alignak arbiter is currently not available.")
+                        logger.debug("Exception: %s", exp)
+                    time.sleep(0.1)
 
-                        for prop in self.daemon_properties:
-                            try:
-                                self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
-                            except (ValueError, KeyError):
-                                self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
+                # Get daemons map / status only if Alignak is alive and polling period
+                if self.alignak_is_alive and get_daemons_next_time < start:
+                    get_daemons_next_time = start + self.alignak_daemons_polling_period
+
+                    # Get Arbiter all states
+                    response = requests.get("http://%s:%s/get_all_states" %
+                                            (self.alignak_host, self.alignak_port))
+                    if response.status_code != 200:
+                        continue
+
+                    response_dict = response.json()
+                    for daemon_type in response_dict:
+                        if daemon_type not in self.daemons_map:
+                            self.daemons_map[daemon_type] = {}
+
+                        for daemon in response_dict[daemon_type]:
+                            daemon_name = daemon[daemon_type + '_name']
+                            if daemon_name not in self.daemons_map:
+                                self.daemons_map[daemon_type][daemon_name] = {}
+
+                            for prop in self.daemon_properties:
+                                try:
+                                    self.daemons_map[daemon_type][daemon_name][prop] = daemon[prop]
+                                except (ValueError, KeyError):
+                                    self.daemons_map[daemon_type][daemon_name][prop] = 'unknown'
+                    time.sleep(0.1)
+
+                # Really too verbose :(
+                # logger.debug("time to manage queue and Alignak state: %d seconds",
+                # time.time() - start)
                 time.sleep(0.1)
-
-            # Really too verbose :(
-            # logger.debug("time to manage queue and Alignak state: %d seconds",
-            # time.time() - start)
-            time.sleep(0.1)
-
-        logger.info("stopping...")
-
-        if self.http_daemon:
-            logger.info("shutting down http_daemon...")
-            self.http_daemon.request_stop()
-
-        if self.http_thread:
-            logger.info("joining http_thread...")
-
-            # Add a timeout to join so that we can manually quit
-            self.http_thread.join(timeout=15)
-            if self.http_thread.is_alive():
-                logger.warning("http_thread failed to terminate. Calling _Thread__stop")
-                try:
-                    self.http_thread._Thread__stop()  # pylint: disable=protected-access
-                except Exception:
-                    pass
+        except Exception as exp:
+            logger.error("Exception: %s", exp)
 
         logger.info("stopped")
-
-
-if __name__ == '__main__':
-    logging.getLogger("alignak_backend_client").setLevel(logging.DEBUG)
-    logger.setLevel(logging.DEBUG)
-
-    # Create an Alignak module
-    mod = Module({
-        'module_alias': 'web-services',
-        'module_types': 'web-services',
-        'python_name': 'alignak_module_ws',
-        # Alignak backend configuration
-        'alignak_backend': 'http://127.0.0.1:5000',
-        # 'token': '1489219787082-4a226588-9c8b-4e17-8e56-c1b5d31db28e',
-        'username': 'admin', 'password': 'admin',
-        # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
-        'alignak_host': '',
-        'alignak_port': 7770,
-    })
-    # Create the modules manager for a daemon type
-    modulemanager = ModulesManager('receiver', None)
-    # Load and initialize the module
-    modulemanager.load_and_init([mod])
-    my_module = modulemanager.instances[0]
-    # Start external modules
-    modulemanager.start_external_instances()

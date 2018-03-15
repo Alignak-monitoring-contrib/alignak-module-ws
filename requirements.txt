@@ -1,4 +1,8 @@
 # Nothing special except:
 alignak_backend_client
 requests
-cherrypy<9.0.0
+
+# Keep a CherryPy lower than 9.0 because Alignak requires this version
+# CherryPy<9.0.0
+# Alignak now supports recent CherryPy
+CherryPy

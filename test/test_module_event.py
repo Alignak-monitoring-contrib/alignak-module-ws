@@ -38,6 +38,7 @@ from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -56,6 +57,24 @@ class TestModuleWsEvent(AlignakTest):
 
     @classmethod
     def setUpClass(cls):
+
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
@@ -136,21 +155,18 @@ class TestModuleWsEvent(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
+    def setUp(self):
+        super(TestModuleWsEvent, self).setUp()
+
+    def tearDown(self):
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
+
     def test_module_zzz_event(self):
         """Test the module /event endpoint
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -160,16 +176,18 @@ class TestModuleWsEvent(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
-            # Activate CherryPy file logs
-            'log_access': '/tmp/alignak-module-ws-access.log',
-            'log_error': '/tmp/alignak-module-ws-error.log',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            'authorization': '1',
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -215,7 +233,7 @@ class TestModuleWsEvent(AlignakTest):
         # ---
 
         # Do not allow GET request on /event - not yet authorized
-        response = requests.get('http://127.0.0.1:8888/event')
+        response = requests.get(self.ws_endpoint + '/event')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -223,12 +241,12 @@ class TestModuleWsEvent(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # Do not allow GET request on /event
-        response = session.get('http://127.0.0.1:8888/event')
+        response = session.get(self.ws_endpoint + '/event')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -239,7 +257,7 @@ class TestModuleWsEvent(AlignakTest):
         # You must have parameters when POSTing on /event
         headers = {'Content-Type': 'application/json'}
         data = {}
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -253,7 +271,7 @@ class TestModuleWsEvent(AlignakTest):
             "fake": ""
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'ERR', '_issues': ['Missing host and/or service parameter.']})
@@ -263,7 +281,7 @@ class TestModuleWsEvent(AlignakTest):
         data = {
             "host": "test_host",
         }
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'ERR',
@@ -276,7 +294,7 @@ class TestModuleWsEvent(AlignakTest):
             "host": "test_host",
             "comment": "My comment"
         }
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
@@ -291,7 +309,7 @@ class TestModuleWsEvent(AlignakTest):
             "author": "Me",
             "comment": "My comment"
         }
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
@@ -305,7 +323,7 @@ class TestModuleWsEvent(AlignakTest):
             "service": "test_service",
             "comment": "My comment"
         }
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
@@ -321,7 +339,7 @@ class TestModuleWsEvent(AlignakTest):
             "author": "Me",
             "comment": "My comment"
         }
-        response = session.post('http://127.0.0.1:8888/event', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/event', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
@@ -341,7 +359,7 @@ class TestModuleWsEvent(AlignakTest):
         # ---
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')

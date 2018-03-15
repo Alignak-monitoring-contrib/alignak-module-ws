@@ -30,14 +30,12 @@ import json
 import shlex
 import subprocess
 
-import logging
-
 import requests
 
 from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
-from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -56,6 +54,24 @@ class TestModuleWsHostGet(AlignakTest):
 
     @classmethod
     def setUpClass(cls):
+
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
@@ -136,21 +152,13 @@ class TestModuleWsHostGet(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
-    def test_module_zzz_host_get(self):
+    def setUp(self):
+        super(TestModuleWsHostGet, self).setUp()
+
+    def test_module_host_get(self):
         """Test the module /host API - host creation and get information
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -167,6 +175,9 @@ class TestModuleWsHostGet(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Allow host/service creation
             'allow_host_creation': '1',
             'allow_service_creation': '1',
@@ -175,8 +186,12 @@ class TestModuleWsHostGet(AlignakTest):
             'ignore_unknown_service': '0',
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -204,7 +219,7 @@ class TestModuleWsHostGet(AlignakTest):
         time.sleep(1)
 
         # Do not allow GET request on /host - not yet authorized!
-        response = requests.get('http://127.0.0.1:8888/host')
+        response = requests.get(self.ws_endpoint + '/host')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -212,13 +227,13 @@ class TestModuleWsHostGet(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'test', 'password': 'test'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # -----
         # Get a non-existing host - 1st: use parameters in the request
-        response = session.get('http://127.0.0.1:8888/host', auth=self.auth,
+        response = session.get(self.ws_endpoint + '/host', auth=self.auth,
                                 params={'name': 'new_host_2'})
         result = response.json()
         self.assertEqual(result, {
@@ -230,7 +245,7 @@ class TestModuleWsHostGet(AlignakTest):
         })
 
         # Get a non-existing host - 2nd: use host name in the URI
-        response = session.get('http://127.0.0.1:8888/host/new_host_2', auth=self.auth)
+        response = session.get(self.ws_endpoint + '/host/new_host_2', auth=self.auth)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'ERR',
@@ -247,7 +262,7 @@ class TestModuleWsHostGet(AlignakTest):
             "name": "new_host_0",
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.patch('http://127.0.0.1:8888/host', json=data, headers=headers)
+        response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
@@ -262,7 +277,7 @@ class TestModuleWsHostGet(AlignakTest):
 
         # -----
         # Get new host to confirm creation - 1st: use parameters in the request
-        response = session.get('http://127.0.0.1:8888/host', auth=self.auth,
+        response = session.get(self.ws_endpoint + '/host', auth=self.auth,
                                 params={'name': 'new_host_0'})
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -270,7 +285,7 @@ class TestModuleWsHostGet(AlignakTest):
         self.assertEqual(result['_result'][0]['name'], 'new_host_0')
 
         # Get new host to confirm creation - 2nd: use host name in the URI
-        response = session.get('http://127.0.0.1:8888/host/new_host_0', auth=self.auth)
+        response = session.get(self.ws_endpoint + '/host/new_host_0', auth=self.auth)
         result = response.json()
         from pprint import pprint
         pprint(result['_result'])
@@ -438,7 +453,7 @@ class TestModuleWsHostGet(AlignakTest):
 
         # -----
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
