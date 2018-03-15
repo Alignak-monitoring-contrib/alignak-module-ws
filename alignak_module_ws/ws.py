@@ -668,7 +668,8 @@ class AlignakWebServices(BaseModule):
                             ws_result['_issues'].append("Requested host '%s' does not exist"
                                                         % host_name)
                         else:
-                            ws_result['_result'] = ["Requested host '%s' does not exist" % host_name]
+                            ws_result['_result'] = ["Requested host '%s' does not exist"
+                                                    % host_name]
 
                         if not self.give_feedback and '_feedback' in ws_result:
                             ws_result.pop('_feedback')
@@ -676,8 +677,8 @@ class AlignakWebServices(BaseModule):
 
                 if not result['_items'] and self.allow_host_creation:
                     # Tries to create the host
-                    logger.info("Requested host '%s' does not exist. Trying to create a new host...",
-                                host_name)
+                    logger.info("Requested host '%s' does not exist. "
+                                "Trying to create a new host...", host_name)
                     ws_result['_result'].append("Requested host '%s' does not exist." % host_name)
 
                     if 'template' not in data:
@@ -704,7 +705,8 @@ class AlignakWebServices(BaseModule):
                     if result['_status'] != 'OK':
                         logger.warning("Post host, error: %s", result)
                         ws_result['_status'] = 'ERR'
-                        ws_result['_issues'].append("Requested host '%s' creation failed." % host_name)
+                        ws_result['_issues'].append("Requested host '%s' creation failed."
+                                                    % host_name)
                         if not self.give_feedback and '_feedback' in ws_result:
                             ws_result.pop('_feedback')
 
@@ -875,7 +877,8 @@ class AlignakWebServices(BaseModule):
             if self.backend_url:
                 try:
                     start = time.time()
-                    result = backend.get_all('service', {'where': json.dumps({'host': host['_id']})})
+                    result = backend.get_all('service', {'where': json.dumps({'host':
+                                                                                  host['_id']})})
                     self.statsmgr.counter('backend-getall.service', 1)
                     self.statsmgr.timer('backend-getall-time.service', time.time() - start)
                     logger.debug("Get host services, got: %s", result)
