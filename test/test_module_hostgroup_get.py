@@ -160,15 +160,15 @@ class TestModuleWsHostgroup(AlignakTest):
         """
         super(TestModuleWsHostgroup, self).setUp()
 
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
+        # # Obliged to call to get a self.logger...
+        # self.setup_with_file('cfg/cfg_default.cfg')
+        # self.assertTrue(self.conf_is_correct)
+        #
+        # # -----
+        # # Provide parameters - logger configuration file (exists)
+        # # -----
+        # # Clear logs
+        # self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
@@ -218,7 +218,7 @@ class TestModuleWsHostgroup(AlignakTest):
         time.sleep(1)
 
     def tearDown(self):
-        if self.modulemanager:
+        if getattr(self, 'modulemanager', None):
             time.sleep(1)
             self.modulemanager.stop_all()
 

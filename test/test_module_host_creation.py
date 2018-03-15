@@ -518,15 +518,15 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         """Test the module /host API - service creation
         :return:
         """
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
+        # # Obliged to call to get a self.logger...
+        # self.setup_with_file('cfg/cfg_default.cfg')
+        # self.assertTrue(self.conf_is_correct)
 
         # -----
         # Provide parameters - logger configuration file (exists)
         # -----
         # Clear logs
-        self.clear_logs()
+        # self.clear_logs()
 
         # Create an Alignak module
         mod = Module({

@@ -265,7 +265,7 @@ class WSInterface(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     @require()
-    def host(self, name=None):
+    def host(self, name=None):  # pylint: disable=too-many-return-statements
         """ Declare an host and its data
         :return:
         """
