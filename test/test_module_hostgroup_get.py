@@ -36,7 +36,7 @@ from pprint import pprint
 from alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
-from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -188,6 +188,10 @@ class TestModuleWsHostgroup(AlignakTest):
             'allow_host_creation': '1',
             'allow_service_creation': '1'
         })
+
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for a daemon type
         self.modulemanager = ModulesManager(self._receiver_daemon)

@@ -877,8 +877,8 @@ class AlignakWebServices(BaseModule):
             if self.backend_url:
                 try:
                     start = time.time()
-                    result = backend.get_all('service', {'where': json.dumps({'host':
-                                                                                  host['_id']})})
+                    result = backend.get_all('service',
+                                             {'where': json.dumps({'host': host['_id']})})
                     self.statsmgr.counter('backend-getall.service', 1)
                     self.statsmgr.timer('backend-getall-time.service', time.time() - start)
                     logger.debug("Get host services, got: %s", result)
