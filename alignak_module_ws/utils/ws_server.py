@@ -94,7 +94,7 @@ def protect(*args, **kwargs):
                                    cherrypy.request.remote.ip)
                     cherrypy.session[SESSION_KEY] = ''
             else:
-                logger.warning("Missing authorization header for %s.", cherrypy.request.remote.ip)
+                logger.debug("No authorization header for %s.", cherrypy.request.remote.ip)
                 cherrypy.session[SESSION_KEY] = ''
 
         except Exception as exp:  # pylint: disable=bare-except

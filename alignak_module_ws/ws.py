@@ -263,13 +263,13 @@ class AlignakWebServices(BaseModule):
                     getattr(mod_conf, 'statsd_host', 'localhost'),
                     int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                     getattr(mod_conf, 'statsd_prefix', 'alignak.modules'),
-                    (getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+                    getattr(mod_conf, 'statsd_enabled'))
         self.statsmgr = Stats()
         self.statsmgr.register(self.alias, 'module',
                                statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
                                statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
                                statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled', '0') != '0'))
+                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled')))
 
         # Count received commands
         self.received_commands = 0

@@ -212,7 +212,7 @@ class TestModuleNoBackend(AlignakTest):
                 }
             ]
         }
-        self.assertEqual(my_module.received_commands, 0)
+        self.assertEqual(my_module.received_commands, 1)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()

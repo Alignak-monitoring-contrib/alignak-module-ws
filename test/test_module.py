@@ -371,13 +371,7 @@ class TestModuleWs(AlignakTest):
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws',
-            # # Errors for unknown host/service
-            # 'allow_host_creation': '1',
-            # 'allow_service_creation': '0',
-            # # Errors for unknown host/service
-            # 'ignore_unknown_host': '0',
-            # 'ignore_unknown_service': '1'
+            'python_name': 'alignak_module_ws'
         })
 
         instance = alignak_module_ws.get_instance(mod)
@@ -443,20 +437,20 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak daemons get status period: 10"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Sending web-services daemon statistics to: localhost:8125, prefix: alignak"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Trying to contact StatsD server..."), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("StatsD server contacted"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak internal statistics are sent to StatsD."), idx)
-        idx += 1
+            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: False"), idx)
+        # idx += 1
+        # self.assert_log_match(
+        #     re.escape("Sending web-services daemon statistics to: localhost:8125, prefix: alignak"), idx)
+        # idx += 1
+        # self.assert_log_match(
+        #     re.escape("Trying to contact StatsD server..."), idx)
+        # idx += 1
+        # self.assert_log_match(
+        #     re.escape("StatsD server contacted"), idx)
+        # idx += 1
+        # self.assert_log_match(
+        #     re.escape("Alignak internal statistics are sent to StatsD."), idx)
+        # idx += 1
 
     def test_module_start_parameters(self):
         """
@@ -486,10 +480,14 @@ class TestModuleWs(AlignakTest):
             'give_result': 1,
             # Errors for unknown host/service
             'allow_host_creation': '1',
-            'allow_service_creation': '0',
+            'allow_service_creation': '1',
             # Errors for unknown host/service
-            'ignore_unknown_host': '0',
-            'ignore_unknown_service': '0'
+            'ignore_unknown_host': '1',
+            'ignore_unknown_service': '1',
+            'statsd_enabled': '1',
+            'statsd_host': '127.0.0.1',
+            'statsd_port': '8888',
+            'statsd_prefix': 'test'
         })
 
         instance = alignak_module_ws.get_instance(mod)
@@ -504,13 +502,13 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak host creation allowed: True"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("Alignak unknown host is ignored: False"), idx)
+            re.escape("Alignak unknown host is ignored: True"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("Alignak service creation allowed: False"), idx)
+            re.escape("Alignak service creation allowed: True"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("Alignak unknown service is ignored: False"), idx)
+            re.escape("Alignak unknown service is ignored: True"), idx)
         idx += 1
         self.assert_log_match(
             re.escape("Alignak realm case:"), idx)
@@ -554,10 +552,10 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak daemons get status period: 10"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: True"), idx)
+            re.escape("StatsD configuration: 127.0.0.1:8888, prefix: test, enabled: True"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("Sending web-services daemon statistics to: localhost:8125, prefix: alignak"), idx)
+            re.escape("Sending web-services daemon statistics to: 127.0.0.1:8888, prefix: test"), idx)
         idx += 1
         self.assert_log_match(
             re.escape("Trying to contact StatsD server..."), idx)

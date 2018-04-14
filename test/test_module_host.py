@@ -268,6 +268,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(result['_result'], '')
         self.assertEqual(result['_issues'], ['Missing targeted element.'])
 
+        self.show_logs()
+
         # You must have parameters when PATCHing on /host
         headers = {'Content-Type': 'application/json'}
         data = {}
@@ -283,6 +285,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host/test_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host is alive :)'],
@@ -294,6 +297,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host/test_host_0', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -322,6 +326,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -350,6 +355,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host/other_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -379,6 +385,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
         self.assertEqual(result['_issues'], [u'Missing targeted element.'])
@@ -389,9 +396,9 @@ class TestModuleWsHost(AlignakTest):
             "livestate": "",
             "name": "test_host_0",
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -424,9 +431,9 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host_0 is alive :)'],
@@ -443,9 +450,9 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {u'_status': u'ERR',
                                   u'_result': [u'test_host_0 is alive :)'],
@@ -463,16 +470,16 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output...",
-                         # u"Host 'test_host_0' updated."
+                         u"Host 'test_host_0' updated."
                          ],
             u'_feedback': {
                 u'name': u'test_host_0',
@@ -503,16 +510,16 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
                          u"Output...|'counter'=1\nLong output...",
-                         # u"Host 'test_host_0' updated."
+                         u"Host 'test_host_0' updated."
                          ],
             u'_feedback': {
                 u'name': u'test_host_0',
@@ -574,6 +581,8 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        # 4 more commands at once
+        self.assertEqual(my_module.received_commands, 6)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -581,14 +590,15 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
-                # u"Service 'test_host_0/test_ok_0' unchanged.",
-                # u"Service 'test_host_0/test_ok_1' unchanged.",
-                # u"Service 'test_host_0/test_ok_2' unchanged."
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated.",
             ],
             u'_feedback': {
-                u'active_checks_enabled': True, u'_overall_state_id': 3, u'freshness_state': u'x',
+                u'active_checks_enabled': True, u'_overall_state_id': 4, u'freshness_state': u'x',
                 u'notes': u'', u'retry_interval': 1, u'name': u'test_host_0', u'alias': u'up_0',
                 u'freshness_threshold': 3600,
                 u'location': {u'type': u'Point', u'coordinates': [48.858293, 2.294601]},
@@ -620,7 +630,7 @@ class TestModuleWsHost(AlignakTest):
                     {
                         u'name': u'test_ok_2', u'alias': u'test_host_0 test_ok_2',
                         u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
+                        u'retry_interval': 1, u'_overall_state_id': 4,
                         u'freshness_threshold': 3600, u'check_interval': 1,
                         u'max_check_attempts': 2,
                         u'active_checks_enabled': False,
@@ -763,12 +773,12 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                # u"Service 'test_host_0/test_ok_0' updated",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
-                # u"Service 'test_host_0/test_ok_1' updated",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated."
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -844,17 +854,17 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
                 u"[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
-                # u"Host 'test_host_0' updated.",
                 u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 # u"Host 'test_host_0' updated.",
+                # u"Host 'test_host_0' updated.",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                # u"Service 'test_host_0/test_ok_0' updated",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
-                # u"Service 'test_host_0/test_ok_1' updated",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated.",
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -1044,7 +1054,6 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -1108,12 +1117,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, provided timestamp
@@ -1128,15 +1139,16 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
+        self.assertEqual(my_module.received_commands, 1)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 123456789]
+                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate may be a list
@@ -1160,9 +1172,9 @@ class TestModuleWsHost(AlignakTest):
                 }
             ]
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 4)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
@@ -1170,7 +1182,8 @@ class TestModuleWsHost(AlignakTest):
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
                          u"Output...|'counter'=1\nLong output..." % 123456789,
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 987654321]
+                         u"Output...|'counter'=1\nLong output..." % 987654321,
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate, invalid provided timestamp
@@ -1185,9 +1198,9 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 5)
         result = response.json()
         # A timestamp is set because the module is configured to set a timestamp,
         # even if the provided one is not valid!
@@ -1195,7 +1208,8 @@ class TestModuleWsHost(AlignakTest):
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host livestate (heartbeat / host is alive): livestate
@@ -1209,15 +1223,16 @@ class TestModuleWsHost(AlignakTest):
                 "perf_data": "'counter'=1",
             }
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 6)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
             u'_result': [u'test_host_0 is alive :)',
                          u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output..." % time.time()]
+                         u"Output...|'counter'=1\nLong output..." % time.time(),
+                         u"Host 'test_host_0' updated."]
         })
 
         # Update host services livestate
@@ -1262,6 +1277,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 10)
         result = response.json()
         now = time.time()
         self.assertEqual(result, {
@@ -1269,12 +1285,12 @@ class TestModuleWsHost(AlignakTest):
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_0' updated",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_1' updated",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated."
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -1322,18 +1338,19 @@ class TestModuleWsHost(AlignakTest):
         now = time.time()
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 14)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK', u'_result': [
                 u'test_host_0 is alive :)',
                 u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
-                # u"Service 'test_host_0/test_ok_0' updated",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_1' updated",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated."
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -1389,6 +1406,7 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 19)
         result = response.json()
         now = time.time()
         self.assertEqual(result, {
@@ -1398,12 +1416,12 @@ class TestModuleWsHost(AlignakTest):
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 # u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
-                # u"Service 'test_host_0/test_ok_0' updated",
+                u"Service 'test_host_0/test_ok_0' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_1' updated",
+                u"Service 'test_host_0/test_ok_1' updated",
                 u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
-                # u"Service 'test_host_0/test_ok_2' updated",
-                # u"Host 'test_host_0' updated."
+                u"Service 'test_host_0/test_ok_2' updated",
+                u"Host 'test_host_0' updated."
             ]
         })
 
@@ -3528,9 +3546,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
-            u'_status': u'ERR'
+            u'_result': [u'test_host_0 is alive :)',
+                         u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
+            # u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
+            u'_status': u'OK'
         })
         # ----------
 

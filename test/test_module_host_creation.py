@@ -721,7 +721,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 }
             ]
         }
-        self.assertEqual(my_module.received_commands, 0)
+        self.assertEqual(my_module.received_commands, 1)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
@@ -787,9 +787,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                 }
             ]
         }
-        self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(my_module.received_commands, 3)
         result = response.json()
         self.assertEqual(result, {
             u'_status': u'OK',
