@@ -159,6 +159,7 @@ class TestModuleWsEvent(AlignakTest):
         super(TestModuleWsEvent, self).setUp()
 
     def tearDown(self):
+        super(TestModuleWsEvent, self).tearDown()
         if self.modulemanager:
             time.sleep(1)
             self.modulemanager.stop_all()

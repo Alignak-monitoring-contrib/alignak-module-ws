@@ -169,6 +169,7 @@ class TestModuleWsHostLivestate(AlignakTest):
 
         :return: None
         """
+        super(TestModuleWsHostLivestate, self).tearDown()
         for resource in ['logcheckresult']:
             requests.delete('http://127.0.0.1:5000/' + resource, auth=self.auth)
 

@@ -42,12 +42,6 @@ os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
 
-# # Activate debug logs for the alignak backend client library
-# logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
-#
-# # Activate debug logs for the module
-# logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
-
 
 class TestModuleWsHostGet(AlignakTest):
     """This class contains the tests for the module"""
@@ -154,6 +148,9 @@ class TestModuleWsHostGet(AlignakTest):
 
     def setUp(self):
         super(TestModuleWsHostGet, self).setUp()
+
+    def tearDown(self):
+        super(TestModuleWsHostGet, self).tearDown()
 
     def test_module_host_get(self):
         """Test the module /host API - host creation and get information

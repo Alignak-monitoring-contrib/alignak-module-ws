@@ -184,6 +184,7 @@ class TestModuleWsHistory(AlignakTest):
         super(TestModuleWsHistory, self).setUp()
 
     def tearDown(self):
+        super(TestModuleWsHistory, self).tearDown()
         for resource in ['logcheckresult', 'history']:
             requests.delete('http://127.0.0.1:5000/' + resource, auth=self.auth)
         if self.modulemanager:

@@ -158,6 +158,7 @@ class TestModuleWsCommand(AlignakTest):
         super(TestModuleWsCommand, self).setUp()
 
     def tearDown(self):
+        super(TestModuleWsCommand, self).tearDown()
         if self.modulemanager:
             time.sleep(1)
             self.modulemanager.stop_all()

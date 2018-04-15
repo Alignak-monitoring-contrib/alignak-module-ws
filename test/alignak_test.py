@@ -556,11 +556,20 @@ class AlignakTest(unittest2.TestCase):
 
         print("All daemons WS: %s" % ["%s:%s" % (link.address, link.port) for link in self._arbiter.dispatcher.all_daemons_links])
 
+        get_all_states = {
+            'arbiter' : [],
+            'scheduler': [],
+            'poller': [],
+            'reactionner': [],
+            'receiver': [],
+            'broker': []
+        }
         # Simulate the daemons HTTP interface (very simple simulation !)
         with requests_mock.mock() as mr:
             for link in self._arbiter.dispatcher.all_daemons_links:
                 mr.get('http://%s:%s/ping' % (link.address, link.port), json='pong')
-                mr.get('http://%s:%s/get_running_id' % (link.address, link.port), json=123456.123456)
+                mr.get('http://%s:%s/get_all_states' % (link.address, link.port), json='pong')
+                mr.get('http://%s:%s/get_running_id' % (link.address, link.port), json=get_all_states)
                 mr.get('http://%s:%s/wait_new_conf' % (link.address, link.port), json=True)
                 mr.get('http://%s:%s/fill_initial_broks' % (link.address, link.port), json=[])
                 mr.get('http://%s:%s/get_managed_configurations' % (link.address, link.port), json={})

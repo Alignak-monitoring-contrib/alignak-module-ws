@@ -222,6 +222,7 @@ class TestModuleWsHostgroup(AlignakTest):
         time.sleep(1)
 
     def tearDown(self):
+        super(TestModuleWsHostgroup, self).tearDown()
         if getattr(self, 'modulemanager', None):
             time.sleep(1)
             self.modulemanager.stop_all()

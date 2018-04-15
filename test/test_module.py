@@ -47,12 +47,6 @@ os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
 
 import alignak_module_ws
 
-# # Activate debug logs for the alignak backend client library
-# logging.getLogger("alignak_backend_client.client").setLevel(logging.DEBUG)
-#
-# # Activate debug logs for the module
-# logging.getLogger("alignak.module.web-services").setLevel(logging.DEBUG)
-
 
 class TestModuleWs(AlignakTest):
     """This class contains the tests for the module"""
@@ -77,6 +71,21 @@ class TestModuleWs(AlignakTest):
         cls.http_thread1.daemon = True
         cls.http_thread1.start()
         print("Thread started")
+
+        # # Simulate an Alignak arbiter daemon
+        # class ArbiterItf(object):
+        #     @cherrypy.expose
+        #     def index(self):
+        #         return "I am the Arbiter daemon!"
+        # http_daemon2 = AlignakDaemon('0.0.0.0', 7770, ArbiterItf(),
+        #                              False, None, None, None, None, 10, '/tmp/alignak-cherrypy2.log')
+        # def run_http_server2():
+        #     http_daemon2.run()
+        # import threading
+        # cls.http_thread2 = threading.Thread(target=run_http_server2, name='http_server_arbiter')
+        # cls.http_thread2.daemon = True
+        # cls.http_thread2.start()
+        # print("Thread 2 started")
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'

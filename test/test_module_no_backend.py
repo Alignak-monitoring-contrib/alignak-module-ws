@@ -82,6 +82,7 @@ class TestModuleNoBackend(AlignakTest):
 
         :return: None
         """
+        super(TestModuleNoBackend, self).tearDown()
         if self.modulemanager:
             self.modulemanager.stop_all()
 
