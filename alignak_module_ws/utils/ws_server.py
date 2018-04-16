@@ -72,7 +72,6 @@ def protect(*args, **kwargs):
             # Now check if the request includes HTTP Authorization?
             authorization = cherrypy.request.headers.get('Authorization')
             if authorization:
-                print("Got authorization header: %s", authorization)
                 logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
 

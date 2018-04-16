@@ -115,7 +115,7 @@ class TestModuleNoBackend(AlignakTest):
             'allow_host_creation': '1',
             'allow_service_creation': '1',
             # Force Alignak backend update by the module (default is not force!)
-            'alignak_backend_livestate_update': '1',
+            'alignak_backend_livestate_update': '0',
 
             # Disable authorization
             'authorization': '0'
@@ -177,6 +177,7 @@ class TestModuleNoBackend(AlignakTest):
         }
         self.assertEqual(my_module.received_commands, 0)
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
+        print(response)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {

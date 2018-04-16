@@ -564,7 +564,7 @@ class TestModuleWs(AlignakTest):
             re.escape("StatsD configuration: 127.0.0.1:8888, prefix: test, enabled: True"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("Sending web-services daemon statistics to: 127.0.0.1:8888, prefix: test"), idx)
+            re.escape("Sending web-services statistics to: 127.0.0.1:8888, prefix: test"), idx)
         idx += 1
         self.assert_log_match(
             re.escape("Trying to contact StatsD server..."), idx)

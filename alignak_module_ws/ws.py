@@ -192,7 +192,7 @@ class AlignakWebServices(BaseModule):
             self.alignak_backend_timeshift = 0
         self.alignak_backend_livestate_update = getattr(mod_conf,
                                                         'alignak_backend_livestate_update',
-                                                        '0') == '0'
+                                                        '0') == '1'
 
         if not self.backend_username:
             logger.warning("No Alignak backend credentials configured (empty username/token). "
@@ -987,26 +987,27 @@ class AlignakWebServices(BaseModule):
             data.pop('services')
 
         try:
-            headers = {'Content-Type': 'application/json', 'If-Match': host['_etag']}
-            logger.info("Updating host '%s': %s", host_name, data)
-            start = time.time()
-            patch_result = backend.patch('/'.join(['host', host['_id']]),
-                                         data=data, headers=headers, inception=True)
-            self.statsmgr.counter('backend-patch.host', 1)
-            self.statsmgr.timer('backend-patch-time.host', time.time() - start)
-            logger.debug("Backend patch, result: %s", patch_result)
-            if patch_result['_status'] != 'OK':
-                logger.warning("Host patch, got a problem: %s", result)
-                return ('ERR', patch_result['_issues'])
+            if '_etag' in host:
+                headers = {'Content-Type': 'application/json', 'If-Match': host['_etag']}
+                logger.info("Updating host '%s': %s", host_name, data)
+                start = time.time()
+                patch_result = backend.patch('/'.join(['host', host['_id']]),
+                                             data=data, headers=headers, inception=True)
+                self.statsmgr.counter('backend-patch.host', 1)
+                self.statsmgr.timer('backend-patch-time.host', time.time() - start)
+                logger.debug("Backend patch, result: %s", patch_result)
+                if patch_result['_status'] != 'OK':
+                    logger.warning("Host patch, got a problem: %s", result)
+                    return ('ERR', patch_result['_issues'])
 
-            if self.give_feedback:
-                host = backend.get('/'.join(['host', host['_id']]))
-                if '_feedback' not in ws_result:
-                    ws_result['_feedback'] = {}
-                ws_result['_feedback'].update({'name': host['name']})
-                for prop in host:
-                    if prop in self.feedback_host:
-                        ws_result['_feedback'].update({prop: host[prop]})
+                if self.give_feedback:
+                    host = backend.get('/'.join(['host', host['_id']]))
+                    if '_feedback' not in ws_result:
+                        ws_result['_feedback'] = {}
+                    ws_result['_feedback'].update({'name': host['name']})
+                    for prop in host:
+                        if prop in self.feedback_host:
+                            ws_result['_feedback'].update({prop: host[prop]})
 
             if not self.give_feedback and '_feedback' in ws_result:
                 ws_result.pop('_feedback')
