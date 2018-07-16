@@ -32,7 +32,7 @@ import subprocess
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.daemons.receiverdaemon import Receiver
@@ -96,9 +96,9 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         cls.endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             # stdout=fnull, stderr=fnull
@@ -133,7 +133,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -203,7 +203,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                                  auth=self.auth)
         resp = response.json()
         self.realmTest_id = resp['_id']
-        print("Created a new realm: %s" % resp)
+        print(("Created a new realm: %s" % resp))
 
         # Create an Alignak module
         mod = Module({
@@ -293,13 +293,13 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_10 is alive :)',
-                u"Requested host 'new_host_10' does not exist.",
-                u"Requested host 'new_host_10' created."],
-            u'_feedback': {
-                u'name': u'new_host_10'
+            '_status': 'OK',
+            '_result': [
+                'new_host_10 is alive :)',
+                "Requested host 'new_host_10' does not exist.",
+                "Requested host 'new_host_10' created."],
+            '_feedback': {
+                'name': 'new_host_10'
             }
         })
         # Host created with default check_command and in default user realm
@@ -324,10 +324,10 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'new_host_10 is alive :)'],
-            u'_feedback': {
-                u'name': u'new_host_10'
+            '_status': 'OK',
+            '_result': ['new_host_10 is alive :)'],
+            '_feedback': {
+                'name': 'new_host_10'
             }
         })
         # The host already exists, returns an host alive ;)
@@ -348,14 +348,14 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_1 is alive :)',
-                u"Requested host 'new_host_1' does not exist.",
-                u"Requested host 'new_host_1' created."
+            '_status': 'OK',
+            '_result': [
+                'new_host_1 is alive :)',
+                "Requested host 'new_host_1' does not exist.",
+                "Requested host 'new_host_1' created."
             ],
-            u'_feedback': {
-                u'name': u'new_host_1'
+            '_feedback': {
+                'name': 'new_host_1'
             }
         })
 
@@ -383,14 +383,14 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_2 is alive :)',
-                u"Requested host 'new_host_2' does not exist.",
-                u"Requested host 'new_host_2' created."
+            '_status': 'OK',
+            '_result': [
+                'new_host_2 is alive :)',
+                "Requested host 'new_host_2' does not exist.",
+                "Requested host 'new_host_2' created."
             ],
-            u'_feedback': {
-                u'name': u'new_host_2'
+            '_feedback': {
+                'name': 'new_host_2'
             }
         })
         # No errors!
@@ -426,16 +426,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_3 is alive :)',
-                u"Requested host 'new_host_3' does not exist.",
-                u"Requested host 'new_host_3' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_3' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_3 is alive :)',
+                "Requested host 'new_host_3' does not exist.",
+                "Requested host 'new_host_3' created.",
+                "PROCESS_HOST_CHECK_RESULT;new_host_3;0;Output...|'counter'=1\nLong output...",
+                "Host 'new_host_3' updated."
             ],
-            u'_feedback': {
-                u'name': u'new_host_3'
+            '_feedback': {
+                'name': 'new_host_3'
             }
         })
         # No errors!
@@ -476,16 +476,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_4 is alive :)',
-                u"Requested host 'new_host_4' does not exist.",
-                u"Requested host 'new_host_4' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_4;1;Output 2...|'counter1'=2\nLong output 2...",
-                u"Host 'new_host_4' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_4 is alive :)',
+                "Requested host 'new_host_4' does not exist.",
+                "Requested host 'new_host_4' created.",
+                "PROCESS_HOST_CHECK_RESULT;new_host_4;1;Output 2...|'counter1'=2\nLong output 2...",
+                "Host 'new_host_4' updated."
             ],
-            u'_feedback': {
-                u'name': u'new_host_4'
+            '_feedback': {
+                'name': 'new_host_4'
             }
         })
         # No errors!
@@ -615,14 +615,14 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested host 'new_host_for_services_0' does not exist.",
-                u"Requested host 'new_host_for_services_0' created."
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested host 'new_host_for_services_0' does not exist.",
+                "Requested host 'new_host_for_services_0' created."
             ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
+            '_feedback': {
+                'name': 'new_host_for_services_0'
             }
         })
         # No errors!
@@ -658,16 +658,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_empty_0' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_empty_0' updated",
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
+                "Requested service 'new_host_for_services_0/test_empty_0' created.",
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+                "Service 'new_host_for_services_0/test_empty_0' updated",
             ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
+            '_feedback': {
+                'name': 'new_host_for_services_0'
             }
         })
         # No errors!
@@ -689,7 +689,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, service['customs'])
 
@@ -727,16 +727,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_ok_0' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_ok_0' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_ok_0' updated",
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested service 'new_host_for_services_0/test_ok_0' does not exist.",
+                "Requested service 'new_host_for_services_0/test_ok_0' created.",
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                "Service 'new_host_for_services_0/test_ok_0' updated",
             ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
+            '_feedback': {
+                'name': 'new_host_for_services_0'
             }
         })
         # No errors!
@@ -758,7 +758,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, service['customs'])
 
@@ -793,16 +793,16 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         self.assertEqual(my_module.received_commands, 3)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_ok_1' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_ok_1' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_1;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_ok_1' updated",
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested service 'new_host_for_services_0/test_ok_1' does not exist.",
+                "Requested service 'new_host_for_services_0/test_ok_1' created.",
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_ok_1;0;Output...|'counter'=1\nLong output...",
+                "Service 'new_host_for_services_0/test_ok_1' updated",
             ],
-            u'_feedback': {
-                u'name': u'new_host_for_services_0'
+            '_feedback': {
+                'name': 'new_host_for_services_0'
             }
         })
         # No errors!
@@ -824,7 +824,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         service = resp['_items'][0]
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, service['customs'])
         # Logout
@@ -865,7 +865,7 @@ class TestModuleWsHostServiceCreation(AlignakTest):
                                  auth=self.auth)
         resp = response.json()
         self.realmTest = resp['_id']
-        print("Created a new realm: %s" % realm['name'])
+        print(("Created a new realm: %s" % realm['name']))
 
         # Create an Alignak module
         mod = Module({
@@ -956,13 +956,13 @@ class TestModuleWsHostServiceCreation(AlignakTest):
         result = response.json()
         print(result)
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'%s is alive :)' % host_name,
-                u"Requested host '%s' does not exist." % host_name,
-                u"Requested host '%s' created." % host_name],
-            u'_feedback': {
-                u'name': host_name
+            '_status': 'OK',
+            '_result': [
+                '%s is alive :)' % host_name,
+                "Requested host '%s' does not exist." % host_name,
+                "Requested host '%s' created." % host_name],
+            '_feedback': {
+                'name': host_name
             }
         })
         # Host created with default check_command and in default user realm

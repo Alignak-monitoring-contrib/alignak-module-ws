@@ -2,54 +2,116 @@ language: python
 sudo: true
 python:
   - "2.7"
-  # - "3.4"
+  - "3.4"
+  - "3.5"
+  - "3.6"
 
 services:
   - mongodb
 
-# command to install dependencies
-# some are only used for travis/coveralls so we are installing them here only
+before_install:
+  - export TZ=UTC
+
 install:
+  # Install all Python requirements (application and tests)
   - ./test/setup_test.sh
-
-# command to run tests
-script:
-  # so to help eventual debug: knowing what exact versions are in use can be rather useful.
+  # To help eventual debug: knowing which exact versions are in use can be rather useful.
   - pip freeze
-  # Code static analysis
-  - pycodestyle --max-line-length=100 --exclude='*.pyc, *.cfg, *.log' --ignore='E402' alignak_module_ws/*
-  - pylint --rcfile=.pylintrc alignak_module_ws/
-  # Code dynamic analysis
+
+script:
+  # Code dynamic analysis and tests
   - cd test
-
+  # Delete previously existing coverage results
   # Run test suite with py.test running its coverage plugin
-  - pytest -v --no-print-logs --cov=alignak_module_ws --cov-config .coveragerc test_*.py
-
+  - pytest --verbose --durations=10 --no-print-logs --cov=alignak_module_ws --cov-config .coveragerc test_*.py
+  # Report about coverage - Upload coverage results to codecov
+  - bash <(curl -s https://codecov.io/bash)
   - cd ..
-# specific call to launch coverage data into coveralls.io
 after_success:
-  # to get coverage data with relative paths and not absolute we have to
-  # execute coveralls from the base directory of the project,
-  # so we need to move the .coverage file here :
-  - mv test/.coverage . && coveralls --rcfile=test/.coveragerc
-  # mv test/.coverage . && coveralls -v
-  - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION $TRAVIS_TAG
 
-deploy:
-  - provider: bintray
-    skip_cleanup: true
-    file: .bintray.json
-    user: ddurieux
-    key:
-      secure: "3uEOyxJIC5Gyd2f/+8mBAMABngwg5mM3oZYF6SUbws9UbQpAE0Gj0h1O7szUnhdMaVdnBj4CsHoROnGFMMATSRHB6dsTYdNadDrOkO795BzsZY7n1NFRQ7RmlCRxFx30xlANJ3xt2jzm9F1ZlCXTIOv3WuymYD3VaNmNsARnUfiAHSkmDHjcAi8kXz0UVP99FKeM0cyhZNkr7K6TMHGFEmj5KYlwvnmEQmYawv7UkudWUnrxcvyo5xP/CBsLF7Bela1kCOeEcqB2NP1SMLpdOjDKvc6ftEvvM30Th7gq36OrBIF7/EiAa8RIZ0v4J/Q61N4T1JZ7wpZrS9V4MihoLYwtdXs2gA4oIIvEY6hqSXiJA/U4DWWqfWDWdkrF9HaEhISJ44U/pF+WzRaEU9uR5KKUqfyNS1G37bOHHBfJIMpf/CREEAs0TFTIIPXvd2G+0AP2rm3KuisYFFsEbp2bpzXDehVkysrk6JX01M9FBO6LnTViCXvmTOAuugTAWr3QBvm22ZlTYgWRgdMyvOdJfqeYualbkOR/T3vNSi/J1C7P/RhOkWe9hCGpIjR2S5WHfTe2hRkH7+DT7Brr54qHCv8g4Jgem5TvUvb7FA/4yJ7KUk+dZRbOIUWNkhzH/mFmb1wkfPHLHkVJ8g/uYtwW1SESWbSvlF7j8kAhRFfOTi8="
-    on:
-      branch: develop
-  - provider: bintray
-    skip_cleanup: true
-    file: .bintray.json
-    user: ddurieux
-    key:
-      secure: "3uEOyxJIC5Gyd2f/+8mBAMABngwg5mM3oZYF6SUbws9UbQpAE0Gj0h1O7szUnhdMaVdnBj4CsHoROnGFMMATSRHB6dsTYdNadDrOkO795BzsZY7n1NFRQ7RmlCRxFx30xlANJ3xt2jzm9F1ZlCXTIOv3WuymYD3VaNmNsARnUfiAHSkmDHjcAi8kXz0UVP99FKeM0cyhZNkr7K6TMHGFEmj5KYlwvnmEQmYawv7UkudWUnrxcvyo5xP/CBsLF7Bela1kCOeEcqB2NP1SMLpdOjDKvc6ftEvvM30Th7gq36OrBIF7/EiAa8RIZ0v4J/Q61N4T1JZ7wpZrS9V4MihoLYwtdXs2gA4oIIvEY6hqSXiJA/U4DWWqfWDWdkrF9HaEhISJ44U/pF+WzRaEU9uR5KKUqfyNS1G37bOHHBfJIMpf/CREEAs0TFTIIPXvd2G+0AP2rm3KuisYFFsEbp2bpzXDehVkysrk6JX01M9FBO6LnTViCXvmTOAuugTAWr3QBvm22ZlTYgWRgdMyvOdJfqeYualbkOR/T3vNSi/J1C7P/RhOkWe9hCGpIjR2S5WHfTe2hRkH7+DT7Brr54qHCv8g4Jgem5TvUvb7FA/4yJ7KUk+dZRbOIUWNkhzH/mFmb1wkfPHLHkVJ8g/uYtwW1SESWbSvlF7j8kAhRFfOTi8="
-    on:
-      tags: true
-
+jobs:
+  include:
+    - stage: Coding standard
+      python: 3.6
+      script:
+        # Static code analysis
+        # -- pycodestyle (former pep8)
+        - pycodestyle --max-line-length=100 --exclude='*.pyc, *.cfg, *.log' --ignore='E402' --ignore='W504' alignak_module_ws/*
+        # -- pylint
+        - pylint --rcfile=.pylintrc -r no alignak_module_ws
+        # -- pep257
+        - pep257 --select=D300 alignak_module_ws
+    - stage: Pypi deployment
+      python: 3.6
+      script: echo "Deploying to PyPi..."
+      if: (tag IS present)
+      deploy:
+      - provider: pypi
+        distributions: "sdist bdist_wheel"
+        skip_existing: true
+        on:
+          tags: true
+        user: alignak
+        password:
+          secure: "RpL6CArq0yC734lzOh3ERq5p67274RayoiqLvEb5r5Sas+Zv0lcrEHNLT8v1fwIs0aJBZEE8NnXyTwD3bK03MGoRYGb00viVV/8x3ASYhvZ6MW41LcnLIDJRL2ZqhCU9LWcgkbGDxYoiuObedMvtwtj/iADjkQ9T7R/X9waWCLgfxOZtXDE3xnEBYXrntvGPYd/KQkrQQ1pg5SC74sdIsnHcsN5j7Dt/HlSNDv0CZaZ8zptg7dIlbn472+2TTesiyIFcEoFviGw6UmElkUTwkxyH0ix8mX1unibwaROHM/YJoz06GmAgPzjXmdAFvccWqCtp8uYMVitJSt8/JUIhsXntJM2yIhzCE/SRT7HIU0Z7IiQwjaY6bhGha8o0DmSIYdc+3cARtna5/alGGv5xQxF2TTZGEZJeOKsQsXfh9G8SpLjdl+2eznMgAO5G0SOxBs57ovSMrFmhpA3qjz8kVLgroNvEOE9gd2+9NjXm5p7ioxlXpixwWhSEkMDLP8jH7RzvnFMw+iAjeYJMYpjGAyzViDE09tsgwWlsu3aw69LBRDVS9/3b8Cb0FG7/uxffTtYc79KLI2XPt2eQRi1SihnR8mpXHqE4A5fAVn6sUmsyUMFriJipsUwaAEBNgXioGR99iDgkoEHaxFSl5cW0R/JOCoKr1Q/Bs3NjH3WBcTw="
+    - stage: Debian packaging
+      python: 2.7
+      install:
+        # Install packaging requirements
+        - echo "Installing packaging requirements..."
+      script:
+        - echo "Deploying to BinTray packages..."
+        # Package Alignak module for deb/rpm
+        - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION deb
+#      if: (branch IN (master, develop)) OR (tag IS present)
+      deploy:
+      - provider: bintray
+        skip_cleanup: true
+        file: dist/.bintray-deb.json
+        on:
+          all_branches: true
+#          condition: $TRAVIS_BRANCH =~ ^master|develop$
+        user: mohierf
+        key:
+          secure: "erz6dVnW0973dGDdclMZvmQWOlo2yjYkmuxQFY3j5srEMgwVIDoXaycuNHAfNOJC73a0bZSlTPF9c8rx7Sk5SJDlcWNqRstjwEpOhn6AHMbxdu5trX1VtnDPR2XUJohbri7YudDu4BGXa86EnQ4sBBtKgjVPLXtHvkUoDfikTDTmff7N+DPEsDda2DPAEs74IGMXE0GjFMJL0uNgfBADwYaEE7fLJ3xJVAhny04u2Ve0qJ8mX2ajVv+BXIgcUOrAhPxzJUtTYlVMOjYQ91BmhLUqv2KB23FR5Q6GZslgVHeMZ0Evi350GGZR7KDz/5ka1iLab7yS9MpLja7V0B8DVD1/b0suMG6pBLzkyXwAJKM6/pxYn5BoAf6MKOeman7Dan3Nt9EsxGUf+b81H0aP/vEYWTbLCglRF3N7PebZzOxO8Pje8RTRvQMrKgFzidLSKU1KMZOUpgbFWuiXlkqf/iVy1cP5x5JLJAlkZdQQRF+ibdIiKkilcJ4EgzY2hQq2BoCMd874iaRK4dv9Vthw6MhUBB/73vmpmAR6rQzWUi223bd17a8qxu9rvWJRMl/2cyXRXFS9BP65q6Xs2unEkbMV+ZAh37PTJrNgSj5J0oDI2LhFk8dliYZPBC2P5aeGX2jgi+kt+DI9QRGBFK/Zr6SB81Eh6GvaePNkMdcyLQY="
+    - stage: RPM packaging
+      python: 2.7
+      install:
+        # Install packaging requirements
+        - echo "Installing packaging requirements..."
+        - sudo apt-get install -y rpm
+      script:
+        - echo "Deploying to BinTray packages..."
+        # Package Alignak module for deb/rpm
+        - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION rpm
+#      if: (branch IN (master, develop)) OR (tag IS present)
+      deploy:
+      - provider: bintray
+        skip_cleanup: true
+        file: dist/.bintray-rpm.json
+        on:
+          all_branches: true
+#          tags: true
+        user: mohierf
+        key:
+          secure: "erz6dVnW0973dGDdclMZvmQWOlo2yjYkmuxQFY3j5srEMgwVIDoXaycuNHAfNOJC73a0bZSlTPF9c8rx7Sk5SJDlcWNqRstjwEpOhn6AHMbxdu5trX1VtnDPR2XUJohbri7YudDu4BGXa86EnQ4sBBtKgjVPLXtHvkUoDfikTDTmff7N+DPEsDda2DPAEs74IGMXE0GjFMJL0uNgfBADwYaEE7fLJ3xJVAhny04u2Ve0qJ8mX2ajVv+BXIgcUOrAhPxzJUtTYlVMOjYQ91BmhLUqv2KB23FR5Q6GZslgVHeMZ0Evi350GGZR7KDz/5ka1iLab7yS9MpLja7V0B8DVD1/b0suMG6pBLzkyXwAJKM6/pxYn5BoAf6MKOeman7Dan3Nt9EsxGUf+b81H0aP/vEYWTbLCglRF3N7PebZzOxO8Pje8RTRvQMrKgFzidLSKU1KMZOUpgbFWuiXlkqf/iVy1cP5x5JLJAlkZdQQRF+ibdIiKkilcJ4EgzY2hQq2BoCMd874iaRK4dv9Vthw6MhUBB/73vmpmAR6rQzWUi223bd17a8qxu9rvWJRMl/2cyXRXFS9BP65q6Xs2unEkbMV+ZAh37PTJrNgSj5J0oDI2LhFk8dliYZPBC2P5aeGX2jgi+kt+DI9QRGBFK/Zr6SB81Eh6GvaePNkMdcyLQY="
+    - stage: FreeBSD packaging for Python 3
+      python: 3.6
+      install:
+        # Install packaging requirements
+        - echo "Installing packaging requirements..."
+      script:
+        - echo "Deploying to BinTray packages..."
+        # Package Alignak module for deb/rpm
+        - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION freebsd
+#      if: (branch IN (master, develop)) OR (tag IS present)
+      deploy:
+      - provider: bintray
+        skip_cleanup: true
+        file: dist/.bintray-freebsd.json
+        on:
+          all_branches: true
+#          tags: true
+        user: mohierf
+        key:
+          secure: "erz6dVnW0973dGDdclMZvmQWOlo2yjYkmuxQFY3j5srEMgwVIDoXaycuNHAfNOJC73a0bZSlTPF9c8rx7Sk5SJDlcWNqRstjwEpOhn6AHMbxdu5trX1VtnDPR2XUJohbri7YudDu4BGXa86EnQ4sBBtKgjVPLXtHvkUoDfikTDTmff7N+DPEsDda2DPAEs74IGMXE0GjFMJL0uNgfBADwYaEE7fLJ3xJVAhny04u2Ve0qJ8mX2ajVv+BXIgcUOrAhPxzJUtTYlVMOjYQ91BmhLUqv2KB23FR5Q6GZslgVHeMZ0Evi350GGZR7KDz/5ka1iLab7yS9MpLja7V0B8DVD1/b0suMG6pBLzkyXwAJKM6/pxYn5BoAf6MKOeman7Dan3Nt9EsxGUf+b81H0aP/vEYWTbLCglRF3N7PebZzOxO8Pje8RTRvQMrKgFzidLSKU1KMZOUpgbFWuiXlkqf/iVy1cP5x5JLJAlkZdQQRF+ibdIiKkilcJ4EgzY2hQq2BoCMd874iaRK4dv9Vthw6MhUBB/73vmpmAR6rQzWUi223bd17a8qxu9rvWJRMl/2cyXRXFS9BP65q6Xs2unEkbMV+ZAh37PTJrNgSj5J0oDI2LhFk8dliYZPBC2P5aeGX2jgi+kt+DI9QRGBFK/Zr6SB81Eh6GvaePNkMdcyLQY="

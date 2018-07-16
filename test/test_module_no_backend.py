@@ -34,7 +34,7 @@ import requests
 import datetime
 from freezegun import freeze_time
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -181,10 +181,10 @@ class TestModuleNoBackend(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
             ]
         })
         # No errors - an extrenal command was raised for the host livestate
@@ -219,11 +219,11 @@ class TestModuleNoBackend(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_0;test_svc_0;0;Output...|'counter'=1\nLong output..."
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_0;test_svc_0;0;Output...|'counter'=1\nLong output..."
             ]
         })
         # No errors - an extrenal command was raised for the host livestate

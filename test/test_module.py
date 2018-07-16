@@ -36,7 +36,7 @@ import logging
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.daemons.receiverdaemon import Receiver
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
@@ -99,20 +99,22 @@ class TestModuleWs(AlignakTest):
         )
         assert exit_code == 0
 
+        if os.path.exists('/tmp/uwsgi.log'):
+            os.remove('/tmp/uwsgi.log')
         fnull = open(os.devnull, 'w')
         cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
                                   '--socket', '0.0.0.0:5000',
                                   '--protocol=http', '--enable-threads', '--pidfile',
-                                  '/tmp/uwsgi.pid'],
+                                  '/tmp/uwsgi.pid', '--logto', '/tmp/uwsgi.log'],
                                  stdout=fnull, stderr=fnull)
         time.sleep(3)
 
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete -u admin -p admin %s/cfg/cfg_default.cfg' % test_dir),
             # stdout=fnull, stderr=fnull
@@ -147,7 +149,7 @@ class TestModuleWs(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -205,15 +207,20 @@ class TestModuleWs(AlignakTest):
         Test if the module manager manages correctly all the modules
         :return:
         """
+        # self.set_unit_tests_logger_level()
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
+        self.show_logs()
         self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws'
+            'python_name': 'alignak_module_ws',
+            'alignak_host': '',
+            # 'log_level': 'DEBUG'
+            'log_level': 'DEBUG',
         })
 
         # Create the modules manager for a daemon type
@@ -229,14 +236,16 @@ class TestModuleWs(AlignakTest):
             "Importing Python module 'alignak_module_ws' for web-services..."
         ))
         self.assert_any_log_match(re.escape(
-            "Module properties: {'daemons': ['receiver'], 'phases': ['running'], "
-            "'type': 'web-services', 'external': True}"
+            "Module properties: "
         ))
         self.assert_any_log_match(re.escape(
             "Imported 'alignak_module_ws' for web-services"
         ))
         self.assert_any_log_match(re.escape(
             "Loaded Python module 'alignak_module_ws' (web-services)"
+        ))
+        self.assert_any_log_match(re.escape(
+            "Alignak starting module 'web-services'"
         ))
         # self.assert_any_log_match(re.escape(
         #     "Give an instance of alignak_module_ws for alias: web-services"
@@ -257,6 +266,7 @@ class TestModuleWs(AlignakTest):
             self.assertListEqual([my_module], self.modulemanager.get_external_instances(phase))
 
         # Clear logs
+        self.show_logs()
         self.clear_logs()
 
         # Start external modules
@@ -277,21 +287,31 @@ class TestModuleWs(AlignakTest):
 
         # Kill the external module (normal stop is .stop_process)
         my_module.kill()
-        time.sleep(0.1)
-        self.assert_log_match("Killing external module", 0)
-        self.assert_log_match("External module killed", 1)
+        time.sleep(1.0)
+        self.show_logs()
+        index = 0
+        self.assert_log_match("Killing external module", index)
+        index = index +1
+        # self.assert_log_match("web-services is still living 10 seconds after a normal kill, I help it to die", 1)
+        self.assert_log_match("External module killed", index)
+        index = index +1
 
         # Should be dead (not normally stopped...) but we still know a process for this module!
         self.assertIsNotNone(my_module.process)
 
         # Nothing special ...
         self.modulemanager.check_alive_instances()
-        self.assert_log_match("The external module web-services died unexpectedly!", 2)
-        self.assert_log_match("Setting the module web-services to restart", 3)
+        self.assert_log_match("The external module web-services died unexpectedly!", index)
+        index = index +1
+        self.assert_log_match("Setting the module web-services to restart", index)
+        index = index +1
 
         # Try to restart the dead modules
         self.modulemanager.try_to_restart_deads()
-        self.assert_log_match("Trying to initialize module: web-services", 4)
+        self.assert_log_match("Trying to restart module: web-services", index)
+        index = index +1
+        self.assert_log_match("Too early to retry initialization, retry period is 5 seconds", index)
+        index = index +1
 
         # In fact it's too early, so it won't do it
         # The module instance is still dead
@@ -301,13 +321,19 @@ class TestModuleWs(AlignakTest):
         my_module.last_init_try = -5
         self.modulemanager.check_alive_instances()
         self.modulemanager.try_to_restart_deads()
-        self.assert_log_match("Trying to initialize module: web-services", 5)
+        self.assert_log_match("Trying to restart module: web-services", index)
+        index = index +1
+        self.assert_log_match("Trying to initialize module: web-services", index)
+        index = index +1
+        self.assert_log_match("Restarting web-services...", index)
+        index = index +1
 
         # The module instance is now alive again
         self.assertTrue(my_module.process.is_alive())
-        self.assert_log_match("I'm stopping module 'web-services'", 6)
-        self.assert_log_match("Starting external process for module web-services", 7)
-        self.assert_log_match("web-services is now started", 8)
+        self.assert_log_match("Starting external process for module web-services", index)
+        index = index +1
+        self.assert_log_match("web-services is now started", index)
+        index = index +1
 
         # There is nothing else to restart in the module manager
         self.assertEqual([], self.modulemanager.to_restart)
@@ -319,16 +345,24 @@ class TestModuleWs(AlignakTest):
         my_module.kill()
         time.sleep(0.2)
         self.assertFalse(my_module.process.is_alive())
-        self.assert_log_match("Killing external module", 0)
-        self.assert_log_match("External module killed", 1)
+        index = 0
+        self.assert_log_match("Killing external module", index)
+        index = index +1
+        self.assert_log_match("External module killed", index)
+        index = index +1
 
         # Should be too early
         self.modulemanager.check_alive_instances()
-        self.assert_log_match("The external module web-services died unexpectedly!", 2)
-        self.assert_log_match("Setting the module web-services to restart", 3)
+        self.assert_log_match("The external module web-services died unexpectedly!", index)
+        index = index +1
+        self.assert_log_match("Setting the module web-services to restart", index)
+        index = index +1
 
         self.modulemanager.try_to_restart_deads()
-        self.assert_log_match("Trying to initialize module: web-services", 4)
+        self.assert_log_match("Trying to restart module: web-services", index)
+        index = index +1
+        self.assert_log_match("Too early to retry initialization, retry period is 5 seconds", index)
+        index = index +1
 
         # In fact it's too early, so it won't do it
         # The module instance is still dead
@@ -338,13 +372,19 @@ class TestModuleWs(AlignakTest):
         my_module.last_init_try = -5
         self.modulemanager.check_alive_instances()
         self.modulemanager.try_to_restart_deads()
-        self.assert_log_match("Trying to initialize module: web-services", 5)
+        self.assert_log_match("Trying to restart module: web-services", index)
+        index = index +1
+        self.assert_log_match("Trying to initialize module: web-services", index)
+        index = index +1
+        self.assert_log_match("Restarting web-services...", index)
+        index = index +1
 
         # The module instance is now alive again
         self.assertTrue(my_module.process.is_alive())
-        self.assert_log_match("I'm stopping module 'web-services'", 6)
-        self.assert_log_match("Starting external process for module web-services", 7)
-        self.assert_log_match("web-services is now started", 8)
+        self.assert_log_match("Starting external process for module web-services", index)
+        index = index +1
+        self.assert_log_match("web-services is now started", index)
+        index = index +1
 
         # Clear logs
         self.clear_logs()
@@ -353,13 +393,21 @@ class TestModuleWs(AlignakTest):
         self.modulemanager.stop_all()
         # Stopping module logs
 
-        self.assert_log_match("Shutting down modules...", 0)
-        self.assert_log_match("Request external process to stop for web-services", 1)
-        self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), 2)
-        self.assert_log_match(re.escape("'web-services' is still living after a normal kill, I help it to die"), 3)
-        self.assert_log_match(re.escape("Killing external module (pid"), 4)
-        self.assert_log_match(re.escape("External module killed"), 5)
-        self.assert_log_match("External process stopped.", 6)
+        index = 0
+        self.assert_log_match("Shutting down modules...", index)
+        index = index +1
+        self.assert_log_match("Request external process to stop for web-services", index)
+        index = index +1
+        self.assert_log_match(re.escape("I'm stopping module 'web-services' (pid="), index)
+        index = index +1
+        # self.assert_log_match(re.escape("'web-services' is still living after a normal kill, I help it to die"), index)
+        # index = index +1
+        self.assert_log_match(re.escape("Killing external module (pid"), index)
+        index = index +1
+        self.assert_log_match(re.escape("External module killed"), index)
+        index = index +1
+        self.assert_log_match("External process stopped.", index)
+        index = index +1
 
     def test_module_start_default(self):
         """
@@ -380,7 +428,8 @@ class TestModuleWs(AlignakTest):
         mod = Module({
             'module_alias': 'web-services',
             'module_types': 'web-services',
-            'python_name': 'alignak_module_ws'
+            'python_name': 'alignak_module_ws',
+            'log_level': 'DEBUG'
         })
 
         instance = alignak_module_ws.get_instance(mod)
@@ -388,10 +437,18 @@ class TestModuleWs(AlignakTest):
         # print(alignak_module_ws.mod_conf)
 
         idx = 0
+        if 'TRAVIS' in os.environ:
+            self.assert_log_match(re.escape("New module: "), idx)
+            idx += 1
         self.assert_log_match(
             re.escape("Give an instance of alignak_module_ws for "
                       "alias: web-services"), idx)
         idx += 1
+        if 'TRAVIS' in os.environ:
+            self.assert_log_match(re.escape("inner properties: "), idx)
+            idx += 1
+            self.assert_log_match(re.escape("received configuration: "), idx)
+            idx += 1
         self.assert_log_match(
             re.escape("Alignak host creation allowed: True"), idx)
         idx += 1
@@ -446,7 +503,10 @@ class TestModuleWs(AlignakTest):
             re.escape("Alignak daemons get status period: 10"), idx)
         idx += 1
         self.assert_log_match(
-            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: False"), idx)
+            re.escape("no loader daemon specified."), idx)
+        idx += 1
+        self.assert_log_match(
+            re.escape("StatsD configuration: localhost:8125, prefix: alignak, enabled: False, graphite: False"), idx)
         # idx += 1
         # self.assert_log_match(
         #     re.escape("Sending web-services daemon statistics to: localhost:8125, prefix: alignak"), idx)
@@ -496,85 +556,87 @@ class TestModuleWs(AlignakTest):
             'statsd_enabled': '1',
             'statsd_host': '127.0.0.1',
             'statsd_port': '8888',
-            'statsd_prefix': 'test'
+            'statsd_prefix': 'test',
+            'log_level': 'DEBUG'
         })
 
         instance = alignak_module_ws.get_instance(mod)
         self.assertIsInstance(instance, BaseModule)
 
-        idx = 0
-        self.assert_log_match(
+        self.assert_any_log_match(
             re.escape("Give an instance of alignak_module_ws for "
-                      "alias: web-services"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak host creation allowed: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak unknown host is ignored: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak service creation allowed: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak unknown service is ignored: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak realm case:"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak external commands, set timestamp: False"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak update, set give_feedback: 0"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak host feedback list: ['']"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak service feedback list: ['']"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak update, set give_result: False"), idx)
-        idx += 1
-        self.assert_log_match(
+                      "alias: web-services"))
+        self.assert_any_log_match(
+            re.escape("Alignak host creation allowed: True"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak unknown host is ignored: True"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak service creation allowed: True"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak unknown service is ignored: True"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak realm case:"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak external commands, set timestamp: False"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak update, set give_feedback: 0"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak host feedback list: ['']"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak service feedback list: ['']"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak update, set give_result: False"))
+        
+        self.assert_any_log_match(
             re.escape("Alignak Backend is not configured. "
-                      "Some module features will not be available."), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak backend endpoint:"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Number of processes used by backend client: 1"), idx)
-        idx += 1
-        self.assert_log_match(
+                      "Some module features will not be available."))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak backend endpoint:"))
+        
+        self.assert_any_log_match(
+            re.escape("Number of processes used by backend client: 1"))
+        
+        self.assert_any_log_match(
             re.escape("No Alignak backend credentials configured (empty username/token). "
-                      "The backend connection will use the WS user credentials."), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak Arbiter configuration: my_host:80"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak Arbiter polling period: 5"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak daemons get status period: 10"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("StatsD configuration: 127.0.0.1:8888, prefix: test, enabled: True"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Sending web-services statistics to: 127.0.0.1:8888, prefix: test"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Trying to contact StatsD server..."), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("StatsD server contacted"), idx)
-        idx += 1
-        self.assert_log_match(
-            re.escape("Alignak internal statistics are sent to StatsD."), idx)
-        idx += 1
+                      "The backend connection will use the WS user credentials."))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak Arbiter configuration: my_host:80"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak Arbiter polling period: 5"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak daemons get status period: 10"))
+        
+        self.assert_any_log_match(
+            re.escape("no loader daemon specified."))
+        
+        self.assert_any_log_match(
+            re.escape("StatsD configuration: 127.0.0.1:8888, prefix: test, enabled: True, graphite: False"))
+        
+        self.assert_any_log_match(
+            re.escape("Sending web-services statistics to: 127.0.0.1:8888, prefix: test"))
+        
+        self.assert_any_log_match(
+            re.escape("Trying to contact StatsD server..."))
+        
+        self.assert_any_log_match(
+            re.escape("StatsD server contacted"))
+        
+        self.assert_any_log_match(
+            re.escape("Alignak internal statistics are sent to StatsD."))
+        
 
     def test_module_zzz_basic_ws(self):
         """Test the module basic API - authorization enabled
@@ -594,7 +656,8 @@ class TestModuleWs(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
             # Enable authorization
-            'authorization': '1'
+            'authorization': '1',
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -632,19 +695,19 @@ class TestModuleWs(AlignakTest):
         # Get the WS root endpoint
         # Unauthorized because no authentication!
         response = requests.get(self.ws_endpoint)
-        print("Response: %s" % response)
-        print("Response: %s" % response.__dict__)
+        print(("Response: %s" % response))
+        print(("Response: %s" % response.__dict__))
         assert response.status_code == 401
 
         auth = requests.auth.HTTPBasicAuth('admin', 'admin')
         response = requests.get(self.ws_endpoint, auth=auth)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp ==  [
-            u'alignak_logs', u'alignak_map', u'api', u'api_full', u'are_you_alive', u'command',
-            u'event', u'host', u'hostgroup', u'index', u'login', u'logout'
+            'alignak_logs', 'alignak_map', 'api', 'api_full', 'are_you_alive', 'command',
+            'event', 'host', 'hostgroup', 'index', 'login', 'logout'
         ]
 
         # Login refused because of missing credentials
@@ -654,13 +717,13 @@ class TestModuleWs(AlignakTest):
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp == {'_status': 'ERR', '_issues': ['You must POST parameters on this endpoint.']}
         params = {'username': None, 'password': None}
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp == {'_status': 'ERR', '_issues': ['Missing username parameter.']}
 
         # # Login refused because of bad username/password (real backend login)
@@ -677,17 +740,17 @@ class TestModuleWs(AlignakTest):
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert '_result' in resp
         token = resp['_result'][0]
 
         # Login with existing token as a username
         params = {'username': token, 'password': None}
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp == {'_status': 'OK', '_result': [token]}
 
         # Login with basic authentication
@@ -696,35 +759,35 @@ class TestModuleWs(AlignakTest):
         params = {}
         auth = requests.auth.HTTPBasicAuth('admin', 'admin')
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers, auth=auth)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp == {'_status': 'OK', '_result': [token]}
         params = {}
         auth = requests.auth.HTTPBasicAuth(token, '')
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers, auth=auth)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         resp = response.json()
-        print("Response json: %s" % resp)
+        print(("Response json: %s" % resp))
         assert resp == {'_status': 'OK', '_result': [token]}
 
         # Get the module API list and request on each endpoint
         auth = requests.auth.HTTPBasicAuth('admin', 'admin')
         response = requests.get(self.ws_endpoint, auth=auth)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
-            print("Trying %s" % (endpoint))
+            print(("Trying %s" % (endpoint)))
             response = requests.get(self.ws_endpoint + '/' + endpoint, auth=auth)
-            print("Response %d: %s" % (response.status_code, response.content))
+            print(("Response %d: %s" % (response.status_code, response.content)))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
-                print("Got %s: %s" % (endpoint, response.json()))
+                print(("Got %s: %s" % (endpoint, response.json())))
             else:
-                print("Error %s: %s" % (response.status_code, response.content))
+                print(("Error %s: %s" % (response.status_code, response.content)))
 
         self.modulemanager.stop_all()
 
@@ -750,7 +813,8 @@ class TestModuleWs(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
             # Disable authorization
-            'authorization': '0'
+            'authorization': '0',
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -787,18 +851,18 @@ class TestModuleWs(AlignakTest):
 
         # Get the module API list and request on each endpoint
         response = requests.get(self.ws_endpoint)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
-            print("Trying %s" % (endpoint))
+            print(("Trying %s" % (endpoint)))
             response = requests.get(self.ws_endpoint + '/' + endpoint)
-            print("Response %d: %s" % (response.status_code, response.content))
+            print(("Response %d: %s" % (response.status_code, response.content)))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
-                print("Got %s: %s" % (endpoint, response.json()))
+                print(("Got %s: %s" % (endpoint, response.json())))
             else:
-                print("Error %s: %s" % (response.status_code, response.content))
+                print(("Error %s: %s" % (response.status_code, response.content)))
 
         self.modulemanager.stop_all()
 
@@ -818,7 +882,8 @@ class TestModuleWs(AlignakTest):
             'password': 'admin',
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
-            'alignak_port': 7770
+            'alignak_port': 7770,
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -860,7 +925,7 @@ class TestModuleWs(AlignakTest):
         response = requests.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         result = response.json()
-        assert result == {u'_status': u'ERR', u'_issues': [u'Access denied.']}
+        assert result == {'_status': 'ERR', '_issues': ['Access denied.']}
 
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
@@ -914,7 +979,8 @@ class TestModuleWs(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
             # Ensable authorization
-            'authorization': '1'
+            'authorization': '1',
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -967,17 +1033,17 @@ class TestModuleWs(AlignakTest):
         self.assertEqual(response.status_code, 401)
         print(result)
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_issues': [
-                u'Alignak backend error. Exception, updateHost: BackendException raised '
-                u'with code 401 and message: 401 Client Error: UNAUTHORIZED for url:'
-                u' http://127.0.0.1:5000/host?where=%7B%22name%22%3A+%22new_host_1%22%7D'
-                u' - <Response [401]>',
-                u'Alignak backend error. Response: <Response [401]>'
+            '_status': 'ERR',
+            '_issues': [
+                'Alignak backend error. Exception, updateHost: BackendException raised '
+                'with code 401 and message: 401 Client Error: UNAUTHORIZED for url:'
+                ' http://127.0.0.1:5000/host?where=%7B%22name%22%3A+%22new_host_1%22%7D'
+                ' - <Response [401]>',
+                'Alignak backend error. Response: <Response [401]>'
                 # u'Alignak backend error. Response: <Response [401]>'
             ],
-            u'_result': [
-                u'new_host_1 is alive :)',
+            '_result': [
+                'new_host_1 is alive :)',
             ]
         })
         # Host created, even if check_command does not exist, it uses the default check_command!
@@ -1004,6 +1070,7 @@ class TestModuleWs(AlignakTest):
             'alignak_port': 7770,
             # Ensable authorization
             'authorization': '1',
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -1049,18 +1116,18 @@ class TestModuleWs(AlignakTest):
 
         # Get the module API list and request on each endpoint
         response = session.get(self.ws_endpoint)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
-            print("Trying %s" % (endpoint))
+            print(("Trying %s" % (endpoint)))
             response = session.get(self.ws_endpoint + '/' + endpoint)
-            print("Response %d: %s" % (response.status_code, response.content))
+            print(("Response %d: %s" % (response.status_code, response.content)))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
-                print("Got %s: %s" % (endpoint, response.json()))
+                print(("Got %s: %s" % (endpoint, response.json())))
             else:
-                print("Error %s: %s" % (response.status_code, response.content))
+                print(("Error %s: %s" % (response.status_code, response.content)))
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')
@@ -1078,18 +1145,18 @@ class TestModuleWs(AlignakTest):
 
         # Get the module API list and request on each endpoint
         response = session.get(self.ws_endpoint)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
-            print("Trying %s" % (endpoint))
+            print(("Trying %s" % (endpoint)))
             response = session.get(self.ws_endpoint + '/' + endpoint)
-            print("Response %d: %s" % (response.status_code, response.content))
+            print(("Response %d: %s" % (response.status_code, response.content)))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
-                print("Got %s: %s" % (endpoint, response.json()))
+                print(("Got %s: %s" % (endpoint, response.json())))
             else:
-                print("Error %s: %s" % (response.status_code, response.content))
+                print(("Error %s: %s" % (response.status_code, response.content)))
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')
@@ -1120,6 +1187,7 @@ class TestModuleWs(AlignakTest):
             'alignak_port': 7770,
             # Ensable authorization
             'authorization': '1',
+            'log_level': 'DEBUG'
         })
 
         # Create a receiver daemon
@@ -1164,18 +1232,18 @@ class TestModuleWs(AlignakTest):
 
         # Get the module API list and request on each endpoint
         response = session.get(self.ws_endpoint)
-        print("Response: %s" % response)
+        print(("Response: %s" % response))
         assert response.status_code == 200
         api_list = response.json()
         for endpoint in api_list:
-            print("Trying %s" % (endpoint))
+            print(("Trying %s" % (endpoint)))
             response = session.get(self.ws_endpoint + '/' + endpoint)
-            print("Response %d: %s" % (response.status_code, response.content))
+            print(("Response %d: %s" % (response.status_code, response.content)))
             self.assertEqual(response.status_code, 200)
             if response.status_code == 200:
-                print("Got %s: %s" % (endpoint, response.json()))
+                print(("Got %s: %s" % (endpoint, response.json())))
             else:
-                print("Error %s: %s" % (response.status_code, response.content))
+                print(("Error %s: %s" % (response.status_code, response.content)))
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')

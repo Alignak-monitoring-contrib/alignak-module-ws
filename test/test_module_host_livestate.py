@@ -34,7 +34,7 @@ import requests
 import datetime
 from freezegun import freeze_time
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -97,10 +97,10 @@ class TestModuleWsHostLivestate(AlignakTest):
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
         print("Feeding Alignak backend...")
-        print('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir)
+        print(('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
@@ -135,7 +135,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -162,7 +162,7 @@ class TestModuleWsHostLivestate(AlignakTest):
 
     def setUp(self):
         super(TestModuleWsHostLivestate, self).setUp()
-        self.set_debug_log()
+        self.set_unit_tests_logger_level()
 
     def tearDown(self):
         """Delete resources in backend
@@ -299,13 +299,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist.",
-                u"Requested host 'new_host_0' created.",
-                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "Requested host 'new_host_0' does not exist.",
+                "Requested host 'new_host_0' created.",
+                "PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                "Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -340,11 +340,11 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'new_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output...",
+                "Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -375,11 +375,11 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                "Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -391,7 +391,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         # A log check result was recorded...
         self.assertEqual(len(rl), 1)
         rl = resp['_items'][0]
-        print("LCR: %s" % rl)
+        print(("LCR: %s" % rl))
         # ...with the correct timestamp
         self.assertEqual(rl['host_name'], "new_host_0")
         self.assertEqual(rl['last_check'], now)
@@ -415,11 +415,11 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"Host 'new_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;new_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                "Host 'new_host_0' updated."
             ]
         })
         # No errors!
@@ -432,7 +432,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(len(rl), 2)
         # Get the second LCR
         rl = resp['_items'][1]
-        print("LCR: %s" % rl)
+        print(("LCR: %s" % rl))
         # ...with the correct timestamp
         self.assertEqual(rl['host_name'], "new_host_0")
         self.assertEqual(rl['last_check'], now)
@@ -544,13 +544,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_0 is alive :)',
-                u"Requested host 'very_new_host_0' does not exist.",
-                u"Requested host 'very_new_host_0' created.",
-                u"PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;Output...|'counter'=1\nLong output...",
-                u"Host 'very_new_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_0 is alive :)',
+                "Requested host 'very_new_host_0' does not exist.",
+                "Requested host 'very_new_host_0' created.",
+                "PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;Output...|'counter'=1\nLong output...",
+                "Host 'very_new_host_0' updated."
             ]
         })
         # No errors!
@@ -596,13 +596,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now + 1000),
                 # u"Host 'very_new_host_0' updated."
             ]
         })
@@ -635,13 +635,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 4)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_HOST_CHECK_RESULT;very_new_host_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now - 1000),
                 # u"Host 'very_new_host_0' updated."
             ]
         })
@@ -691,7 +691,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': './cfg/alignak.ini', 'daemon_name': 'receiver-master'}
+        args = {'env_file': './cfg/default/alignak.ini', 'daemon_name': 'receiver-master'}
         self._receiver_daemon = Receiver(**args)
         # Create the modules manager for the daemon
         self.modulemanager = ModulesManager(self._receiver_daemon)
@@ -757,13 +757,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'past_host_0 is alive :)',
-                u"Requested host 'past_host_0' does not exist.",
-                u"Requested host 'past_host_0' created.",
-                u"PROCESS_HOST_CHECK_RESULT;past_host_0;0;Output...|'counter'=0\nLong output...",
-                u"Host 'past_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'past_host_0 is alive :)',
+                "Requested host 'past_host_0' does not exist.",
+                "Requested host 'past_host_0' created.",
+                "PROCESS_HOST_CHECK_RESULT;past_host_0;0;Output...|'counter'=0\nLong output...",
+                "Host 'past_host_0' updated."
             ]
         })
         # No errors!
@@ -816,13 +816,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'past_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+            '_status': 'OK',
+            '_result': [
+                'past_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now + 1000),
             ]
         })
         # No errors!
@@ -858,13 +858,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 4)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'past_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+            '_status': 'OK',
+            '_result': [
+                'past_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_HOST_CHECK_RESULT;past_host_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now - 1000),
             ]
         })
         # No errors!
@@ -979,11 +979,11 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested host 'new_host_for_services_0' does not exist.",
-                u"Requested host 'new_host_for_services_0' created."
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested host 'new_host_for_services_0' does not exist.",
+                "Requested host 'new_host_for_services_0' created."
             ]
         })
         # No errors!
@@ -1032,13 +1032,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
-                u"Requested service 'new_host_for_services_0/test_empty_0' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
-                u"Service 'new_host_for_services_0/test_empty_0' updated",
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "Requested service 'new_host_for_services_0/test_empty_0' does not exist.",
+                "Requested service 'new_host_for_services_0/test_empty_0' created.",
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+                "Service 'new_host_for_services_0/test_empty_0' updated",
             ]
         })
         # No errors!
@@ -1064,7 +1064,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         resp = response.json()
         service = resp['_items'][0]
         expected = {
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, service['customs'])
 
@@ -1091,10 +1091,10 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output...",
                 # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
@@ -1145,10 +1145,10 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 3)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
@@ -1161,7 +1161,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         # A log check result was recorded...
         self.assertEqual(len(rl), 1)
         rl = resp['_items'][0]
-        print("LCR: %s" % rl)
+        print(("LCR: %s" % rl))
         # ...with the correct timestamp
         self.assertEqual(rl['host_name'], "new_host_for_services_0")
         self.assertEqual(rl['service_name'], "test_empty_0")
@@ -1191,10 +1191,10 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 4)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_for_services_0 is alive :)',
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
+            '_status': 'OK',
+            '_result': [
+                'new_host_for_services_0 is alive :)',
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;new_host_for_services_0;test_empty_0;0;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'new_host_for_services_0/test_empty_0' updated"
             ]
         })
@@ -1207,7 +1207,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         # A log check result was recorded...
         self.assertEqual(len(rl), 2)
         rl = resp['_items'][1]
-        print("LCR: %s" % rl)
+        print(("LCR: %s" % rl))
         # ...with the correct timestamp
         self.assertEqual(rl['host_name'], "new_host_for_services_0")
         self.assertEqual(rl['service_name'], "test_empty_0")
@@ -1321,11 +1321,11 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_for_services_0 is alive :)',
-                u"Requested host 'very_new_host_for_services_0' does not exist.",
-                u"Requested host 'very_new_host_for_services_0' created."
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_for_services_0 is alive :)',
+                "Requested host 'very_new_host_for_services_0' does not exist.",
+                "Requested host 'very_new_host_for_services_0' created."
             ]
         })
         # No errors!
@@ -1361,14 +1361,14 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_for_services_0 is alive :)',
-                u"Requested service 'very_new_host_for_services_0/test_empty_0' does not exist.",
-                u"Requested service 'very_new_host_for_services_0/test_empty_0' created.",
-                u"PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
-                u"Output...|'counter'=1\nLong output...",
-                u"Service 'very_new_host_for_services_0/test_empty_0' updated",
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_for_services_0 is alive :)',
+                "Requested service 'very_new_host_for_services_0/test_empty_0' does not exist.",
+                "Requested service 'very_new_host_for_services_0/test_empty_0' created.",
+                "PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
+                "Output...|'counter'=1\nLong output...",
+                "Service 'very_new_host_for_services_0/test_empty_0' updated",
             ]
         })
         # No errors!
@@ -1405,13 +1405,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 3)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_for_services_0 is alive :)',
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now + 1000),
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_for_services_0 is alive :)',
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now + 1000),
             ]
         })
         # No errors!
@@ -1448,13 +1448,13 @@ class TestModuleWsHostLivestate(AlignakTest):
         self.assertEqual(my_module.received_commands, 5)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'very_new_host_for_services_0 is alive :)',
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
-                u"Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
-                u"Output...|'counter'=2\nLong output..." % (now - 1000),
+            '_status': 'OK',
+            '_result': [
+                'very_new_host_for_services_0 is alive :)',
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
+                "Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;very_new_host_for_services_0;test_empty_0;0;"
+                "Output...|'counter'=2\nLong output..." % (now - 1000),
             ]
         })
         # No errors!

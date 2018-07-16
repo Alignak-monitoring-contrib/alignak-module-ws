@@ -34,7 +34,7 @@ from pprint import pprint
 import requests
 import pytest
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 
@@ -103,7 +103,7 @@ class TestModuleWsBackendConnection(AlignakTest):
         response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}

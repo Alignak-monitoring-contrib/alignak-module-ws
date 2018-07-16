@@ -32,7 +32,7 @@ import subprocess
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.daemons.receiverdaemon import Receiver
@@ -90,9 +90,9 @@ class TestModuleWsHostGet(AlignakTest):
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
@@ -127,7 +127,7 @@ class TestModuleWsHostGet(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -234,9 +234,9 @@ class TestModuleWsHostGet(AlignakTest):
                                 params={'name': 'new_host_2'})
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [],
-            u'_issues': [
+            '_status': 'ERR',
+            '_result': [],
+            '_issues': [
                 "Requested host 'new_host_2' does not exist"
             ]
         })
@@ -245,9 +245,9 @@ class TestModuleWsHostGet(AlignakTest):
         response = session.get(self.ws_endpoint + '/host/new_host_2', auth=self.auth)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [],
-            u'_issues': [
+            '_status': 'ERR',
+            '_result': [],
+            '_issues': [
                 "Requested host 'new_host_2' does not exist"
             ]
         })
@@ -263,12 +263,12 @@ class TestModuleWsHostGet(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'new_host_0 is alive :)',
-                u"Requested host 'new_host_0' does not exist.",
-                u"Requested host 'new_host_0' created."],
-            u'_feedback': {u'name': u'new_host_0'}
+            '_status': 'OK',
+            '_result': [
+                'new_host_0 is alive :)',
+                "Requested host 'new_host_0' does not exist.",
+                "Requested host 'new_host_0' created."],
+            '_feedback': {'name': 'new_host_0'}
         })
         # Host created with default check_command and in default user realm
 

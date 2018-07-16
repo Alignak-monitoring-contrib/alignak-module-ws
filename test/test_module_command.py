@@ -34,7 +34,7 @@ import logging
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -98,9 +98,9 @@ class TestModuleWsCommand(AlignakTest):
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             # stdout=fnull, stderr=fnull
@@ -135,7 +135,7 @@ class TestModuleWsCommand(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -289,8 +289,8 @@ class TestModuleWsCommand(AlignakTest):
         response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_error': u'Timestamp must be an integer value'})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_error': 'Timestamp must be an integer value'})
 
         # Request to execute an external command with timestamp
         headers = {'Content-Type': 'application/json'}
@@ -489,8 +489,8 @@ class TestModuleWsCommand(AlignakTest):
         response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_error': u'Timestamp must be an integer value'})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_error': 'Timestamp must be an integer value'})
         self.assertEqual(my_module.received_commands, 1)
 
         # Request to execute an external command with timestamp

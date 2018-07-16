@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=fixme
 
 # Copyright (c) 2015-2018:
 #   Frederic Mohier, frederic.mohier@alignak.net
@@ -132,7 +133,7 @@ def require(*conditions):
     return decorate
 
 
-class WSInterface(object):
+class WSInterface(object):  # pylint: disable=useless-object-inheritance
     """Interface for Alignak Web Services.
 
     """
@@ -210,6 +211,7 @@ class WSInterface(object):
     @cherrypy.tools.json_out()
     @require()
     def api_full(self):
+        # pylint: disable=deprecated-method
         """List the api methods and their parameters
 
         :return: a list of methods and parameters
@@ -218,21 +220,21 @@ class WSInterface(object):
         full_api = {}
         for fun in self.api():
             full_api[fun] = {}
-            full_api[fun][u"doc"] = getattr(self, fun).__doc__
-            full_api[fun][u"args"] = {}
+            full_api[fun]["doc"] = getattr(self, fun).__doc__
+            full_api[fun]["args"] = {}
 
             spec = inspect.getargspec(getattr(self, fun))
             args = [a for a in spec.args if a != 'self']
             if spec.defaults:
-                a_dict = dict(zip(args, spec.defaults))
+                a_dict = dict(list(zip(args, spec.defaults)))
             else:
-                a_dict = dict(zip(args, (u"No default value",) * len(args)))
+                a_dict = dict(list(zip(args, ("No default value",) * len(args))))
 
-            full_api[fun][u"args"] = a_dict
+            full_api[fun]["args"] = a_dict
 
-        full_api[u"side_note"] = u"When posting data you have to serialize value. Example : " \
-                                 u"POST /set_log_level " \
-                                 u"{'loglevel' : serialize('INFO')}"
+        full_api["side_note"] = "When posting data you have to serialize value. Example : " \
+                                "POST /set_log_level " \
+                                "{'loglevel' : serialize('INFO')}"
 
         return full_api
 

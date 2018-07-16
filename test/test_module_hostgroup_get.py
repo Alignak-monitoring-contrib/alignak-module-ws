@@ -33,7 +33,7 @@ import requests
 
 from pprint import pprint
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.daemons.receiverdaemon import Receiver
@@ -97,9 +97,9 @@ class TestModuleWsHostgroup(AlignakTest):
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
@@ -134,7 +134,7 @@ class TestModuleWsHostgroup(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -250,9 +250,9 @@ class TestModuleWsHostgroup(AlignakTest):
                                 params={'name': 'fake-hostgroup'})
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [],
-            u'_issues': [
+            '_status': 'ERR',
+            '_result': [],
+            '_issues': [
                 "Requested hostgroup 'fake-hostgroup' does not exist"
             ]
         })
@@ -261,9 +261,9 @@ class TestModuleWsHostgroup(AlignakTest):
         response = session.get(self.ws_endpoint + '/hostgroup/fake-hostgroup', auth=self.auth)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [],
-            u'_issues': [
+            '_status': 'ERR',
+            '_result': [],
+            '_issues': [
                 "Requested hostgroup 'fake-hostgroup' does not exist"
             ]
         })
@@ -307,16 +307,16 @@ class TestModuleWsHostgroup(AlignakTest):
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertIsNot(result['_result'], {})
-        print(result['_result'][0])
+        print((result['_result'][0]))
         result['_result'][0].pop('_id')
         result['_result'][0].pop('_created')
         result['_result'][0].pop('_updated')
         self.assertEqual(result['_result'][0], {
-            u'_level': 1, u'name': u'hostgroup_01', u'notes': u'', u'hostgroups': [],
-            u'_parent': {u'alias': u'All hosts', u'name': u'All'}, u'alias': u'hostgroup_alias_01',
-            u'hosts': [{u'alias': u'up_0', u'name': u'test_host_0'}],
-            u'_tree_parents': [{u'alias': u'All hosts', u'name': u'All'}],
-            u'_realm': {u'alias': u'All', u'name': u'All'}
+            '_level': 1, 'name': 'hostgroup_01', 'notes': '', 'hostgroups': [],
+            '_parent': {'alias': 'All hosts', 'name': 'All'}, 'alias': 'hostgroup_alias_01',
+            'hosts': [{'alias': 'up_0', 'name': 'test_host_0'}],
+            '_tree_parents': [{'alias': 'All hosts', 'name': 'All'}],
+            '_realm': {'alias': 'All', 'name': 'All'}
         })
 
         # -----

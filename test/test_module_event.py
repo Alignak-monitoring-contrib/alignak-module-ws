@@ -34,7 +34,7 @@ import logging
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
@@ -92,8 +92,9 @@ class TestModuleWsEvent(AlignakTest):
         cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
                                   '--socket', '0.0.0.0:5000',
                                   '--protocol=http', '--enable-threads', '--pidfile',
-                                  '/tmp/uwsgi.pid'],
-                                 stdout=fnull, stderr=fnull)
+                                  '/tmp/uwsgi.pid', '--logto', '/tmp/uwsgi.log'],
+                                 # stdout=fnull, stderr=fnull
+                                 )
         time.sleep(3)
 
         endpoint = 'http://127.0.0.1:5000'
@@ -104,7 +105,7 @@ class TestModuleWsEvent(AlignakTest):
         print("Feeding Alignak backend... %s" % test_dir)
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
-            stdout=fnull, stderr=fnull
+            # stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
         print("Fed")
@@ -136,7 +137,7 @@ class TestModuleWsEvent(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -299,8 +300,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_HOST_COMMENT;test_host;1;'
-                                              u'Alignak WS;My comment']})
+                                  '_result': ['ADD_HOST_COMMENT;test_host;1;'
+                                              'Alignak WS;My comment']})
 
         # Notify an host event - default author and timestamp
         headers = {'Content-Type': 'application/json'}
@@ -314,8 +315,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_HOST_COMMENT;test_host;1;'
-                                              u'Me;My comment']})
+                                  '_result': ['[1234567890] ADD_HOST_COMMENT;test_host;1;'
+                                              'Me;My comment']})
 
         # Notify a service event - default author
         headers = {'Content-Type': 'application/json'}
@@ -328,8 +329,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_SVC_COMMENT;test_host;test_service;1;'
-                                              u'Alignak WS;My comment']})
+                                  '_result': ['ADD_SVC_COMMENT;test_host;test_service;1;'
+                                              'Alignak WS;My comment']})
 
         # Notify a service event - default author and timestamp
         headers = {'Content-Type': 'application/json'}
@@ -344,15 +345,15 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
-                                              u'1;Me;My comment']})
+                                  '_result': ['[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
+                                              '1;Me;My comment']})
 
         # Get history to confirm that backend is ready
         # ---
         response = session.get(self.endpoint + '/history', auth=self.auth,
                                 params={"sort": "-_id", "max_results": 25, "page": 1})
         resp = response.json()
-        print("Response: %s" % resp)
+        print(("Response: %s" % resp))
         for item in resp['_items']:
             assert item['type'] in ['webui.comment']
         # Got 4 notified events, so we get 4 comments in the backend
@@ -503,8 +504,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_HOST_COMMENT;test_host;1;'
-                                              u'Alignak WS;My comment']})
+                                  '_result': ['ADD_HOST_COMMENT;test_host;1;'
+                                              'Alignak WS;My comment']})
 
         # Notify an host event - default author and timestamp
         headers = {'Content-Type': 'application/json'}
@@ -518,8 +519,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_HOST_COMMENT;test_host;1;'
-                                              u'Me;My comment']})
+                                  '_result': ['[1234567890] ADD_HOST_COMMENT;test_host;1;'
+                                              'Me;My comment']})
 
         # Notify a service event - default author
         headers = {'Content-Type': 'application/json'}
@@ -532,8 +533,8 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'ADD_SVC_COMMENT;test_host;test_service;1;'
-                                              u'Alignak WS;My comment']})
+                                  '_result': ['ADD_SVC_COMMENT;test_host;test_service;1;'
+                                              'Alignak WS;My comment']})
 
         # Notify a service event - default author and timestamp
         headers = {'Content-Type': 'application/json'}
@@ -548,15 +549,15 @@ class TestModuleWsEvent(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {'_status': 'OK',
-                                  '_result': [u'[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
-                                              u'1;Me;My comment']})
+                                  '_result': ['[1234567890] ADD_SVC_COMMENT;test_host;test_service;'
+                                              '1;Me;My comment']})
 
         # Get history to confirm that backend is ready
         # ---
         response = session.get(self.endpoint + '/history', auth=self.auth,
                                params={"sort": "-_id", "max_results": 25, "page": 1})
         resp = response.json()
-        print("Response: %s" % resp)
+        print(("Response: %s" % resp))
         for item in resp['_items']:
             assert item['type'] in ['webui.comment']
         # Got 4 notified events, so we get 4 comments in the backend

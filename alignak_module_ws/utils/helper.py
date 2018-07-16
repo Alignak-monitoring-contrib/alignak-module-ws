@@ -32,7 +32,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 
-class Helper(object):
+class Helper(object):  # pylint: disable=useless-object-inheritance
     # pylint: disable=too-few-public-methods
     """Helper functions"""
 
@@ -169,7 +169,7 @@ class Helper(object):
             logger.exception("Exception: %s", exp)
 
         query = {}
-        for field, search_type in parameters.iteritems():
+        for field, search_type in parameters.items():
             logger.debug("decode_search, build query: %s - %s", field, search_type)
             if search_type['type'] == 'simple':
                 query.update({field: search_type['pattern']})

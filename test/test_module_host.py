@@ -35,7 +35,7 @@ import subprocess
 
 import requests
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.daemons.receiverdaemon import Receiver
@@ -95,9 +95,9 @@ class TestModuleWsHost(AlignakTest):
         time.sleep(3)
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
             stdout=fnull, stderr=fnull
@@ -134,7 +134,7 @@ class TestModuleWsHost(AlignakTest):
         response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -282,9 +282,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u"Requested host 'test_host' does not exist. Note that host creation is not allowed."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['test_host is alive :)'],
+                                  '_issues': ["Requested host 'test_host' does not exist. Note that host creation is not allowed."]})
 
         # Host name may be the last part of the URI
         data = {
@@ -295,23 +295,23 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)'],
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -324,23 +324,23 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)'],
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -353,23 +353,23 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)'],
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -383,7 +383,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_issues'], [u'Missing targeted element.'])
+        self.assertEqual(result['_issues'], ['Missing targeted element.'])
 
         # Update host livestate (heartbeat / host is alive): empty livestate
         headers = {'Content-Type': 'application/json'}
@@ -396,23 +396,23 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)'],
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -430,9 +430,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host_0 is alive :)'],
-                                  u'_issues': [u'Missing state in the livestate.']})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['test_host_0 is alive :)'],
+                                  '_issues': ['Missing state in the livestate.']})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
         headers = {'Content-Type': 'application/json'}
@@ -449,10 +449,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(my_module.received_commands, 0)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host_0 is alive :)'],
-                                  u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, "
-                                               u"and not ''."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['test_host_0 is alive :)'],
+                                  '_issues': ["Host state must be UP, DOWN or UNREACHABLE, "
+                                               "and not ''."]})
 
         # Update host livestate (heartbeat / host is alive): livestate
         headers = {'Content-Type': 'application/json'}
@@ -470,27 +470,27 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output...",
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         "Output...|'counter'=1\nLong output...",
                          # u"Host 'test_host_0' updated."
                          ],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -510,27 +510,27 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output...",
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
+                         "Output...|'counter'=1\nLong output...",
                          # u"Host 'test_host_0' updated."
                          ],
-            u'_feedback': {
-                u'name': u'test_host_0',
-                u'_overall_state_id': 3,
-                u'active_checks_enabled': True,
-                u'alias': u'up_0',
-                u'check_freshness': False,
-                u'check_interval': 1,
-                u'freshness_state': u'x',
-                u'freshness_threshold': 3600,
-                u'location': {u'coordinates': [48.858293, 2.294601],
-                              u'type': u'Point'},
-                u'max_check_attempts': 3,
-                u'notes': u'',
-                u'passive_checks_enabled': True,
-                u'retry_interval': 1
+            '_feedback': {
+                'name': 'test_host_0',
+                '_overall_state_id': 3,
+                'active_checks_enabled': True,
+                'alias': 'up_0',
+                'check_freshness': False,
+                'check_interval': 1,
+                'freshness_state': 'x',
+                'freshness_threshold': 60,
+                'location': {'coordinates': [48.858293, 2.294601],
+                              'type': 'Point'},
+                'max_check_attempts': 3,
+                'notes': '',
+                'passive_checks_enabled': True,
+                'retry_interval': 1
             }
         })
 
@@ -576,65 +576,65 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
-        # 4 more commands at once
-        self.assertEqual(my_module.received_commands, 6)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                "PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output 0|'counter'=0\nLong output 0",
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output 1|'counter'=1\nLong output 1",
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output 2|'counter'=2\nLong output 2",
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated.",
             ],
-            u'_feedback': {
-                u'active_checks_enabled': True, u'_overall_state_id': 3, u'freshness_state': u'x',
-                u'notes': u'', u'retry_interval': 1, u'name': u'test_host_0', u'alias': u'up_0',
-                u'freshness_threshold': 3600,
-                u'location': {u'type': u'Point', u'coordinates': [48.858293, 2.294601]},
-                u'check_interval': 1,
-                u'max_check_attempts': 3, u'check_freshness': False,
-                u'passive_checks_enabled': True,
+            '_feedback': {
+                'active_checks_enabled': True, '_overall_state_id': 3, 'freshness_state': 'x',
+                'notes': '', 'retry_interval': 1, 'name': 'test_host_0', 'alias': 'up_0',
+                'freshness_threshold': 60,
+                'location': {'type': 'Point', 'coordinates': [48.858293, 2.294601]},
+                'check_interval': 1,
+                'max_check_attempts': 3, 'check_freshness': False,
+                'passive_checks_enabled': True,
 
-                u'services': [
+                'services': [
                     {
-                        u'name': u'test_ok_0', u'alias': u'test_host_0 test_ok_0',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 5,
-                        u'freshness_threshold': 3600, u'check_interval': 1,
-                        u'max_check_attempts': 2,
-                        u'active_checks_enabled': False,
-                        u'check_freshness': False,
-                        u'passive_checks_enabled': False,
+                        'name': 'test_ok_0', 'alias': 'test_host_0 test_ok_0',
+                        'freshness_state': 'x', 'notes': 'just a notes string',
+                        'retry_interval': 1, '_overall_state_id': 5,
+                        'freshness_threshold': 60, 'check_interval': 1,
+                        'max_check_attempts': 2,
+                        'active_checks_enabled': False,
+                        'check_freshness': False,
+                        'passive_checks_enabled': False,
                     },
                     {
-                        u'name': u'test_ok_1', u'alias': u'test_host_0 test_ok_1',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
-                        u'freshness_threshold': 3600, u'check_interval': 1,
-                        u'max_check_attempts': 2,
-                        u'active_checks_enabled': True,
-                        u'check_freshness': False,
-                        u'passive_checks_enabled': True,
+                        'name': 'test_ok_1', 'alias': 'test_host_0 test_ok_1',
+                        'freshness_state': 'x', 'notes': 'just a notes string',
+                        'retry_interval': 1, '_overall_state_id': 3,
+                        'freshness_threshold': 60, 'check_interval': 1,
+                        'max_check_attempts': 2,
+                        'active_checks_enabled': True,
+                        'check_freshness': False,
+                        'passive_checks_enabled': True,
                     },
                     {
-                        u'name': u'test_ok_2', u'alias': u'test_host_0 test_ok_2',
-                        u'freshness_state': u'x', u'notes': u'just a notes string',
-                        u'retry_interval': 1, u'_overall_state_id': 3,
-                        u'freshness_threshold': 3600, u'check_interval': 1,
-                        u'max_check_attempts': 2,
-                        u'active_checks_enabled': False,
-                        u'check_freshness': False,
-                        u'passive_checks_enabled': True,
+                        'name': 'test_ok_2', 'alias': 'test_host_0 test_ok_2',
+                        'freshness_state': 'x', 'notes': 'just a notes string',
+                        'retry_interval': 1, '_overall_state_id': 3,
+                        'freshness_threshold': 60, 'check_interval': 1,
+                        'max_check_attempts': 2,
+                        'active_checks_enabled': False,
+                        'check_freshness': False,
+                        'passive_checks_enabled': True,
                     }
                 ]
             }
         })
+        # 4 more commands at once
+        self.assertEqual(my_module.received_commands, 6)
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')
@@ -764,14 +764,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host_0 is alive :)',
-                u"PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+            '_status': 'OK', '_result': [
+                'test_host_0 is alive :)',
+                "PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated."
             ]
@@ -846,18 +846,18 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host_0 is alive :)',
-                u"[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
-                u"[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+            '_status': 'OK', '_result': [
+                'test_host_0 is alive :)',
+                "[123456789] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
+                "[123460389] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output...",
                 # u"Host 'test_host_0' updated.",
                 # u"Host 'test_host_0' updated.",
-                u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
+                "[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output...",
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
-                u"[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
+                "[123456789] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output...",
+                "[123460389] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;0;Output...|'counter'=2\nLong output...",
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
+                "PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output...",
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated."
             ]
@@ -969,10 +969,10 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host/test_host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'test_host is alive :)'],
-                                  u'_issues': [u"Requested host 'test_host' does not exist. "
-                                               u"Note that host creation is not allowed."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['test_host is alive :)'],
+                                  '_issues': ["Requested host 'test_host' does not exist. "
+                                               "Note that host creation is not allowed."]})
 
         # Host name may be the last part of the URI
         headers = {'Content-Type': 'application/json'}
@@ -983,8 +983,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # Host name may be in the POSTed data
@@ -996,8 +996,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # Host name in the POSTed data takes precedence over URI
@@ -1009,8 +1009,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # Host name must be somewhere !
@@ -1022,7 +1022,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
-        self.assertEqual(result['_issues'], [u'Missing targeted element.'])
+        self.assertEqual(result['_issues'], ['Missing targeted element.'])
 
         # Update host livestate (heartbeat / host is alive): empty livestate
         headers = {'Content-Type': 'application/json'}
@@ -1035,8 +1035,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # Update host livestate (heartbeat / host is alive): missing state in the livestate
@@ -1053,9 +1053,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u'Missing state in the livestate.']
+            '_status': 'ERR',
+            '_result': ['test_host_0 is alive :)'],
+            '_issues': ['Missing state in the livestate.']
         })
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
@@ -1074,9 +1074,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not ''."]})
+            '_status': 'ERR',
+            '_result': ['test_host_0 is alive :)'],
+            '_issues': ["Host state must be UP, DOWN or UNREACHABLE, and not ''."]})
 
         # Update host livestate (heartbeat / host is alive): livestate must have an accepted state
         headers = {'Content-Type': 'application/json'}
@@ -1094,9 +1094,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Host state must be UP, DOWN or UNREACHABLE, and not 'XXX'."]})
+            '_status': 'ERR',
+            '_result': ['test_host_0 is alive :)'],
+            '_issues': ["Host state must be UP, DOWN or UNREACHABLE, and not 'XXX'."]})
 
         # Update host livestate (heartbeat / host is alive): livestate, no timestamp
         headers = {'Content-Type': 'application/json'}
@@ -1115,10 +1115,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 1)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         "Output...|'counter'=1\nLong output..." % time.time(),
                          # u"Host 'test_host_0' updated."
             ]
         })
@@ -1141,9 +1141,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 2)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                          # u"Host 'test_host_0' updated."
                         ]
         })
@@ -1174,12 +1174,12 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 4)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 123456789,
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % 987654321,
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         "Output...|'counter'=1\nLong output..." % 123456789,
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         "Output...|'counter'=1\nLong output..." % 987654321,
                          # u"Host 'test_host_0' updated."
                          ]
         })
@@ -1203,10 +1203,10 @@ class TestModuleWsHost(AlignakTest):
         # A timestamp is set because the module is configured to set a timestamp,
         # even if the provided one is not valid!
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;"
+                         "Output...|'counter'=1\nLong output..." % time.time(),
                          # u"Host 'test_host_0' updated."
                          ]
         })
@@ -1227,10 +1227,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 6)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
-                         u"Output...|'counter'=1\nLong output..." % time.time(),
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;2;"
+                         "Output...|'counter'=1\nLong output..." % time.time(),
                          # u"Host 'test_host_0' updated."
                          ]
         })
@@ -1277,22 +1277,22 @@ class TestModuleWsHost(AlignakTest):
         }
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(my_module.received_commands, 10)
         result = response.json()
         now = time.time()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
+            '_status': 'OK', '_result': [
+                'test_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated."
             ]
         })
+        self.assertEqual(my_module.received_commands, 10)
 
         # Update host services livestate - provided timestamp
         headers = {'Content-Type': 'application/json'}
@@ -1341,14 +1341,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 14)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+            '_status': 'OK', '_result': [
+                'test_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated."
             ]
@@ -1410,16 +1410,16 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         now = time.time()
         self.assertEqual(result, {
-            u'_status': u'OK', u'_result': [
-                u'test_host_0 is alive :)',
-                u"[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
+            '_status': 'OK', '_result': [
+                'test_host_0 is alive :)',
+                "[%d] PROCESS_HOST_CHECK_RESULT;test_host_0;0;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 123456789,
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_0;0;Output...|'counter'=1\nLong output..." % 987654321,
                 # u"Service 'test_host_0/test_ok_0' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_1;1;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_1' updated",
-                u"[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
+                "[%d] PROCESS_SERVICE_CHECK_RESULT;test_host_0;test_ok_2;2;Output...|'counter'=1\nLong output..." % now,
                 # u"Service 'test_host_0/test_ok_2' updated",
                 # u"Host 'test_host_0' updated."
             ]
@@ -1541,8 +1541,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)'],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)'],
         })
 
         # ----------
@@ -1560,10 +1560,10 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
-                                               u"Note that host creation is not allowed."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['unknown_host is alive :)'],
+                                  '_issues': ["Requested host 'unknown_host' does not exist. "
+                                               "Note that host creation is not allowed."]})
 
 
         # ----------
@@ -1582,9 +1582,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' unchanged."],
+            '_status': 'OK',
+            '_result': ["test_host_0 is alive :)",
+                         "Host 'test_host_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -1594,9 +1594,9 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
@@ -1617,8 +1617,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' unchanged."],
         })
 
         # Get host data to confirm there was not update
@@ -1628,9 +1628,9 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
@@ -1652,8 +1652,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' updated."],
         })
 
         # Get host data to confirm update
@@ -1663,9 +1663,9 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 15055.0, '_TEST2': 12, '_TEST1': 'string modified', '_TEST4': 'new!'
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
@@ -1687,8 +1687,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u"test_host_0 is alive :)", u"Host 'test_host_0' updated."],
+            '_status': 'OK',
+            '_result': ["test_host_0 is alive :)", "Host 'test_host_0' updated."],
         })
 
         # Get host data to confirm update
@@ -1703,9 +1703,9 @@ class TestModuleWsHost(AlignakTest):
         # }
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 15055.0, '_TEST2': 12, '_TEST1': 'string modified', '_TEST4': 'new!'
         }
         self.assertEqual(expected, test_host_0['customs'])
         # ----------
@@ -1737,12 +1737,12 @@ class TestModuleWsHost(AlignakTest):
             'ignore_unknown_service': '0'
         }
         expected_result = {
-            u'_status': u'ERR',
-            u'_issues': [
-                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
-                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            '_status': 'ERR',
+            '_issues': [
+                "Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                "Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
             ],
-            u'_result': [u'test_host_0 is alive :)'],
+            '_result': ['test_host_0 is alive :)'],
         }
         self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
 
@@ -1764,13 +1764,13 @@ class TestModuleWsHost(AlignakTest):
             'ignore_unknown_service': '0'
         }
         expected_result = {
-            u'_status': u'ERR',
-            u'_feedback': {},
-            u'_issues': [
-                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
-                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            '_status': 'ERR',
+            '_feedback': {},
+            '_issues': [
+                "Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                "Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
             ],
-            u'_result': [u'test_host_0 is alive :)'],
+            '_result': ['test_host_0 is alive :)'],
         }
         self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
 
@@ -1792,11 +1792,11 @@ class TestModuleWsHost(AlignakTest):
             'ignore_unknown_service': '1'
         }
         expected_result = {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u"Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
-                u"Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                "Requested service 'test_host_0/unknown_service_0' does not exist. Note that service creation is not allowed.",
+                "Requested service 'test_host_0/unknown_service_1' does not exist. Note that service creation is not allowed."
             ]
         }
         self._manage_host_unknown_service(extra_conf=extra_conf, expected_result=expected_result)
@@ -1998,7 +1998,7 @@ class TestModuleWsHost(AlignakTest):
                                 params={'where': json.dumps({'name': 'test_host_0'})})
         resp = response.json()
         test_host_0 = resp['_items'][0]
-        print("My host customs: %s" % test_host_0['customs'])
+        print(("My host customs: %s" % test_host_0['customs']))
         # ---
 
         # Get services data to confirm update
@@ -2007,7 +2007,7 @@ class TestModuleWsHost(AlignakTest):
                                                              'name': 'test_ok_0'})})
         resp = response.json()
         test_service_0 = resp['_items'][0]
-        print("My service customs: %s" % test_service_0['customs'])
+        print(("My service customs: %s" % test_service_0['customs']))
 
         # Do not allow GET request on /host - not authorized
         response = requests.get(self.ws_endpoint + '/host')
@@ -2080,8 +2080,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' updated."],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' updated."],
         })
 
         # Get host data to confirm update
@@ -2091,32 +2091,32 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
-            u'_MY_ARRAY': [
-                {u'id': u'identifier', u'name': u'my name', u'other': 1},
-                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 15055.0, '_TEST2': 12, '_TEST1': 'string modified', '_TEST4': 'new!',
+            '_MY_ARRAY': [
+                {'id': 'identifier', 'name': 'my name', 'other': 1},
+                {'id': 'identifier', 'name': 'my name', 'other': 1}
             ],
-            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
-            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
-            u'_LIST_PACKAGES': [
-                {u'id': u'adobereader',
-                 u'service': u'soft_adobereader',
-                 u'version': u'3.0.0'},
-                {u'id': u'cwrsync',
-                 u'service': u'soft_cwrsync',
-                 u'version': u'3.1.2'},
-                {u'id': u'HomeMaison',
-                 u'service': u'HomeMaison',
-                 u'version': u'0.1.0'},
-                {u'id': u'Inventory',
-                 u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'}
+            '_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
+            '_MY_ARRAY_OF_STRINGS': ['string1', 'string2', 'string3'],
+            '_LIST_PACKAGES': [
+                {'id': 'adobereader',
+                 'service': 'soft_adobereader',
+                 'version': '3.0.0'},
+                {'id': 'cwrsync',
+                 'service': 'soft_cwrsync',
+                 'version': '3.1.2'},
+                {'id': 'HomeMaison',
+                 'service': 'HomeMaison',
+                 'version': '0.1.0'},
+                {'id': 'Inventory',
+                 'service': 'soft_Inventory',
+                 'version': '4.0.4'}
             ],
-            u'_PACKAGES': [
-                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
-                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            '_PACKAGES': [
+                {'id': 'identifier', 'name': 'Package 1', 'other': 1},
+                {'id': 'identifier', 'name': 'Package 2', 'other': 1}
             ],
         }
         self.assertEqual(expected, test_host_0['customs'])
@@ -2168,8 +2168,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -2179,32 +2179,32 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 15055.0, u'_TEST2': 12, u'_TEST1': u'string modified', u'_TEST4': u'new!',
-            u'_MY_ARRAY': [
-                {u'id': u'identifier', u'name': u'my name', u'other': 1},
-                {u'id': u'identifier', u'name': u'my name', u'other': 1}
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 15055.0, '_TEST2': 12, '_TEST1': 'string modified', '_TEST4': 'new!',
+            '_MY_ARRAY': [
+                {'id': 'identifier', 'name': 'my name', 'other': 1},
+                {'id': 'identifier', 'name': 'my name', 'other': 1}
             ],
-            u'_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
-            u'_MY_ARRAY_OF_STRINGS': [u'string1', u'string2', u'string3'],
-            u'_PACKAGES': [
-                {u'id': u'identifier', u'name': u'Package 1', u'other': 1},
-                {u'id': u'identifier', u'name': u'Package 2', u'other': 1}
+            '_MY_ARRAY_OF_INTEGERS': [1, 2, 3],
+            '_MY_ARRAY_OF_STRINGS': ['string1', 'string2', 'string3'],
+            '_PACKAGES': [
+                {'id': 'identifier', 'name': 'Package 1', 'other': 1},
+                {'id': 'identifier', 'name': 'Package 2', 'other': 1}
             ],
-            u'_LIST_PACKAGES': [
-                {u'id': u'adobereader',
-                 u'service': u'soft_adobereader',
-                 u'version': u'3.0.0'},
-                {u'id': u'cwrsync',
-                 u'service': u'soft_cwrsync',
-                 u'version': u'3.1.2'},
-                {u'id': u'HomeMaison',
-                 u'service': u'HomeMaison',
-                 u'version': u'0.1.0'},
-                {u'id': u'Inventory',
-                 u'service': u'soft_Inventory',
-                 u'version': u'4.0.4'}
+            '_LIST_PACKAGES': [
+                {'id': 'adobereader',
+                 'service': 'soft_adobereader',
+                 'version': '3.0.0'},
+                {'id': 'cwrsync',
+                 'service': 'soft_cwrsync',
+                 'version': '3.1.2'},
+                {'id': 'HomeMaison',
+                 'service': 'HomeMaison',
+                 'version': '0.1.0'},
+                {'id': 'Inventory',
+                 'service': 'soft_Inventory',
+                 'version': '4.0.4'}
             ],
         }
         self.assertEqual(expected, test_host_0['customs'])
@@ -2232,10 +2232,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)'],
-            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist. "
-                         u"Note that service creation is not allowed."]
+            '_status': 'ERR',
+            '_result': ['test_host_0 is alive :)'],
+            '_issues': ["Requested service 'test_host_0/test_service' does not exist. "
+                         "Note that service creation is not allowed."]
         })
         # ----------
 
@@ -2252,7 +2252,7 @@ class TestModuleWsHost(AlignakTest):
                                                              'name': 'test_ok_0'})})
         resp = response.json()
         service = resp['_items'][0]
-        print("My service: %s" % service)
+        print(("My service: %s" % service))
 
         # u'customs': {u'_TEMPLATE': u'generic', u'_ICON_IMAGE_ALT': u'icon alt string',
         #              u'_CUSTNAME': u'custvalue', u'_DISPLAY_NAME': u'test_ok_0',
@@ -2280,9 +2280,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"Service 'test_host_0/test_ok_0' unchanged."],
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "Service 'test_host_0/test_ok_0' unchanged."],
         })
 
         # Get host data to confirm update
@@ -2299,13 +2299,13 @@ class TestModuleWsHost(AlignakTest):
         # The service still had a variable _CUSTNAME and it inherits from all the host variables
         expected = {
             # u'_DISPLAY_NAME': u'test_ok_0',
-            u'_DISPLAY_NAME': [u'test_host_0', u'test_ok_0'],
-            u'_TEMPLATE': u'generic',
-            u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
-            u'_ICON_IMAGE_ALT': u'icon alt string',
-            u'_CUSTNAME': u'custvalue',
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
-            u'_TEST5': u'service specific'
+            '_DISPLAY_NAME': ['test_host_0', 'test_ok_0'],
+            '_TEMPLATE': 'generic',
+            '_ICON_IMAGE': '../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
+            '_ICON_IMAGE_ALT': 'icon alt string',
+            '_CUSTNAME': 'custvalue',
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string',
+            '_TEST5': 'service specific'
         }
         self.assertEqual(expected, service['customs'])
         # ----------
@@ -2419,8 +2419,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # ----------
@@ -2436,9 +2436,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'unknown_host is alive :)'],
-            u'_issues': [u"Requested host 'unknown_host' does not exist"]})
+            '_status': 'ERR',
+            '_result': ['unknown_host is alive :)'],
+            '_issues': ["Requested host 'unknown_host' does not exist"]})
 
         # ----------
         # Enable all checks
@@ -2453,8 +2453,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."]
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' unchanged."]
         })
 
         # Get host data to confirm update
@@ -2479,8 +2479,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)', u"Host 'test_host_0' unchanged."]
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)', "Host 'test_host_0' unchanged."]
         })
 
         # Get host data to confirm update
@@ -2505,14 +2505,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Host test_host_0 active checks will be disabled.',
-                u'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
-                u'Host test_host_0 passive checks will be disabled.',
-                u'Sent external command: DISABLE_PASSIVE_HOST_CHECKS;test_host_0.',
-                u"Host 'test_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                'Host test_host_0 active checks will be disabled.',
+                'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
+                'Host test_host_0 passive checks will be disabled.',
+                'Sent external command: DISABLE_PASSIVE_HOST_CHECKS;test_host_0.',
+                "Host 'test_host_0' updated."
             ]
         })
 
@@ -2538,12 +2538,12 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Host test_host_0 active checks will be enabled.',
-                u'Sent external command: ENABLE_HOST_CHECK;test_host_0.',
-                u"Host 'test_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                'Host test_host_0 active checks will be enabled.',
+                'Sent external command: ENABLE_HOST_CHECK;test_host_0.',
+                "Host 'test_host_0' updated."
             ]
         })
 
@@ -2569,14 +2569,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Host test_host_0 active checks will be disabled.',
-                u'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
-                u'Host test_host_0 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_HOST_CHECKS;test_host_0.',
-                u"Host 'test_host_0' updated."
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                'Host test_host_0 active checks will be disabled.',
+                'Sent external command: DISABLE_HOST_CHECK;test_host_0.',
+                'Host test_host_0 passive checks will be enabled.',
+                'Sent external command: ENABLE_PASSIVE_HOST_CHECKS;test_host_0.',
+                "Host 'test_host_0' updated."
             ]
         })
 
@@ -2619,12 +2619,12 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'ERR',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"Host 'test_host_0' unchanged."],
-            u'_issues': [u"Requested service 'test_host_0/test_service' does not exist",
-                         u"Requested service 'test_host_0/test_service2' does not exist",
-                         u"Requested service 'test_host_0/test_service3' does not exist"]
+            '_status': 'ERR',
+            '_result': ['test_host_0 is alive :)',
+                         "Host 'test_host_0' unchanged."],
+            '_issues': ["Requested service 'test_host_0/test_service' does not exist",
+                         "Requested service 'test_host_0/test_service2' does not exist",
+                         "Requested service 'test_host_0/test_service3' does not exist"]
         })
         # ----------
 
@@ -2659,25 +2659,25 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         print(result)
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Service test_host_0/test_ok_0 active checks will be enabled.',
-                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_0.',
-                u'Service test_host_0/test_ok_0 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
-                u"Service 'test_host_0/test_ok_0' updated",
-                u'Service test_host_0/test_ok_1 active checks will be disabled.',
-                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_1.',
-                u'Service test_host_0/test_ok_1 passive checks will be disabled.',
-                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
-                u"Service 'test_host_0/test_ok_1' updated",
-                u'Service test_host_0/test_ok_2 active checks will be enabled.',
-                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_2.',
-                u'Service test_host_0/test_ok_2 passive checks will be disabled.',
-                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
-                u"Service 'test_host_0/test_ok_2' updated",
-                u"Host 'test_host_0' unchanged."
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                'Service test_host_0/test_ok_0 active checks will be enabled.',
+                'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_0.',
+                'Service test_host_0/test_ok_0 passive checks will be enabled.',
+                'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
+                "Service 'test_host_0/test_ok_0' updated",
+                'Service test_host_0/test_ok_1 active checks will be disabled.',
+                'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_1.',
+                'Service test_host_0/test_ok_1 passive checks will be disabled.',
+                'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                "Service 'test_host_0/test_ok_1' updated",
+                'Service test_host_0/test_ok_2 active checks will be enabled.',
+                'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                'Service test_host_0/test_ok_2 passive checks will be disabled.',
+                'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                "Service 'test_host_0/test_ok_2' updated",
+                "Host 'test_host_0' unchanged."
             ]
         })
 
@@ -2745,28 +2745,28 @@ class TestModuleWsHost(AlignakTest):
         result = response.json()
         print(result)
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'test_host_0 is alive :)',
-                u'Service test_host_0/test_ok_0 active checks will be disabled.',
-                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_0.',
-                u'Service test_host_0/test_ok_0 passive checks will be disabled.',
-                u'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
-                u"Service 'test_host_0/test_ok_0' updated",
+            '_status': 'OK',
+            '_result': [
+                'test_host_0 is alive :)',
+                'Service test_host_0/test_ok_0 active checks will be disabled.',
+                'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_0.',
+                'Service test_host_0/test_ok_0 passive checks will be disabled.',
+                'Sent external command: DISABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_0.',
+                "Service 'test_host_0/test_ok_0' updated",
 
-                u'Service test_host_0/test_ok_1 active checks will be enabled.',
-                u'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
-                u'Service test_host_0/test_ok_1 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
-                u"Service 'test_host_0/test_ok_1' updated",
+                'Service test_host_0/test_ok_1 active checks will be enabled.',
+                'Sent external command: ENABLE_SVC_CHECK;test_host_0;test_ok_1.',
+                'Service test_host_0/test_ok_1 passive checks will be enabled.',
+                'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_1.',
+                "Service 'test_host_0/test_ok_1' updated",
 
-                u'Service test_host_0/test_ok_2 active checks will be disabled.',
-                u'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
-                u'Service test_host_0/test_ok_2 passive checks will be enabled.',
-                u'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
-                u"Service 'test_host_0/test_ok_2' updated",
+                'Service test_host_0/test_ok_2 active checks will be disabled.',
+                'Sent external command: DISABLE_SVC_CHECK;test_host_0;test_ok_2.',
+                'Service test_host_0/test_ok_2 passive checks will be enabled.',
+                'Sent external command: ENABLE_PASSIVE_SVC_CHECKS;test_host_0;test_ok_2.',
+                "Service 'test_host_0/test_ok_2' updated",
 
-                u"Host 'test_host_0' unchanged."
+                "Host 'test_host_0' unchanged."
             ]
         })
 
@@ -2882,18 +2882,18 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [
-                u'a_very_new_host is alive :)',
-                u"Requested host 'a_very_new_host' does not exist.",
-                u"Requested host 'a_very_new_host' created."
+            '_status': 'OK',
+            '_result': [
+                'a_very_new_host is alive :)',
+                "Requested host 'a_very_new_host' does not exist.",
+                "Requested host 'a_very_new_host' created."
             ],
-            u'_feedback': {
-                u'name': u'a_very_new_host',
-                u'passive_checks_enabled': True,
-                u'active_checks_enabled': True,
-                u'check_interval': 5,
-                u'freshness_threshold': 120
+            '_feedback': {
+                'name': 'a_very_new_host',
+                'passive_checks_enabled': True,
+                'active_checks_enabled': True,
+                'check_interval': 5,
+                'freshness_threshold': 120
             }
         })
 
@@ -2903,7 +2903,7 @@ class TestModuleWsHost(AlignakTest):
         resp = response.json()
         new_host_1 = resp['_items'][0]
         self.assertEqual('a_very_new_host', new_host_1['name'])
-        self.assertEqual(new_host_1['alias'], u"My very new host ...")
+        self.assertEqual(new_host_1['alias'], "My very new host ...")
         self.assertNotEqual(new_host_1['check_period'], None)
         self.assertEqual(self.realmAll_id, new_host_1['_realm'])
 
@@ -2920,14 +2920,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'a_very_new_host is alive :)'],
-            u'_feedback': {
-                u'name': u'a_very_new_host',
-                u'passive_checks_enabled': True,
-                u'active_checks_enabled': True,
-                u'check_interval': 5,
-                u'freshness_threshold': 120
+            '_status': 'OK',
+            '_result': ['a_very_new_host is alive :)'],
+            '_feedback': {
+                'name': 'a_very_new_host',
+                'passive_checks_enabled': True,
+                'active_checks_enabled': True,
+                'check_interval': 5,
+                'freshness_threshold': 120
             }
         })
 
@@ -2951,14 +2951,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'a_very_new_host is alive :)'],
-            u'_feedback': {
-                u'name': u'a_very_new_host',
-                u'passive_checks_enabled': False,
-                u'active_checks_enabled': False,
-                u'check_interval': 5,
-                u'freshness_threshold': 360
+            '_status': 'OK',
+            '_result': ['a_very_new_host is alive :)'],
+            '_feedback': {
+                'name': 'a_very_new_host',
+                'passive_checks_enabled': False,
+                'active_checks_enabled': False,
+                'check_interval': 5,
+                'freshness_threshold': 360
             }
         })
         # Response contains host backend data
@@ -2973,14 +2973,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'a_very_new_host is alive :)'],
-            u'_feedback': {
-                u'name': u'a_very_new_host',
-                u'passive_checks_enabled': False,
-                u'active_checks_enabled': False,
-                u'check_interval': 5,
-                u'freshness_threshold': 360
+            '_status': 'OK',
+            '_result': ['a_very_new_host is alive :)'],
+            '_feedback': {
+                'name': 'a_very_new_host',
+                'passive_checks_enabled': False,
+                'active_checks_enabled': False,
+                'check_interval': 5,
+                'freshness_threshold': 360
             }
         })
         # Response always contains host backend data!
@@ -3102,8 +3102,8 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)']
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)']
         })
 
         # Get host data to confirm update
@@ -3113,9 +3113,9 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl',
-            u'_OSTYPE': u'gnulinux'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl',
+            '_OSTYPE': 'gnulinux'
         }
         self.assertEqual(expected, test_host_0['customs'])
 
@@ -3134,10 +3134,10 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
-                                               u"Note that host creation is not allowed."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['unknown_host is alive :)'],
+                                  '_issues': ["Requested host 'unknown_host' does not exist. "
+                                               "Note that host creation is not allowed."]})
 
 
         # ----------
@@ -3156,9 +3156,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u"test_host_0 is alive :)",
-                         u"Host 'test_host_0' updated."]
+            '_status': 'OK',
+            '_result': ["test_host_0 is alive :)",
+                         "Host 'test_host_0' updated."]
         })
 
         # Get host data to confirm update
@@ -3168,9 +3168,9 @@ class TestModuleWsHost(AlignakTest):
         test_host_0 = resp['_items'][0]
         expected = {
             # u'_DISPLAY_NAME': u'test_host_0',
-            u'_TEMPLATE': u'generic',
-            u'_OSLICENSE': u'gpl', u'_OSTYPE': u'gnulinux',
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string'
+            '_TEMPLATE': 'generic',
+            '_OSLICENSE': 'gpl', '_OSTYPE': 'gnulinux',
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string'
         }
         self.assertEqual(expected, test_host_0['customs'])
 
@@ -3197,9 +3197,9 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
-            u'_result': [u'test_host_0 is alive :)',
-                         u"Service 'test_host_0/test_ok_0' updated"]
+            '_status': 'OK',
+            '_result': ['test_host_0 is alive :)',
+                         "Service 'test_host_0/test_ok_0' updated"]
         })
 
         # Get host data to confirm update
@@ -3216,13 +3216,13 @@ class TestModuleWsHost(AlignakTest):
         # The service still had a variable _CUSTNAME and it inherits from the host variables
         expected = {
             # u'_DISPLAY_NAME': u'test_ok_0',
-            u'_DISPLAY_NAME': [u'test_host_0', u'test_ok_0'],
-            u'_TEMPLATE': u'generic',
-            u'_ICON_IMAGE': u'../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
-            u'_ICON_IMAGE_ALT': u'icon alt string',
-            u'_CUSTNAME': u'custvalue',
-            u'_TEST3': 5.0, u'_TEST2': 1, u'_TEST1': u'string',
-            u'_TEST5': u'service specific'
+            '_DISPLAY_NAME': ['test_host_0', 'test_ok_0'],
+            '_TEMPLATE': 'generic',
+            '_ICON_IMAGE': '../../docs/images/tip.gif?host=$HOSTNAME$&srv=$SERVICEDESC$',
+            '_ICON_IMAGE_ALT': 'icon alt string',
+            '_CUSTNAME': 'custvalue',
+            '_TEST3': 5.0, '_TEST2': 1, '_TEST1': 'string',
+            '_TEST5': 'service specific'
         }
         self.assertEqual(expected, service['customs'])
         # ----------
@@ -3343,7 +3343,7 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK'})
+        self.assertEqual(result, {'_status': 'OK'})
 
         # ----------
         # Host does not exist
@@ -3360,10 +3360,10 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_result': [u'unknown_host is alive :)'],
-                                  u'_issues': [u"Requested host 'unknown_host' does not exist. "
-                                               u"Note that host creation is not allowed."]})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_result': ['unknown_host is alive :)'],
+                                  '_issues': ["Requested host 'unknown_host' does not exist. "
+                                               "Note that host creation is not allowed."]})
 
 
         # ----------
@@ -3382,7 +3382,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
+            '_status': 'OK',
         })
 
         # ----------
@@ -3408,7 +3408,7 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_status': u'OK',
+            '_status': 'OK',
         })
         # ----------
 
@@ -3519,9 +3519,9 @@ class TestModuleWsHost(AlignakTest):
         response = session.patch(self.ws_endpoint + '/host', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'OK',
-                                  u'_issues': [],
-                                  u'_result': [u"Requested host 'unknown_host' does not exist"]})
+        self.assertEqual(result, {'_status': 'OK',
+                                  '_issues': [],
+                                  '_result': ["Requested host 'unknown_host' does not exist"]})
 
         # ----------
         # Create host service variables
@@ -3546,10 +3546,10 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result, {
-            u'_result': [u'test_host_0 is alive :)',
-                         u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
+            '_result': ['test_host_0 is alive :)',
+                         "Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
             # u'_issues': [u"Requested service 'test_host_0/unknown_service' does not exist. Note that service creation is not allowed."],
-            u'_status': u'OK'
+            '_status': 'OK'
         })
         # ----------
 

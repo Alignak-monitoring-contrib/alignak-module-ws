@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=fixme
 
 #
 # Copyright (C) 2015-2018: Alignak contrib team, see AUTHORS.txt file for contributors
@@ -24,13 +25,14 @@ This module is an Alignak Receiver module that exposes a Web services interface.
 
 import os
 import copy
+import signal
 import traceback
 import json
 import time
 import datetime
 import logging
 import threading
-import Queue
+import queue
 import requests
 import cherrypy
 
@@ -60,6 +62,10 @@ properties = {
     'external': True,
     'phases': ['running'],
 }
+
+# Friendly names for the system signals
+SIGNALS_TO_NAMES_DICT = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items()))
+                             if v.startswith('SIG') and not v.startswith('SIG_'))
 
 
 def get_instance(mod_conf):
@@ -111,7 +117,6 @@ class AlignakWebServices(BaseModule):
 
         logger.debug("inner properties: %s", self.__dict__)
         logger.debug("received configuration: %s", mod_conf.__dict__)
-        logger.debug("loaded into: %s", self.loaded_into)
 
         # Allow host/service creation
         self.allow_host_creation = getattr(mod_conf, 'allow_host_creation', '1') == '1'
@@ -259,17 +264,44 @@ class AlignakWebServices(BaseModule):
                                   'active', 'reachable', 'alive', 'passive',
                                   'last_check', 'polling_interval', 'max_check_attempts']
 
-        logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
-                    getattr(mod_conf, 'statsd_host', 'localhost'),
-                    int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
-                    getattr(mod_conf, 'statsd_prefix', 'alignak.modules'),
-                    getattr(mod_conf, 'statsd_enabled'))
+        if self.my_daemon:
+            logger.info("loaded by the %s '%s'", self.my_daemon.type, self.my_daemon.name)
+        else:
+            logger.warning("no loader daemon specified.")
+
+        stats_host = getattr(mod_conf, 'statsd_host', 'localhost')
+        stats_port = int(getattr(mod_conf, 'statsd_port', '8125'))
+        stats_prefix = getattr(mod_conf, 'statsd_prefix', 'alignak')
+        statsd_enabled = (getattr(mod_conf, 'statsd_enabled', '0') != '0')
+        if isinstance(getattr(mod_conf, 'statsd_enabled', '0'), bool):
+            statsd_enabled = getattr(mod_conf, 'statsd_enabled')
+        graphite_enabled = (getattr(mod_conf, 'graphite_enabled', '0') != '0')
+        if isinstance(getattr(mod_conf, 'graphite_enabled', '0'), bool):
+            graphite_enabled = getattr(mod_conf, 'graphite_enabled')
+        logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s, graphite: %s",
+                    stats_host, stats_port, stats_prefix, statsd_enabled, graphite_enabled)
+
         self.statsmgr = Stats()
-        self.statsmgr.register(self.alias, 'module',
-                               statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
-                               statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
-                               statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
-                               statsd_enabled=(getattr(mod_conf, 'statsd_enabled')))
+        # Configure our Stats manager
+        if not graphite_enabled:
+            self.statsmgr.register(self.alias, 'module',
+                                   statsd_host=stats_host, statsd_port=stats_port,
+                                   statsd_prefix=stats_prefix, statsd_enabled=statsd_enabled)
+        else:
+            self.statsmgr.connect(self.alias, 'module',
+                                  host=stats_host, port=stats_port,
+                                  prefix=stats_prefix, enabled=True)
+        # logger.info("StatsD configuration: %s:%s, prefix: %s, enabled: %s",
+        #             getattr(mod_conf, 'statsd_host', 'localhost'),
+        #             int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
+        #             getattr(mod_conf, 'statsd_prefix', 'alignak.modules'),
+        #             getattr(mod_conf, 'statsd_enabled'))
+        # self.statsmgr = Stats()
+        # self.statsmgr.register(self.alias, 'module',
+        #                        statsd_host=getattr(mod_conf, 'statsd_host', 'localhost'),
+        #                        statsd_port=int(getattr(mod_conf, 'statsd_port', '8125') or 8125),
+        #                        statsd_prefix=getattr(mod_conf, 'statsd_prefix', 'alignak'),
+        #                        statsd_enabled=(getattr(mod_conf, 'statsd_enabled')))
 
         # Count received commands
         self.received_commands = 0
@@ -499,7 +531,7 @@ class AlignakWebServices(BaseModule):
         return post_data
 
     def get_host_group(self, name, embedded=False):
-        # pylint: disable=too-many-nested-blocks
+        # pylint: disable=too-many-locals, too-many-nested-blocks
         """Get the specified hostgroup
 
         Search the hostgroup in the backend with its name
@@ -769,7 +801,7 @@ class AlignakWebServices(BaseModule):
                     if custom in customs:
                         if all(isinstance(x, dict) for x in value):
                             # List of dictionaries
-                            pairs = zip(value, customs[custom])
+                            pairs = list(zip(value, customs[custom]))
                             diff = [(x, y) for x, y in pairs if x != y]
                         else:
                             diff = list(set(value) - set(customs[custom]))
@@ -1227,7 +1259,7 @@ class AlignakWebServices(BaseModule):
                     if custom in customs:
                         if all(isinstance(x, dict) for x in value):
                             # List of dictionaries
-                            pairs = zip(value, customs[custom])
+                            pairs = list(zip(value, customs[custom]))
                             diff = [(x, y) for x, y in pairs if x != y]
                         else:
                             diff = list(set(value) - set(customs[custom]))
@@ -1745,7 +1777,7 @@ class AlignakWebServices(BaseModule):
 
                     # Remove not interesting content from an existing logcheckresult...
                     if 'logcheckresult' in item:
-                        for prop in item['logcheckresult'].keys():
+                        for prop in list(item['logcheckresult'].keys()):
                             if prop in ['_id', '_etag', '_links', '_created', '_updated',
                                         '_realm', '_sub_realm', 'user', 'user_name',
                                         'host', 'host_name', 'service', 'service_name']:
@@ -1768,6 +1800,59 @@ class AlignakWebServices(BaseModule):
         logger.info("In loop")
         time.sleep(1)
 
+    def manage_signal2(self, sig, frame):  # pylint: disable=unused-argument
+        """Generic function to handle signals
+
+        Only called when the module process received SIGINT or SIGKILL.
+
+        Set interrupted attribute to True, self.process to None and returns
+
+        :param sig: signal sent
+        :type sig:
+        :param frame: frame before catching signal
+        :type frame:
+        :return: None
+        """
+        logger.warning("received a signal: %s", SIGNALS_TO_NAMES_DICT[sig])
+
+        if sig == signal.SIGHUP:
+            # if SIGHUP, reload configuration in arbiter
+            logger.info("Modules are not able to reload their configuration. "
+                        "Stopping the module...")
+
+        logger.info("Request to stop the module")
+        self.interrupted = True
+        # self.process = None
+
+    def set_signal_handler2(self, sigs=None):
+        """Set the signal handler to manage_signal (defined in this class)
+
+        Only set handlers for:
+        - signal.SIGTERM, signal.SIGINT
+        - signal.SIGUSR1, signal.SIGUSR2
+        - signal.SIGHUP
+
+        :return: None
+        """
+        exit(12)
+        logger.warning("set signal handler 2")
+        if sigs is None:
+            sigs = (signal.SIGTERM, signal.SIGINT, signal.SIGUSR1, signal.SIGUSR2, signal.SIGHUP)
+
+        func = self.manage_signal2
+        if os.name == "nt":  # pragma: no cover, no Windows implementation currently
+            try:
+                import win32api
+                win32api.SetConsoleCtrlHandler(func, True)
+            except ImportError:
+                version = ".".join([str(i) for i in os.sys.version_info[:2]])
+                raise Exception("pywin32 not installed for Python " + version)
+        else:
+            for sig in sigs:
+                signal.signal(sig, func)
+
+    set_exit_handler = set_signal_handler2
+
     def main(self):
         # pylint: disable=too-many-nested-blocks
         """Main loop of the process
@@ -1777,7 +1862,7 @@ class AlignakWebServices(BaseModule):
         """
         # Set the OS process title
         self.set_proctitle(self.alias)
-        self.set_exit_handler()
+        self.set_signal_handler2()
 
         logger.info("starting...")
 
@@ -1803,7 +1888,7 @@ class AlignakWebServices(BaseModule):
                         else:
                             logger.warning("Got a message that is not an external command: %s",
                                            message)
-                    except Queue.Empty:
+                    except queue.Empty:
                         # logger.debug("No message in the module queue")
                         pass
 
@@ -1824,13 +1909,10 @@ class AlignakWebServices(BaseModule):
 
                     try:
                         # Ping Alignak Arbiter
-                        response = requests.get("http://%s:%s/ping" %
+                        response = requests.get("http://%s:%s/" %
                                                 (self.alignak_host, self.alignak_port))
                         if response.status_code == 200:
-                            if response.json() == 'pong':
-                                self.alignak_is_alive = True
-                            else:
-                                logger.error("arbiter ping/pong failed!")
+                            self.alignak_is_alive = True
                     except requests.ConnectionError as exp:
                         logger.warning("Alignak arbiter is currently not available.")
                         logger.debug("Exception: %s", exp)
@@ -1865,7 +1947,7 @@ class AlignakWebServices(BaseModule):
 
                 # Really too verbose :(
                 # logger.debug("time to manage queue and Alignak state: %d seconds",
-                # time.time() - start)
+                #              time.time() - start)
                 time.sleep(0.1)
         except Exception as exp:
             logger.error("Exception: %s", exp)
