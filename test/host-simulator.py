@@ -190,7 +190,7 @@ alignak-backend-cli command line interface::
         Use the -v option to have more information
 
 """
-from __future__ import print_function
+
 
 import os
 import sys
@@ -403,7 +403,7 @@ class HostSimulator(object):
                     logger.info(". built livestate: %s", simulated_host['livestate'])
 
                 if 'services' in host:
-                    for service_id, service in host['services'].iteritems():
+                    for service_id, service in host['services'].items():
                         if 'name' not in service:
                             logger.error("-> missing service name in: %s", service)
                             continue

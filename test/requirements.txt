@@ -1,7 +1,8 @@
 # Python requirements for unit tests
 -r ../requirements.txt
-# alignak
--e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
+
+# alignak - develop+environment branch
+-e git+https://github.com/Alignak-monitoring/alignak.git@python3#egg=alignak
 
 # alignak backend
 -e git+https://github.com/Alignak-monitoring-contrib/alignak-backend.git@develop#egg=alignak-backend
@@ -28,7 +29,7 @@ coveralls
 
 # Static code and doc analysis libraries
 pylint
-pep8
+pycodestyle
 pep257
 
 # UWSGI Pyphton Web application server

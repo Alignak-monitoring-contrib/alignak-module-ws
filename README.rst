@@ -31,6 +31,15 @@ Alignak Web services Module
     :target: http://www.gnu.org/licenses/agpl-3.0
     :alt: License AGPL v3
 
+Important information
+---------------------
+
+This module exposes some Web services as a REST API for the Alignak monitoring framework. Indeed it extends the Alignak receiver existing API with some external new services such as: report an host/service check result, send a command to alignak, get information from Alignak, ...
+
+**It is important to consider that the services exposed by this module currently implement a very first version developed as a Proof of Concept and that they may be refactored without any ascending compatibility.**
+
+If you intend to use the current interface feel free to get in touch and we will keep you informed about the current actions and decisions ;)
+
 Installation
 ------------
 
@@ -64,6 +73,12 @@ This module for Alignak exposes some Alignak Web Services:
     * `GET /` will return the list of the available endpoints
 
     * `GET /alignak_map` that will return the map and status of all the Alignak running daemons
+
+    * `GET /host` to get an host information
+
+    * `GET /hostgroup` to get an hostgroup information
+
+    * `GET /alignak_logs` to view the Alignak events history from an Alignak backend
 
     * `POST /alignak_command` that will notify an external command to the Alignak framework
 

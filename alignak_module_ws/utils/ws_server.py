@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=fixme
 
-# Copyright (c) 2015-2017:
+# Copyright (c) 2015-2018:
 #   Frederic Mohier, frederic.mohier@alignak.net
 #
 # This file is part of (WebUI).
@@ -27,6 +28,7 @@ import json
 import time
 import logging
 import inspect
+import traceback
 import cherrypy
 from cherrypy.lib import httpauth
 
@@ -46,33 +48,30 @@ def protect(*args, **kwargs):
 
     authenticated = False
 
+    # A condition is just a callable that returns true or false
     conditions = cherrypy.request.config.get('auth.require', None)
-
     if conditions is not None:
-        logger.debug("conditions: %s", conditions)
-        # A condition is just a callable that returns true or false
         app = cherrypy.request.app.root.app
+
         try:
             logger.debug("Checking session: %s", SESSION_KEY)
+            cherrypy.log("Checking session: %s" % SESSION_KEY)
             # check if there is an active session
             # sessions are turned on so we just have to know if there is
             # something inside of cherrypy.session[SESSION_KEY]:
             session_token = cherrypy.session[SESSION_KEY]
             logger.debug("Session: %s", session_token)
+            cherrypy.log("Session: %s" % session_token)
 
             # Not sure if I need to do this myself or what
             cherrypy.session.regenerate()
             cherrypy.request.login = cherrypy.session[SESSION_KEY]
 
-            # token = app.backendLogin(cherrypy.request.login, None)
             authenticated = True
-            # logger.debug("Authenticated with session: %s / %s", this_session, token)
-
         except KeyError:
             # If the session isn't set, it either was not existing or valid.
             # Now check if the request includes HTTP Authorization?
             authorization = cherrypy.request.headers.get('Authorization')
-            logger.debug("Authorization: %s", authorization)
             if authorization:
                 logger.debug("Got authorization header: %s", authorization)
                 ah = httpauth.parseAuthorization(authorization)
@@ -80,23 +79,31 @@ def protect(*args, **kwargs):
                 # Get module application from cherrypy request
                 logger.debug("Requesting login for %s@%s...",
                              ah['username'], cherrypy.request.remote.ip)
+                cherrypy.log("Requesting login for %s@%s..."
+                             % (ah['username'], cherrypy.request.remote.ip))
                 token = app.backend_token(username=ah['username'], password=ah['password'])
                 if token:
                     cherrypy.session.regenerate()
                     # This line of code is discussed in doc/sessions-and-auth.markdown
-                    cherrypy.session[SESSION_KEY] = cherrypy.request.login = token
+                    cherrypy.session[SESSION_KEY] = token
                     authenticated = True
                     logger.debug("Authenticated with backend")
+                    cherrypy.log("Authenticated with backend")
                 else:
                     logger.warning("Failed attempt to log in with authorization header for %s..",
                                    cherrypy.request.remote.ip)
+                    cherrypy.session[SESSION_KEY] = ''
             else:
-                logger.warning("Missing authorization header for %s.", cherrypy.request.remote.ip)
+                logger.debug("No authorization header for %s.", cherrypy.request.remote.ip)
                 cherrypy.session[SESSION_KEY] = ''
 
-        except:  # pylint: disable=bare-except
+        except Exception as exp:  # pylint: disable=bare-except
+            cherrypy.log("Exception: %s" % exp)
+            cherrypy.log("Back trace of the error:\n%s" % traceback.format_exc())
             logger.warning("Client %s has no valid session and did not provided "
                            "HTTP Authorization credentials.", cherrypy.request.remote.ip)
+            cherrypy.log("Client %s has no valid session and did not provided "
+                         "HTTP Authorization credentials." % cherrypy.request.remote.ip)
             cherrypy.session[SESSION_KEY] = ''
 
         if authenticated:
@@ -108,7 +115,7 @@ def protect(*args, **kwargs):
             raise cherrypy.HTTPError("401 Unauthorized")
 
 
-cherrypy.tools.wsauth = cherrypy.Tool('before_handler', protect)
+cherrypy.tools.ws_auth = cherrypy.Tool('before_handler', protect)
 
 
 def require(*conditions):
@@ -126,7 +133,7 @@ def require(*conditions):
     return decorate
 
 
-class WSInterface(object):
+class WSInterface(object):  # pylint: disable=useless-object-inheritance
     """Interface for Alignak Web Services.
 
     """
@@ -204,6 +211,7 @@ class WSInterface(object):
     @cherrypy.tools.json_out()
     @require()
     def api_full(self):
+        # pylint: disable=deprecated-method
         """List the api methods and their parameters
 
         :return: a list of methods and parameters
@@ -212,21 +220,21 @@ class WSInterface(object):
         full_api = {}
         for fun in self.api():
             full_api[fun] = {}
-            full_api[fun][u"doc"] = getattr(self, fun).__doc__
-            full_api[fun][u"args"] = {}
+            full_api[fun]["doc"] = getattr(self, fun).__doc__
+            full_api[fun]["args"] = {}
 
             spec = inspect.getargspec(getattr(self, fun))
             args = [a for a in spec.args if a != 'self']
             if spec.defaults:
-                a_dict = dict(zip(args, spec.defaults))
+                a_dict = dict(list(zip(args, spec.defaults)))
             else:
-                a_dict = dict(zip(args, (u"No default value",) * len(args)))
+                a_dict = dict(list(zip(args, ("No default value",) * len(args))))
 
-            full_api[fun][u"args"] = a_dict
+            full_api[fun]["args"] = a_dict
 
-        full_api[u"side_note"] = u"When posting data you have to serialize value. Example : " \
-                                 u"POST /set_log_level " \
-                                 u"{'loglevel' : serialize('INFO')}"
+        full_api["side_note"] = "When posting data you have to serialize value. Example : " \
+                                "POST /set_log_level " \
+                                "{'loglevel' : serialize('INFO')}"
 
         return full_api
 
@@ -259,16 +267,20 @@ class WSInterface(object):
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
     @require()
-    def host(self, name=None):
+    def host(self, name=None):  # pylint: disable=too-many-return-statements
         """ Declare an host and its data
         :return:
         """
-        if cherrypy.request.method not in ["GET", "PATCH"]:
-            return {'_status': 'ERR', '_error': 'You must only GET or PATCH on this endpoint.'}
+        if cherrypy.request.method not in ["GET", "PATCH", "POST"]:
+            return {'_status': 'ERR',
+                    '_error': 'You must only GET, PATCH or POST on this endpoint.'}
 
         # Get an host
         # ---
         if cherrypy.request.method == "GET":
+            if not self.app.backend_url:
+                return {'_status': 'ERR', '_error': 'Not available without backend access.'}
+
             logger.debug("Get /host: %s", cherrypy.request.params)
             if cherrypy.request.params.get('name', None) is not None:
                 name = cherrypy.request.params.get('name', None)
@@ -290,18 +302,27 @@ class WSInterface(object):
             return {'_status': 'ERR', '_result': '', '_issues': ['Missing targeted element.']}
 
         _ts = time.time()
-        logger.debug("Patch /host: %s", cherrypy.request.json)
-        data = {
-            'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
-            'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
-            'check_freshness': cherrypy.request.json.get('check_freshness', None),
-            'template': cherrypy.request.json.get('template', None),
-            'livestate': cherrypy.request.json.get('livestate', None),
-            'variables': cherrypy.request.json.get('variables', None),
-            'services': cherrypy.request.json.get('services', None)
-        }
+        logger.debug("Update /host: %s", cherrypy.request.json)
+        if not self.app.backend_url:
+            # Without a backend access, only update the livestate for host and its services
+            data = {
+                'livestate': cherrypy.request.json.get('livestate', None),
+                'services': cherrypy.request.json.get('services', None)
+            }
 
-        response = self.app.update_host(name, data)
+            response = self.app.update_host(name, data)
+        else:
+            data = {
+                'active_checks_enabled': cherrypy.request.json.get('active_checks_enabled', None),
+                'passive_checks_enabled': cherrypy.request.json.get('passive_checks_enabled', None),
+                'check_freshness': cherrypy.request.json.get('check_freshness', None),
+                'template': cherrypy.request.json.get('template', None),
+                'livestate': cherrypy.request.json.get('livestate', None),
+                'variables': cherrypy.request.json.get('variables', None),
+                'services': cherrypy.request.json.get('services', None)
+            }
+
+            response = self.app.update_host(name, data)
 
         # Specific case where WS client credentials are not authorized
         if response and '_issues' in response:
@@ -327,6 +348,12 @@ class WSInterface(object):
         """
         if cherrypy.request.method not in ["GET"]:
             return {'_status': 'ERR', '_error': 'You must only GET on this endpoint.'}
+
+        if not self.app.backend_url:
+            return {'_status': 'ERR', '_error': 'Not available without backend access.'}
+
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
 
         # Get an hostgroup
         # ---
@@ -425,7 +452,12 @@ class WSInterface(object):
             command_line = '%s;%s' % (command_line, parameters)
 
         # Add a command to get managed
-        self.app.to_q.put(ExternalCommand(command_line))
+        # todo: directly in from_q is better, no?
+        # self.app.to_q.put(ExternalCommand(command_line))
+        # -----
+        logger.debug("Got an external command: %s", command_line)
+        self.app.from_q.put(ExternalCommand(command_line))
+        self.app.received_commands += 1
 
         return {'_status': 'OK', '_command': command_line}
     command.method = 'post'
@@ -439,6 +471,9 @@ class WSInterface(object):
         :return: True if is alive, False otherwise
         :rtype: dict
         """
+        if not self.app.authorization:
+            return {'_status': 'ERR', '_error': 'Not available without authorized access.'}
+
         logger.debug("Get /alignak_log: %s", cherrypy.request.params)
         start = int(cherrypy.request.params.get('start', '0'))
         count = int(cherrypy.request.params.get('count', '25'))

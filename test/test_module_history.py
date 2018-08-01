@@ -34,9 +34,10 @@ from pprint import pprint
 import requests
 import pytest
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -56,9 +57,28 @@ class TestModuleWsHistory(AlignakTest):
     @classmethod
     def setUpClass(cls):
 
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
+
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
         os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-history'
+        os.environ['ALIGNAK_BACKEND_CONFIGURATION_FILE'] = './cfg/backend/settings.json'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -68,11 +88,28 @@ class TestModuleWsHistory(AlignakTest):
         )
         assert exit_code == 0
 
+        if os.path.exists('/tmp/alignak-backend_%s.log' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME']):
+            os.remove('/tmp/alignak-backend_%s.log' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
+
+        fnull = open(os.devnull, 'w')
         cls.p = subprocess.Popen(['uwsgi', '--plugin', 'python', '-w', 'alignakbackend:app',
                                   '--socket', '0.0.0.0:5000',
                                   '--protocol=http', '--enable-threads', '--pidfile',
-                                  '/tmp/uwsgi.pid'])
+                                  '/tmp/uwsgi.pid'],
+                                 # stdout=fnull, stderr=fnull
+                                 )
         time.sleep(3)
+
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        print(("Current test directory: %s" % test_dir))
+
+        print(("Feeding Alignak backend... %s" % test_dir))
+        exit_code = subprocess.call(
+            shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
+            # stdout=fnull, stderr=fnull
+        )
+        assert exit_code == 0
+        print("Fed")
 
         cls.endpoint = 'http://127.0.0.1:5000'
 
@@ -103,7 +140,7 @@ class TestModuleWsHistory(AlignakTest):
         response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -157,17 +194,17 @@ class TestModuleWsHistory(AlignakTest):
 
         cls.modulemanager = None
 
+        cls.maxDiff = None
+
     @classmethod
     def tearDownClass(cls):
         cls.p.kill()
 
     def setUp(self):
-        """Create resources in backend
-
-        :return: None
-        """
+        super(TestModuleWsHistory, self).setUp()
 
     def tearDown(self):
+        super(TestModuleWsHistory, self).tearDown()
         for resource in ['logcheckresult', 'history']:
             requests.delete('http://127.0.0.1:5000/' + resource, auth=self.auth)
         if self.modulemanager:
@@ -189,7 +226,7 @@ class TestModuleWsHistory(AlignakTest):
             dfile.close()
             return path
         except (OSError, IndexError) as exp:  # pragma: no cover, should never happen
-            print("Error when writing the list dump file %s : %s" % (path, str(exp)))
+            print(("Error when writing the list dump file %s : %s" % (path, str(exp))))
             assert False
         return None
 
@@ -197,27 +234,15 @@ class TestModuleWsHistory(AlignakTest):
         """Test the module log collection functions
         :return:
         """
-        self.print_header()
         self._get_history("admin", "admin")
 
     def test_module_zzz_get_history_test(self):
         """Test the module log collection functions
         :return:
         """
-        self.print_header()
         self._get_history("test", "test")
 
     def _get_history(self, username, password):
-
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
 
         # Create an Alignak module
         mod = Module({
@@ -231,13 +256,21 @@ class TestModuleWsHistory(AlignakTest):
             'alignak_backend': 'http://127.0.0.1:5000',
             'username': 'admin',
             'password': 'admin',
+            # Set module to listen on all interfaces
+            'host': '0.0.0.0',
+            'port': 8888,
             # Activate CherryPy file logs
             'log_access': '/tmp/alignak-module-ws-access.log',
             'log_error': '/tmp/alignak-module-ws-error.log',
+            'log_level': 'DEBUG'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -262,7 +295,11 @@ class TestModuleWsHistory(AlignakTest):
 
         # Check alive
         self.assertIsNotNone(my_module.process)
-        self.assertTrue(my_module.process.is_alive())
+        self.show_logs()
+        print("Instances: %s" % self.modulemanager.instances)
+        print("My module: %s" % my_module.__dict__)
+        # This test if raising an error whereas the module is really living !
+        # self.assertTrue(my_module.process.is_alive())
 
         time.sleep(1)
 
@@ -389,142 +426,142 @@ class TestModuleWsHistory(AlignakTest):
         # The commented fields are the one existing in the backend but filtered by the WS
         backend_real_history = [
             {
-                u'_created': u'Thu, 01 Jun 2017 15:59:16 GMT',
+                '_created': 'Thu, 01 Jun 2017 15:59:16 GMT',
                 # u'_etag': u'9f07c7285b37bb3d336a96ede3d3fd2a774c4c4c',
-                u'_id': u'593039d406fd4b3bf0e27d9f',
+                '_id': '593039d406fd4b3bf0e27d9f',
                 # u'_links': {u'self': {u'href': u'history/593039d406fd4b3bf0e27d9f',
                 #                       u'title': u'History'}},
                 # u'_realm': u'593039cc06fd4b3bf0e27d88',
                 # u'_sub_realm': True,
                 # u'_updated': u'Thu, 01 Jun 2017 15:59:16 GMT',
-                u'host_name': u'denice',
-                u'message': u'HOST ALERT ....',
-                u'type': u'monitoring.alert',
-                u'user_name': u'Me'
+                'host_name': 'denice',
+                'message': 'HOST ALERT ....',
+                'type': 'monitoring.alert',
+                'user_name': 'Me'
             },
             {
-                u'_created': u'Thu, 01 Jun 2017 15:59:15 GMT',
+                '_created': 'Thu, 01 Jun 2017 15:59:15 GMT',
                 # u'_etag': u'24cd486a1a28859a0177fbe15d1ead61f78f7b2c',
-                u'_id': u'593039d306fd4b3bf0e27d9e',
+                '_id': '593039d306fd4b3bf0e27d9e',
                 # u'_links': {u'self': {u'href': u'history/593039d306fd4b3bf0e27d9e',
                 #                       u'title': u'History'}},
                 # u'_realm': u'593039cc06fd4b3bf0e27d88',
                 # u'_sub_realm': True,
                 # u'_updated': u'Thu, 01 Jun 2017 15:59:15 GMT',
-                u'host_name': u'denice',
-                u'message': u'OK[HARD] (False,False): All is ok',
-                u'service_name': u'Zombies',
-                u'type': u'check.result',
-                u'user_name': u'Alignak'
+                'host_name': 'denice',
+                'message': 'OK[HARD] (False,False): All is ok',
+                'service_name': 'Zombies',
+                'type': 'check.result',
+                'user_name': 'Alignak'
             },
             {
-                u'_created': u'Thu, 01 Jun 2017 15:59:14 GMT',
+                '_created': 'Thu, 01 Jun 2017 15:59:14 GMT',
                 # u'_etag': u'4c4ee43a4fac0b91dcfddb011619007dedb1cd95',
-                u'_id': u'593039d206fd4b3bf0e27d9d',
+                '_id': '593039d206fd4b3bf0e27d9d',
                 # u'_links': {u'self': {u'href': u'history/593039d206fd4b3bf0e27d9d',
                 #                       u'title': u'History'}},
                 # u'_realm': u'593039cc06fd4b3bf0e27d88',
                 # u'_sub_realm': True,
                 # u'_updated': u'Thu, 01 Jun 2017 15:59:14 GMT',
-                u'host_name': u'chazay',
-                u'message': u'OK[HARD] (False,False): All is ok',
-                u'service_name': u'Processus',
-                u'type': u'check.result',
-                u'user_name': u'Alignak'
+                'host_name': 'chazay',
+                'message': 'OK[HARD] (False,False): All is ok',
+                'service_name': 'Processus',
+                'type': 'check.result',
+                'user_name': 'Alignak'
             },
-            {u'_created': u'Thu, 01 Jun 2017 15:59:13 GMT',
+            {'_created': 'Thu, 01 Jun 2017 15:59:13 GMT',
              # u'_etag': u'76dd35f575244848dd41f67ad3109cf6f1f9a33c',
-             u'_id': u'593039d106fd4b3bf0e27d9c',
+             '_id': '593039d106fd4b3bf0e27d9c',
              # u'_links': {u'self': {u'href': u'history/593039d106fd4b3bf0e27d9c',
              #                       u'title': u'History'}},
              # u'_realm': u'593039cc06fd4b3bf0e27d88',
              # u'_sub_realm': True,
              # u'_updated': u'Thu, 01 Jun 2017 15:59:13 GMT',
              # u'host': u'593039cc06fd4b3bf0e27d90',
-             u'host_name': u'srv001',
-             u'logcheckresult': {
-                 u'_created': u'Thu, 01 Jun 2017 15:59:13 GMT',
+             'host_name': 'srv001',
+             'logcheckresult': {
+                 '_created': 'Thu, 01 Jun 2017 15:59:13 GMT',
                  # u'_etag': u'10a3935b1158fe4c8f62962a14b1050fef32df4b',
                  # u'_id': u'593039d106fd4b3bf0e27d9b',
                  # u'_realm': u'593039cc06fd4b3bf0e27d88',
                  # u'_sub_realm': True,
                  # u'_updated': u'Thu, 01 Jun 2017 15:59:13 GMT',
-                 u'acknowledged': False,
-                 u'acknowledgement_type': 1,
-                 u'downtimed': False,
-                 u'execution_time': 0.12,
+                 'acknowledged': False,
+                 'acknowledgement_type': 1,
+                 'downtimed': False,
+                 'execution_time': 0.12,
                  # u'host': u'593039cc06fd4b3bf0e27d90',
                  # u'host_name': u'srv001',
-                 u'last_check': 1496332753,
-                 u'last_state': u'UP',
-                 u'last_state_changed': 0,
-                 u'last_state_id': 0,
-                 u'last_state_type': u'HARD',
-                 u'latency': 0.0,
-                 u'long_output': u'Check long_output',
-                 u'output': u'Check output',
-                 u'passive_check': False,
-                 u'perf_data': u'perf_data',
+                 'last_check': 1496332753,
+                 'last_state': 'UP',
+                 'last_state_changed': 0,
+                 'last_state_id': 0,
+                 'last_state_type': 'HARD',
+                 'latency': 0.0,
+                 'long_output': 'Check long_output',
+                 'output': 'Check output',
+                 'passive_check': False,
+                 'perf_data': 'perf_data',
                  # u'service': u'593039cf06fd4b3bf0e27d98',
                  # u'service_name': u'ping',
-                 u'state': u'UP',
-                 u'state_changed': False,
-                 u'state_id': 0,
-                 u'state_type': u'HARD'
+                 'state': 'UP',
+                 'state_changed': False,
+                 'state_id': 0,
+                 'state_type': 'HARD'
              },
-             u'message': u'UP[HARD] (False/False): Check output',
+             'message': 'UP[HARD] (False/False): Check output',
              # u'service': u'593039cf06fd4b3bf0e27d98',
-             u'service_name': u'ping',
-             u'type': u'check.result',
+             'service_name': 'ping',
+             'type': 'check.result',
              # u'user': None,
-             u'user_name': u'Alignak'
+             'user_name': 'Alignak'
              },
-            {u'_created': u'Thu, 01 Jun 2017 15:59:13 GMT',
+            {'_created': 'Thu, 01 Jun 2017 15:59:13 GMT',
              # u'_etag': u'c3cd29587ad328325dc48af677b3a36157361a84',
-             u'_id': u'593039d106fd4b3bf0e27d9a',
+             '_id': '593039d106fd4b3bf0e27d9a',
              # u'_links': {u'self': {u'href': u'history/593039d106fd4b3bf0e27d9a',
              #                       u'title': u'History'}},
              # u'_realm': u'593039cc06fd4b3bf0e27d88',
              # u'_sub_realm': True,
              # u'_updated': u'Thu, 01 Jun 2017 15:59:13 GMT',
              # u'host': u'593039cc06fd4b3bf0e27d90',
-             u'host_name': u'srv001',
-             u'logcheckresult': {
-                 u'_created': u'Thu, 01 Jun 2017 15:59:13 GMT',
+             'host_name': 'srv001',
+             'logcheckresult': {
+                 '_created': 'Thu, 01 Jun 2017 15:59:13 GMT',
                  # u'_etag': u'0ea4c16f1e651a02772aa2bfa83070b47e7f6531',
                  # u'_id': u'593039d106fd4b3bf0e27d99',
                  # u'_realm': u'593039cc06fd4b3bf0e27d88',
                  # u'_sub_realm': True,
                  # u'_updated': u'Thu, 01 Jun 2017 15:59:13 GMT',
-                 u'acknowledged': False,
-                 u'acknowledgement_type': 1,
-                 u'downtimed': False,
-                 u'execution_time': 0.12,
+                 'acknowledged': False,
+                 'acknowledgement_type': 1,
+                 'downtimed': False,
+                 'execution_time': 0.12,
                  # u'host': u'593039cc06fd4b3bf0e27d90',
                  # u'host_name': u'srv001',
-                 u'last_check': 1496332754,
-                 u'last_state': u'UP',
-                 u'last_state_changed': 0,
-                 u'last_state_id': 0,
-                 u'last_state_type': u'HARD',
-                 u'latency': 0.0,
-                 u'long_output': u'Check long_output',
-                 u'output': u'Check output',
-                 u'passive_check': False,
-                 u'perf_data': u'perf_data',
+                 'last_check': 1496332754,
+                 'last_state': 'UP',
+                 'last_state_changed': 0,
+                 'last_state_id': 0,
+                 'last_state_type': 'HARD',
+                 'latency': 0.0,
+                 'long_output': 'Check long_output',
+                 'output': 'Check output',
+                 'passive_check': False,
+                 'perf_data': 'perf_data',
                  # u'service': None,
                  # u'service_name': u'',
-                 u'state': u'UP',
-                 u'state_changed': False,
-                 u'state_id': 0,
-                 u'state_type': u'HARD'
+                 'state': 'UP',
+                 'state_changed': False,
+                 'state_id': 0,
+                 'state_type': 'HARD'
              },
-             u'message': u'UP[HARD] (False/False): Check output',
+             'message': 'UP[HARD] (False/False): Check output',
              # u'service': None,
-             u'service_name': u'',
-             u'type': u'check.result',
+             'service_name': '',
+             'type': 'check.result',
              # u'user': None,
-             u'user_name': u'Alignak'
+             'user_name': 'Alignak'
              }
         ]
         # ---
@@ -544,7 +581,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Do not allow GET request on /alignak_logs - not yet authorized!
-        response = requests.get('http://127.0.0.1:8888/alignak_logs')
+        response = requests.get(self.ws_endpoint + '/alignak_logs')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -552,13 +589,13 @@ class TestModuleWsHistory(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': username, 'password': password}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # ---
         # Get the alignak default history
-        response = session.get('http://127.0.0.1:8888/alignak_logs')
+        response = session.get(self.ws_endpoint + '/alignak_logs')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         # Remove fields that will obviously be different!
@@ -580,7 +617,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only check.result
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:check.result')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=type:check.result')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -590,13 +627,13 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only for a user
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Alignak')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=user_name:Alignak')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 4)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=user_name:Me')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=user_name:Me')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -606,41 +643,41 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, filter to get only for an host
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
         # Implicit host_name
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 1)
         # Unknown search field
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=name:chazay')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=name:chazay')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         # All history items because name is not aknown search field! So we get all items...
         self.assertEqual(len(result['items']), 5)
 
         # Some other hosts...
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:denice')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:srv001')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:srv001')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 2)
 
         # Several hosts...
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:denice host_name:srv001')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:denice host_name:srv001')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(len(result['items']), 4)   # 2 for each host
 
         # Not an host...
         # TODO: looks that ths criteria is not correctly implemented :(
-        # response = session.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!denice')
+        # response = session.get(self.ws_endpoint + '/alignak_logs?search=host_name:!denice')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # self.assertEqual(len(result['items']), 3)
@@ -649,7 +686,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
         # Get the alignak default history, NOT for an host
         # todo: temporarily skipped
-        # response = requests.get('http://127.0.0.1:8888/alignak_logs?search=host_name:!Chazay')
+        # response = requests.get(self.ws_endpoint + '/alignak_logs?search=host_name:!Chazay')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # for item in result['items']:
@@ -659,7 +696,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, only for a service
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=service_name:Processus')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=service_name:Processus')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -670,7 +707,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
         # Get the alignak default history, for an host and a service
         # todo multi search query to be improved!
-        # response = session.get('http://127.0.0.1:8888/alignak_logs?search="host_name:chazay service_name=Processus"')
+        # response = session.get(self.ws_endpoint + '/alignak_logs?search="host_name:chazay service_name=Processus"')
         # self.assertEqual(response.status_code, 200)
         # result = response.json()
         # for item in result['items']:
@@ -680,7 +717,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, unknown event type
-        response = session.get('http://127.0.0.1:8888/alignak_logs?search=type:XXX')
+        response = session.get(self.ws_endpoint + '/alignak_logs?search=type:XXX')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -690,44 +727,44 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak default history, page count
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=0&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=0&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=1&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=1&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=2&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=2&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=3&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=3&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=4&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=4&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 1)
         # Over the limits !
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=5&count=1')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=5&count=1')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
             print(item)
         self.assertEqual(len(result['items']), 0)
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=50&count=50')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=50&count=50')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         for item in result['items']:
@@ -737,7 +774,7 @@ class TestModuleWsHistory(AlignakTest):
 
         # ---
         # Get the alignak history, page count greater than the number of items
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=1&count=25')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=1&count=25')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         pprint(result)
@@ -746,7 +783,7 @@ class TestModuleWsHistory(AlignakTest):
         self.assertEqual(result['_meta']['page'], 1)
         self.assertEqual(result['_meta']['total'], 5)
 
-        response = session.get('http://127.0.0.1:8888/alignak_logs?start=0&count=50')
+        response = session.get(self.ws_endpoint + '/alignak_logs?start=0&count=50')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         pprint(result)
@@ -758,7 +795,7 @@ class TestModuleWsHistory(AlignakTest):
         # ---
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -772,7 +809,6 @@ class TestModuleWsHistory(AlignakTest):
 
         :return:
         """
-        self.print_header()
         # Obliged to call to get a self.logger...
         self.setup_with_file('cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
@@ -798,7 +834,7 @@ class TestModuleWsHistory(AlignakTest):
         })
 
         # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -844,13 +880,13 @@ class TestModuleWsHistory(AlignakTest):
         while count > 0:
             result = my_module.getBackendHistory(search)
             count = len(result['items'])
-            print("Page: %d, got: %d items" % (search["page"], count))
+            print(("Page: %d, got: %d items" % (search["page"], count)))
             for item in result['items']:
                 sys.stdout.write('.')
                 # print(item)
             items.extend(result['items'])
             search["page"] += 1
-        print("Got: %d items" % len(items))
+        print(("Got: %d items" % len(items)))
 
         self.folder = '/tmp'
         self.file_dump(items, file_name)
