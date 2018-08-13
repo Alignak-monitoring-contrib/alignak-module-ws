@@ -637,12 +637,14 @@ class TestModuleWsHost(AlignakTest):
         self.assertEqual(my_module.received_commands, 6)
 
         # Logout
+        print("Logout...")
         response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertEqual(result['_result'], 'Logged out')
 
+        time.sleep(1.0)
         self.modulemanager.stop_all()
 
     def test_module_zzz_simulate_host(self):
@@ -906,10 +908,12 @@ class TestModuleWsHost(AlignakTest):
             'alignak_host': '',
             'alignak_port': 7770,
         })
+        print("Module...")
 
         # Create a receiver daemon
         args = {'env_file': '', 'daemon_name': 'receiver-master'}
         self._receiver_daemon = Receiver(**args)
+        print("Daemon...")
 
         # Create the modules manager for the daemon
         self.modulemanager = ModulesManager(self._receiver_daemon)
@@ -936,8 +940,8 @@ class TestModuleWsHost(AlignakTest):
         # Check alive
         self.assertIsNotNone(my_module.process)
         self.assertTrue(my_module.process.is_alive())
-
-        time.sleep(1)
+        time.sleep(1.0)
+        print("My module PID: %s" % my_module.process.pid)
 
         # Do not allow GET request on /host - not authorized
         response = requests.get(self.ws_endpoint + '/host')
@@ -951,6 +955,7 @@ class TestModuleWsHost(AlignakTest):
         response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
+        print("Login...")
 
         # You must have parameters when POSTing on /host
         headers = {'Content-Type': 'application/json'}
@@ -1426,13 +1431,15 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Logout
+        print("Logout...")
         response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertEqual(result['_result'], 'Logged out')
 
-        self.modulemanager.stop_all()
+        time.sleep(1.0)
+        # self.modulemanager.stop_all()
 
     def test_module_zzz_host_variables(self):
         """Test the module /host API * create/update custom variables
