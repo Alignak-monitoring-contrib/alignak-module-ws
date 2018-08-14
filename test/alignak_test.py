@@ -826,6 +826,8 @@ define host {
         with requests_mock.mock() as mr:
             for link in self._arbiter.dispatcher.all_daemons_links:
                 # mr.get('http://%s:%s/ping' % (link.address, link.port), json='pong')
+                mr.get('http://%s:%s/' % (link.address, link.port),
+                       json={"running_id": 123456.123456})
                 mr.get('http://%s:%s/identity' % (link.address, link.port),
                        json={"running_id": 123456.123456})
                 mr.get('http://%s:%s/_wait_new_conf' % (link.address, link.port), json=True)

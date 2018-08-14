@@ -184,6 +184,7 @@ class TestModuleWs(AlignakTest):
         """
         self.setup_with_file('./cfg/cfg_default.cfg')
         self.assertTrue(self.conf_is_correct)
+        print("-----\n\n")
         self.show_configuration_logs()
 
         # No arbiter modules created
@@ -271,6 +272,8 @@ class TestModuleWs(AlignakTest):
 
         # Start external modules
         self.modulemanager.start_external_instances()
+        time.sleep(1.0)
+        print("My module PID: %s" % my_module.process.pid)
 
         # Starting external module logs
         self.assert_log_match("Trying to initialize module: web-services", 0)
@@ -292,14 +295,13 @@ class TestModuleWs(AlignakTest):
         index = 0
         self.assert_log_match("Killing external module", index)
         index = index +1
-        # self.assert_log_match("web-services is still living 10 seconds after a normal kill, I help it to die", 1)
         self.assert_log_match("External module killed", index)
         index = index +1
 
         # Should be dead (not normally stopped...) but we still know a process for this module!
         self.assertIsNotNone(my_module.process)
 
-        # Nothing special ...
+        # The module is dead but the modules manager do not know yet!
         self.modulemanager.check_alive_instances()
         self.assert_log_match("The external module web-services died unexpectedly!", index)
         index = index +1
@@ -341,17 +343,25 @@ class TestModuleWs(AlignakTest):
         # Clear logs
         self.clear_logs()
 
-        # Now we look for time restart so we kill it again
+        # Let the module start and then kill it again
+        time.sleep(3.0)
         my_module.kill()
+        # time.sleep(5.0)
+        self.show_logs()
+        print("My module PID 2: %s" % my_module.process.pid)
         time.sleep(0.2)
         self.assertFalse(my_module.process.is_alive())
         index = 0
         self.assert_log_match("Killing external module", index)
         index = index +1
+        # # todo: This log is not expected! But it is probably because of the py.test ...
+        # # Indeed the receiver daemon that the module is attached to is receiving a SIGTERM !!!
+        # self.assert_log_match(re.escape("'web-services' is still living 10 seconds after a normal kill, I help it to die"), index)
+        # index = index +1
         self.assert_log_match("External module killed", index)
         index = index +1
 
-        # Should be too early
+        # The module is dead but the modules manager do not know yet!
         self.modulemanager.check_alive_instances()
         self.assert_log_match("The external module web-services died unexpectedly!", index)
         index = index +1
@@ -385,6 +395,8 @@ class TestModuleWs(AlignakTest):
         index = index +1
         self.assert_log_match("web-services is now started", index)
         index = index +1
+        time.sleep(1.0)
+        print("My module PID: %s" % my_module.process.pid)
 
         # Clear logs
         self.clear_logs()

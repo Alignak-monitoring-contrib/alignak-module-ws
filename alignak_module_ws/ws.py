@@ -1800,59 +1800,6 @@ class AlignakWebServices(BaseModule):
         logger.info("In loop")
         time.sleep(1)
 
-    def manage_signal2(self, sig, frame):  # pylint: disable=unused-argument
-        """Generic function to handle signals
-
-        Only called when the module process received SIGINT or SIGKILL.
-
-        Set interrupted attribute to True, self.process to None and returns
-
-        :param sig: signal sent
-        :type sig:
-        :param frame: frame before catching signal
-        :type frame:
-        :return: None
-        """
-        logger.warning("received a signal: %s", SIGNALS_TO_NAMES_DICT[sig])
-
-        if sig == signal.SIGHUP:
-            # if SIGHUP, reload configuration in arbiter
-            logger.info("Modules are not able to reload their configuration. "
-                        "Stopping the module...")
-
-        logger.info("Request to stop the module")
-        self.interrupted = True
-        # self.process = None
-
-    def set_signal_handler2(self, sigs=None):
-        """Set the signal handler to manage_signal (defined in this class)
-
-        Only set handlers for:
-        - signal.SIGTERM, signal.SIGINT
-        - signal.SIGUSR1, signal.SIGUSR2
-        - signal.SIGHUP
-
-        :return: None
-        """
-        exit(12)
-        logger.warning("set signal handler 2")
-        if sigs is None:
-            sigs = (signal.SIGTERM, signal.SIGINT, signal.SIGUSR1, signal.SIGUSR2, signal.SIGHUP)
-
-        func = self.manage_signal2
-        if os.name == "nt":  # pragma: no cover, no Windows implementation currently
-            try:
-                import win32api
-                win32api.SetConsoleCtrlHandler(func, True)
-            except ImportError:
-                version = ".".join([str(i) for i in os.sys.version_info[:2]])
-                raise Exception("pywin32 not installed for Python " + version)
-        else:
-            for sig in sigs:
-                signal.signal(sig, func)
-
-    set_exit_handler = set_signal_handler2
-
     def main(self):
         # pylint: disable=too-many-nested-blocks
         """Main loop of the process
@@ -1862,7 +1809,7 @@ class AlignakWebServices(BaseModule):
         """
         # Set the OS process title
         self.set_proctitle(self.alias)
-        self.set_signal_handler2()
+        self.set_signal_handler()
 
         logger.info("starting...")
 
@@ -1902,6 +1849,7 @@ class AlignakWebServices(BaseModule):
 
                 if not self.alignak_host:
                     # Do not check Alignak daemons...
+                    time.sleep(0.1)
                     continue
 
                 if ping_alignak_next_time < start:
@@ -1923,7 +1871,8 @@ class AlignakWebServices(BaseModule):
                     get_daemons_next_time = start + self.alignak_daemons_polling_period
 
                     # Get Arbiter all states
-                    response = requests.get("http://%s:%s/get_all_states" %
+                    # todo: refactor this and use /system endpoint ?
+                    response = requests.get("http://%s:%s/satellites_configuration" %
                                             (self.alignak_host, self.alignak_port))
                     if response.status_code != 200:
                         continue
