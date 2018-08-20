@@ -60,6 +60,7 @@ jobs:
       install:
         # Install packaging requirements
         - echo "Installing packaging requirements..."
+        - pip install -r requirements.txt
       script:
         - echo "Packaging for BinTray..."
         - ./package.sh $TRAVIS_BRANCH $TRAVIS_PYTHON_VERSION deb
