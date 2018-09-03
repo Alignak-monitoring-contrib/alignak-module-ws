@@ -197,7 +197,7 @@ class TestModuleWs(AlignakTest):
 
         # No scheduler modules
         modules = [m.module_alias for m in self._scheduler_daemon.modules]
-        self.assertListEqual(modules, [])
+        self.assertListEqual(modules, ['inner-retention'])
 
         # A receiver module
         modules = [m.module_alias for m in self._receiver_daemon.modules]
