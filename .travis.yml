@@ -21,7 +21,6 @@ install:
 script:
   # Code dynamic analysis and tests
   - cd test
-  # Delete previously existing coverage results
   # Run test suite with py.test running its coverage plugin
   - pytest --verbose --durations=10 --no-print-logs --cov=alignak_module_ws --cov-config .coveragerc test_*.py
   # Report about coverage - Upload coverage results to codecov
