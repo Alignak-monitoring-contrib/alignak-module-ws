@@ -34,7 +34,7 @@ from pprint import pprint
 import requests
 import pytest
 
-from alignak_test import AlignakTest
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 
@@ -58,7 +58,7 @@ class TestModuleWsBackendConnection(AlignakTest):
 
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
@@ -103,7 +103,7 @@ class TestModuleWsBackendConnection(AlignakTest):
         response = requests.post(cls.endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -172,6 +172,7 @@ class TestModuleWsBackendConnection(AlignakTest):
             time.sleep(1)
             self.modulemanager.stop_all()
 
+    @pytest.mark.skip("No more connection with the backend on module load")
     def test_connection_accepted(self):
         """ Test module backend connection accepted """
         # admin user login
@@ -183,7 +184,7 @@ class TestModuleWsBackendConnection(AlignakTest):
             'username': 'admin',
             'password': 'admin',
         }))
-        self.assertTrue(mod.backend_available)
+        # self.assertTrue(mod.backend_available)
 
         # test user login
         mod = get_instance(Module({
@@ -194,8 +195,9 @@ class TestModuleWsBackendConnection(AlignakTest):
             'username': 'test',
             'password': 'test',
         }))
-        self.assertTrue(mod.backend_available)
+        # self.assertTrue(mod.backend_available)
 
+    @pytest.mark.skip("No more connection with the backend on module load")
     def test_connection_refused(self):
         """ Test module backend connection refused """
         # No backend data defined

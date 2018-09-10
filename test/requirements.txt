@@ -1,6 +1,7 @@
 # Python requirements for unit tests
 -r ../requirements.txt
-# alignak
+
+# alignak - develop branch
 -e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
 
 # alignak backend
@@ -10,6 +11,7 @@
 -e git+https://github.com/Alignak-monitoring-contrib/alignak-backend-import.git@develop#egg=alignak-backend-import
 
 unittest2
+requests_mock
 
 # Tests time freeze
 freezegun
@@ -27,7 +29,7 @@ coveralls
 
 # Static code and doc analysis libraries
 pylint
-pep8
+pycodestyle
 pep257
 
 # UWSGI Pyphton Web application server

@@ -1,4 +1,10 @@
+# Needing six for python 2.7/3 compatibility
+six
+
 # Nothing special except:
-alignak_backend_client
 requests
-cherrypy<9.0.0
+alignak_backend_client
+
+# Same version as the one used by Alignak
+CherryPy==15.0.0
+

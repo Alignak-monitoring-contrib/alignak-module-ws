@@ -34,10 +34,11 @@ import logging
 
 import requests
 
-from alignak_test import AlignakTest, time_hacker
+from .alignak_test import AlignakTest
 from alignak.modulesmanager import ModulesManager
 from alignak.objects.module import Module
 from alignak.basemodule import BaseModule
+from alignak.daemons.receiverdaemon import Receiver
 
 # Set environment variable to ask code Coverage collection
 os.environ['COVERAGE_PROCESS_START'] = '.coveragerc'
@@ -57,16 +58,33 @@ class TestModuleWsCommand(AlignakTest):
     @classmethod
     def setUpClass(cls):
 
+        # Simulate an Alignak receiver daemon
+        cls.ws_endpoint = 'http://127.0.0.1:7773/ws'
+        import cherrypy
+        class ReceiverItf(object):
+            @cherrypy.expose
+            def index(self):
+                return "I am the Receiver daemon!"
+        from alignak.http.daemon import HTTPDaemon as AlignakDaemon
+        http_daemon1 = AlignakDaemon('0.0.0.0', 7773, ReceiverItf(),
+                                     False, None, None, None, None, 10, '/tmp/alignak-cherrypy.log')
+        def run_http_server():
+            http_daemon1.run()
+        import threading
+        cls.http_thread1 = threading.Thread(target=run_http_server, name='http_server_receiver')
+        cls.http_thread1.daemon = True
+        cls.http_thread1.start()
+        print("Thread started")
+
         # Set test mode for alignak backend
         os.environ['TEST_ALIGNAK_BACKEND'] = '1'
-        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-backend-test'
+        os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'] = 'alignak-module-ws-command'
 
         # Delete used mongo DBs
         print ("Deleting Alignak backend DB...")
         exit_code = subprocess.call(
-            shlex.split(
-                'mongo %s --eval "db.dropDatabase()"' % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME'])
-        )
+            shlex.split('mongo %s --eval "db.dropDatabase()"'
+                        % os.environ['ALIGNAK_BACKEND_MONGO_DBNAME']))
         assert exit_code == 0
 
         fnull = open(os.devnull, 'w')
@@ -80,12 +98,12 @@ class TestModuleWsCommand(AlignakTest):
         endpoint = 'http://127.0.0.1:5000'
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
-        print("Current test directory: %s" % test_dir)
+        print(("Current test directory: %s" % test_dir))
 
-        print("Feeding Alignak backend... %s" % test_dir)
+        print(("Feeding Alignak backend... %s" % test_dir))
         exit_code = subprocess.call(
             shlex.split('alignak-backend-import --delete %s/cfg/cfg_default.cfg' % test_dir),
-            stdout=fnull, stderr=fnull
+            # stdout=fnull, stderr=fnull
         )
         assert exit_code == 0
         print("Fed")
@@ -117,7 +135,7 @@ class TestModuleWsCommand(AlignakTest):
         response = requests.post(endpoint + '/user', json=data, headers=headers,
                                  auth=cls.auth)
         resp = response.json()
-        print("Created a new user: %s" % resp)
+        print(("Created a new user: %s" % resp))
 
         # Get new user restrict role
         params = {'where': json.dumps({'user': resp['_id']})}
@@ -136,21 +154,19 @@ class TestModuleWsCommand(AlignakTest):
     def tearDownClass(cls):
         cls.p.kill()
 
+    def setUp(self):
+        super(TestModuleWsCommand, self).setUp()
+
+    def tearDown(self):
+        super(TestModuleWsCommand, self).tearDown()
+        if self.modulemanager:
+            time.sleep(1)
+            self.modulemanager.stop_all()
+
     def test_module_zzz_command(self):
         """ Test the WS /command endpoint
         :return:
         """
-        self.print_header()
-        # Obliged to call to get a self.logger...
-        self.setup_with_file('cfg/cfg_default.cfg')
-        self.assertTrue(self.conf_is_correct)
-
-        # -----
-        # Provide parameters - logger configuration file (exists)
-        # -----
-        # Clear logs
-        self.clear_logs()
-
         # Create an Alignak module
         mod = Module({
             'module_alias': 'web-services',
@@ -163,10 +179,15 @@ class TestModuleWsCommand(AlignakTest):
             # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
             'alignak_host': '',
             'alignak_port': 7770,
+            'authorization': '1'
         })
 
-        # Create the modules manager for a daemon type
-        self.modulemanager = ModulesManager('receiver', None)
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
 
         # Load an initialize the modules:
         #  - load python module
@@ -194,7 +215,7 @@ class TestModuleWsCommand(AlignakTest):
         time.sleep(1)
 
         # Do not allow GET request on /command - not yet authorized
-        response = requests.get('http://127.0.0.1:8888/command')
+        response = requests.get(self.ws_endpoint + '/command')
         self.assertEqual(response.status_code, 401)
 
         session = requests.Session()
@@ -202,12 +223,12 @@ class TestModuleWsCommand(AlignakTest):
         # Login with username/password (real backend login)
         headers = {'Content-Type': 'application/json'}
         params = {'username': 'admin', 'password': 'admin'}
-        response = session.post('http://127.0.0.1:8888/login', json=params, headers=headers)
+        response = session.post(self.ws_endpoint + '/login', json=params, headers=headers)
         assert response.status_code == 200
         resp = response.json()
 
         # Allowed request on /command
-        response = session.get('http://127.0.0.1:8888/command')
+        response = session.get(self.ws_endpoint + '/command')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -218,7 +239,7 @@ class TestModuleWsCommand(AlignakTest):
         # You must have parameters when POSTing on /command
         headers = {'Content-Type': 'application/json'}
         data = {}
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -234,7 +255,7 @@ class TestModuleWsCommand(AlignakTest):
             "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'ERR')
@@ -249,7 +270,7 @@ class TestModuleWsCommand(AlignakTest):
             "parameters": "abc;1"
         }
         self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -264,12 +285,12 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host",
             "parameters": "abc;1"
         }
-        self.assertEqual(my_module.received_commands, 0)
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 1)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
-        self.assertEqual(result, {u'_status': u'ERR',
-                                  u'_error': u'Timestamp must be an integer value'})
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_error': 'Timestamp must be an integer value'})
 
         # Request to execute an external command with timestamp
         headers = {'Content-Type': 'application/json'}
@@ -279,7 +300,8 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host;test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 1)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -294,7 +316,8 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host;test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 3)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -308,7 +331,8 @@ class TestModuleWsCommand(AlignakTest):
             "element": "test_host/test_service",    # Accept / as an host/service separator
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 4)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -323,7 +347,8 @@ class TestModuleWsCommand(AlignakTest):
             "service": "test_service",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 5)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -339,7 +364,8 @@ class TestModuleWsCommand(AlignakTest):
             "user": "test_user",
             "parameters": "1;abc;2"
         }
-        response = session.post('http://127.0.0.1:8888/command', json=data, headers=headers)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 6)
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
@@ -348,10 +374,204 @@ class TestModuleWsCommand(AlignakTest):
                          'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
 
         # Logout
-        response = session.get('http://127.0.0.1:8888/logout')
+        response = session.get(self.ws_endpoint + '/logout')
         self.assertEqual(response.status_code, 200)
         result = response.json()
         self.assertEqual(result['_status'], 'OK')
         self.assertEqual(result['_result'], 'Logged out')
+
+        self.modulemanager.stop_all()
+
+    def test_module_zzz_command_unauthorized(self):
+        """ Test the WS /command endpoint - unauthorized access mode
+        :return:
+        """
+        # Create an Alignak module
+        mod = Module({
+            'module_alias': 'web-services',
+            'module_types': 'web-services',
+            'python_name': 'alignak_module_ws',
+            # Alignak backend - not configured
+            'alignak_backend': '',
+            'username': '',
+            'password': '',
+            # Set Arbiter address as empty to not poll the Arbiter else the test will fail!
+            'alignak_host': '',
+            'alignak_port': 7770,
+            # Disable authorization
+            'authorization': '0'
+        })
+
+        # Create a receiver daemon
+        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        self._receiver_daemon = Receiver(**args)
+
+        # Create the modules manager for the daemon
+        self.modulemanager = ModulesManager(self._receiver_daemon)
+
+        # Load an initialize the modules:
+        #  - load python module
+        #  - get module properties and instances
+        self.modulemanager.load_and_init([mod])
+
+        my_module = self.modulemanager.instances[0]
+
+        # Clear logs
+        self.clear_logs()
+
+        # Start external modules
+        self.modulemanager.start_external_instances()
+
+        # Starting external module logs
+        self.assert_log_match("Trying to initialize module: web-services", 0)
+        self.assert_log_match("Starting external module web-services", 1)
+        self.assert_log_match("Starting external process for module web-services", 2)
+        self.assert_log_match("web-services is now started", 3)
+
+        # Check alive
+        self.assertIsNotNone(my_module.process)
+        self.assertTrue(my_module.process.is_alive())
+
+        time.sleep(1)
+
+        session = requests.Session()
+
+        # You must have parameters when POSTing on /command
+        headers = {'Content-Type': 'application/json'}
+        data = {}
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        self.assertEqual(result['_error'], 'You must POST parameters on this endpoint.')
+
+        self.assertEqual(my_module.received_commands, 0)
+
+        # You must have a command parameter when POSTing on /command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            # "command": "Command",
+            "element": "test_host",
+            "parameters": "abc;1"
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'ERR')
+        # Result error message
+        self.assertEqual(result['_error'], 'Missing command parameter')
+
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "Command",
+            "element": "test_host",
+            "parameters": "abc;1"
+        }
+        self.assertEqual(my_module.received_commands, 0)
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 1)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'], 'COMMAND;test_host;abc;1')
+
+        # Request to execute an external command with timestamp - bad value
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "Command",
+            "timestamp": "text",
+            "element": "test_host",
+            "parameters": "abc;1"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result, {'_status': 'ERR',
+                                  '_error': 'Timestamp must be an integer value'})
+        self.assertEqual(my_module.received_commands, 1)
+
+        # Request to execute an external command with timestamp
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "timestamp": "1234",
+            "element": "test_host;test_service",
+            "parameters": "1;abc;2"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 2)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'],
+                         '[1234] COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "element": "test_host;test_service",
+            "parameters": "1;abc;2"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 3)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "element": "test_host/test_service",    # Accept / as an host/service separator
+            "parameters": "1;abc;2"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 4)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command (Alignak modern syntax)
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "host": "test_host",
+            "service": "test_service",
+            "parameters": "1;abc;2"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 5)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'], 'COMMAND_COMMAND;test_host;test_service;1;abc;2')
+
+        # Request to execute an external command (Alignak modern syntax)
+        headers = {'Content-Type': 'application/json'}
+        data = {
+            "command": "command_command",
+            "host": "test_host",
+            "service": "test_service",
+            "user": "test_user",
+            "parameters": "1;abc;2"
+        }
+        response = session.post(self.ws_endpoint + '/command', json=data, headers=headers)
+        self.assertEqual(my_module.received_commands, 6)
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result['_status'], 'OK')
+        # Result is uppercase command, parameters are ordered
+        self.assertEqual(result['_command'],
+                         'COMMAND_COMMAND;test_host;test_service;test_user;1;abc;2')
 
         self.modulemanager.stop_all()
