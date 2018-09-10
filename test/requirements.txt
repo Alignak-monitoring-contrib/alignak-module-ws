@@ -1,8 +1,8 @@
 # Python requirements for unit tests
 -r ../requirements.txt
 
-# alignak - develop+environment branch
--e git+https://github.com/Alignak-monitoring/alignak.git@python3#egg=alignak
+# alignak - develop branch
+-e git+https://github.com/Alignak-monitoring/alignak.git@develop#egg=alignak
 
 # alignak backend
 -e git+https://github.com/Alignak-monitoring-contrib/alignak-backend.git@develop#egg=alignak-backend
