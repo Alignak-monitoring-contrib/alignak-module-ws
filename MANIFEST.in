@@ -3,4 +3,5 @@ include README.rst
 include AUTHORS
 include LICENSE
 include requirements.txt
+prune test
 recursive-include alignak_module_ws *
