@@ -673,7 +673,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -830,7 +830,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -899,7 +899,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -996,7 +996,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -1086,7 +1086,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -1203,7 +1203,7 @@ class TestModuleWs(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon

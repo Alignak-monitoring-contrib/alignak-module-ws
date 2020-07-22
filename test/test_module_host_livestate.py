@@ -183,9 +183,9 @@ class TestModuleWsHostLivestate(AlignakTest):
 
         """
         When module is really loaded in Alignak:
-        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] inner properties: {'init_try': 0, 'illegal_char': <_sre.SRE_Pattern object at 0x808e03d50>, 'phases': ['running'], 'is_external': True, 'myconf': <'Module' u'web-services', module: u'alignak_module_ws', type(s): u'web-services' />, 'to_q': None, 'process': None, 'from_q': None, 'interrupted': False, 'loaded_into': 'unknown', 'props': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'kill_delay': 60, 'module_monitoring_period': 10, 'module_monitoring': False, 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'name': u'web-services'}
-        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] received configuration: {'enable_problem_impacts_states_change': u'1', 'log_notifications': u'1', 'statsd_prefix': u'alignak-fdj.modules', 'statsd_host': u'localhost', 'daemons_initial_port': u'7800', 'log_initial_states': u'0', 'group': u'alignak', 'uuid': u'f0b02b5dfa7a4e1484166a4ef9b1cad3', 'alignak_polling_period': u'60', 'notification_timeout': u'30', 'execute_service_checks': u'1', 'disable_old_nagios_parameters_whining': u'1', 'log_external_commands': u'1', 'tick_update_retention': u'1800', 'password': u'ipm-France2017', 'idontcareaboutsecurity': u'0', 'python_name': u'alignak_module_ws', 'daemon': u'unset', 'tick_update_program_status': u'10', 'name': u'web-services', 'statsd_enabled': False, 'alignak_host': u'alignak1', 'alignak_launched': u'1', 'tick_clean_queues': u'10', 'daemons_stop_timeout': u'10', 'old_properties': {}, 'max_plugins_output_length': u'65536', 'downtimes': {}, 'tags': set([]), 'log_event_handlers': u'1', 'enable_notifications': u'1', 'do_replace': u'1', 'definition_order': 100, 'alignak_backend': u'http://alignak_backend1:5000', 'logger_configuration': u'/usr/local//etc/alignak/alignak-logger.json', 'use': [], 'check_host_freshness': u'1', 'spare': u'0', 'log_host_retries': u'1', 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'set_timestamp': u'1', 'max_service_check_spread': u'5', 'execute_host_checks': u'1', 'host_freshness_check_interval': u'1200', 'retention_update_interval': u'60', 'log_snapshots': u'1', 'accept_passive_service_checks': u'1', 'service_freshness_check_interval': u'1800', 'module_alias': u'web-services', 'module_types': [u''], 'alignak_name': u'alignak-fdj', 'max_queue_size': u'0', 'alignak_port': u'7770', 'type': u'web-services', 'authorization': u'1', 'logdir': u'/usr/local//var/log/alignak', 'username': u'admin', 'feedback_host': u'active_checks_enabled,check_interval,retry_interval,passive_checks_enabled,freshness_threshold', 'conf_is_correct': True, 'log_passive_checks': u'0', 'etcdir': u'/usr/local//etc/alignak', 'check_service_freshness': u'0', 'daemons_check_period': u'5', 'configuration_warnings': [], 'imported_from': 'unknown', 'max_host_check_spread': u'5', 'config_name': u'Alignak FdJ configuration', 'statsd_port': 8125, 'accept_passive_host_checks': u'1', 'log_active_checks': u'0', 'allow_host_creation': u'1', 'no_event_handlers_during_downtimes': u'1', 'log_service_retries': u'1', 'accept_passive_unknown_check_results': u'1', 'alignak_backend_timeshift': u'5', 'allow_service_creation': u'0', 'use_ssl': u'0', 'daemons_log_folder': u'/usr/local//var/log/alignak', 'realm': u'All', 'realm_case': u'upper', 'polling_interval': u'5', 'enable_environment_macros': u'0', 'workdir': u'/usr/local//var/run/alignak', 'log_flappings': u'1', 'customs': {}, 'user': u'alignak', 'log_level': u'DEBUG', 'configuration_errors': [], 'register': True, 'alias': u'web-services'}
-        [2018-03-31 11:43:42] DEBUG: [receiver-master.alignak.module.web-services] loaded into: unknown
+        [2018-03-31 11:43:42] DEBUG: [receiver-main.alignak.module.web-services] inner properties: {'init_try': 0, 'illegal_char': <_sre.SRE_Pattern object at 0x808e03d50>, 'phases': ['running'], 'is_external': True, 'myconf': <'Module' u'web-services', module: u'alignak_module_ws', type(s): u'web-services' />, 'to_q': None, 'process': None, 'from_q': None, 'interrupted': False, 'loaded_into': 'unknown', 'props': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'kill_delay': 60, 'module_monitoring_period': 10, 'module_monitoring': False, 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'name': u'web-services'}
+        [2018-03-31 11:43:42] DEBUG: [receiver-main.alignak.module.web-services] received configuration: {'enable_problem_impacts_states_change': u'1', 'log_notifications': u'1', 'statsd_prefix': u'alignak-fdj.modules', 'statsd_host': u'localhost', 'daemons_initial_port': u'7800', 'log_initial_states': u'0', 'group': u'alignak', 'uuid': u'f0b02b5dfa7a4e1484166a4ef9b1cad3', 'alignak_polling_period': u'60', 'notification_timeout': u'30', 'execute_service_checks': u'1', 'disable_old_nagios_parameters_whining': u'1', 'log_external_commands': u'1', 'tick_update_retention': u'1800', 'password': u'ipm-France2017', 'idontcareaboutsecurity': u'0', 'python_name': u'alignak_module_ws', 'daemon': u'unset', 'tick_update_program_status': u'10', 'name': u'web-services', 'statsd_enabled': False, 'alignak_host': u'alignak1', 'alignak_launched': u'1', 'tick_clean_queues': u'10', 'daemons_stop_timeout': u'10', 'old_properties': {}, 'max_plugins_output_length': u'65536', 'downtimes': {}, 'tags': set([]), 'log_event_handlers': u'1', 'enable_notifications': u'1', 'do_replace': u'1', 'definition_order': 100, 'alignak_backend': u'http://alignak_backend1:5000', 'logger_configuration': u'/usr/local//etc/alignak/alignak-logger.json', 'use': [], 'check_host_freshness': u'1', 'spare': u'0', 'log_host_retries': u'1', 'properties': {'daemons': ['receiver'], 'phases': ['running'], 'type': 'web-services', 'external': True}, 'set_timestamp': u'1', 'max_service_check_spread': u'5', 'execute_host_checks': u'1', 'host_freshness_check_interval': u'1200', 'retention_update_interval': u'60', 'log_snapshots': u'1', 'accept_passive_service_checks': u'1', 'service_freshness_check_interval': u'1800', 'module_alias': u'web-services', 'module_types': [u''], 'alignak_name': u'alignak-fdj', 'max_queue_size': u'0', 'alignak_port': u'7770', 'type': u'web-services', 'authorization': u'1', 'logdir': u'/usr/local//var/log/alignak', 'username': u'admin', 'feedback_host': u'active_checks_enabled,check_interval,retry_interval,passive_checks_enabled,freshness_threshold', 'conf_is_correct': True, 'log_passive_checks': u'0', 'etcdir': u'/usr/local//etc/alignak', 'check_service_freshness': u'0', 'daemons_check_period': u'5', 'configuration_warnings': [], 'imported_from': 'unknown', 'max_host_check_spread': u'5', 'config_name': u'Alignak FdJ configuration', 'statsd_port': 8125, 'accept_passive_host_checks': u'1', 'log_active_checks': u'0', 'allow_host_creation': u'1', 'no_event_handlers_during_downtimes': u'1', 'log_service_retries': u'1', 'accept_passive_unknown_check_results': u'1', 'alignak_backend_timeshift': u'5', 'allow_service_creation': u'0', 'use_ssl': u'0', 'daemons_log_folder': u'/usr/local//var/log/alignak', 'realm': u'All', 'realm_case': u'upper', 'polling_interval': u'5', 'enable_environment_macros': u'0', 'workdir': u'/usr/local//var/run/alignak', 'log_flappings': u'1', 'customs': {}, 'user': u'alignak', 'log_level': u'DEBUG', 'configuration_errors': [], 'register': True, 'alias': u'web-services'}
+        [2018-03-31 11:43:42] DEBUG: [receiver-main.alignak.module.web-services] loaded into: unknown
 
         """
         # Create an Alignak module
@@ -224,7 +224,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -477,7 +477,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -691,7 +691,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': './cfg/default/alignak.ini', 'daemon_name': 'receiver-master'}
+        args = {'env_file': './cfg/default/alignak.ini', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
         # Create the modules manager for the daemon
         self.modulemanager = ModulesManager(self._receiver_daemon)
@@ -910,7 +910,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -1252,7 +1252,7 @@ class TestModuleWsHostLivestate(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon

@@ -203,7 +203,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -679,7 +679,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -911,7 +911,7 @@ class TestModuleWsHost(AlignakTest):
         print("Module...")
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
         print("Daemon...")
 
@@ -1476,7 +1476,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -1845,7 +1845,7 @@ class TestModuleWsHost(AlignakTest):
         mod = Module(mod_conf)
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -1968,7 +1968,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -2362,7 +2362,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -2821,7 +2821,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -2991,7 +2991,7 @@ class TestModuleWsHost(AlignakTest):
             }
         })
         # Response always contains host backend data!
-        # Host is data-slave for the host configuration !
+        # Host is data-subordinate for the host configuration !
 
         # Logout
         response = session.get(self.ws_endpoint + '/logout')
@@ -3037,7 +3037,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -3278,7 +3278,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon
@@ -3463,7 +3463,7 @@ class TestModuleWsHost(AlignakTest):
         })
 
         # Create a receiver daemon
-        args = {'env_file': '', 'daemon_name': 'receiver-master'}
+        args = {'env_file': '', 'daemon_name': 'receiver-main'}
         self._receiver_daemon = Receiver(**args)
 
         # Create the modules manager for the daemon

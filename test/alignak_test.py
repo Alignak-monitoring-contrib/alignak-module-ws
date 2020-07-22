@@ -233,8 +233,8 @@ define host {
 
     def _prepare_configuration(self, copy=True, cfg_folder='/tmp/alignak', daemons_list=None):
         if daemons_list is None:
-            daemons_list = ['arbiter-master', 'scheduler-master', 'broker-master',
-                            'poller-master', 'reactionner-master', 'receiver-master']
+            daemons_list = ['arbiter-main', 'scheduler-main', 'broker-main',
+                            'poller-main', 'reactionner-main', 'receiver-main']
 
         cfg_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), cfg_folder)
 
@@ -362,7 +362,7 @@ define host {
 
         if getattr(self, 'procs', None):
             for name, proc in list(self.procs.items()):
-                if arbiter_only and name not in ['arbiter-master']:
+                if arbiter_only and name not in ['arbiter-main']:
                     continue
                 if proc.pid == self.my_pid:
                     print("- do not kill myself!")
@@ -445,8 +445,8 @@ define host {
         """
         if daemons_list is None:
             daemons_list = [
-                'scheduler-master', 'broker-master',
-                'poller-master', 'reactionner-master', 'receiver-master'
+                'scheduler-main', 'broker-main',
+                'poller-main', 'reactionner-main', 'receiver-main'
             ]
         # Load and test the configuration
         cfg_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), cfg_folder)
@@ -460,7 +460,7 @@ define host {
 
         # Clean the former existing pid and log files
         print("Cleaning pid and log files...")
-        for daemon in daemons_list + ['arbiter-master']:
+        for daemon in daemons_list + ['arbiter-main']:
             if os.path.exists('%s/%s.pid' % (self._launch_dir, daemon)):
                 print("- removing pid %s/%s.pid" % (self._launch_dir, daemon))
                 os.remove('%s/%s.pid' % (self._launch_dir, daemon))
@@ -523,8 +523,8 @@ define host {
         #
         print("Launching the daemons...")
         self.procs = {}
-        for name in daemons_list + ['arbiter-master']:
-            if arbiter_only and name not in ['arbiter-master']:
+        for name in daemons_list + ['arbiter-main']:
+            if arbiter_only and name not in ['arbiter-main']:
                 continue
             args = ["../alignak/bin/alignak_%s.py" % name.split('-')[0], "-n", name,
                     "-e", "%s/etc/alignak.ini" % cfg_folder]
@@ -553,8 +553,8 @@ define host {
                         for line in f:
                             print("xxx %s" % line)
 
-                if os.path.exists("%s/log/arbiter-master.log" % cfg_folder):
-                    with open("%s/log/arbiter-master.log" % cfg_folder) as f:
+                if os.path.exists("%s/log/arbiter-main.log" % cfg_folder):
+                    with open("%s/log/arbiter-main.log" % cfg_folder) as f:
                         for line in f:
                             print("... %s" % line)
 
@@ -575,8 +575,8 @@ define host {
         time.sleep(3)
 
         print("Testing pid files and log files...")
-        for name in daemons_list + ['arbiter-master']:
-            if arbiter_only and name not in ['arbiter-master']:
+        for name in daemons_list + ['arbiter-main']:
+            if arbiter_only and name not in ['arbiter-main']:
                 continue
             print("- %s for %s" % ('%s/run/%s.pid' % (run_folder, name), name))
             # Some times pid and log files may not exist ...
@@ -615,7 +615,7 @@ define host {
         ])
         nb_errors = 0
         nb_warnings = 0
-        for daemon in ['arbiter-master'] + daemons_list:
+        for daemon in ['arbiter-main'] + daemons_list:
             log_file = "/%s/log/%s.log" % (run_folder, daemon)
             if not os.path.exists(log_file):
                 log_file = "/%s/run/%s.log" % (run_folder, daemon)
@@ -1104,7 +1104,7 @@ define host {
                 self._receiver_daemon.add(ext_cmd)
                 # self._receiver_daemon.push_external_commands_to_schedulers()
                 # # Our scheduler
-                # self._scheduler = self.schedulers['scheduler-master'].sched
+                # self._scheduler = self.schedulers['scheduler-main'].sched
                 # Give broks to our broker
                 for brok in self._receiver_daemon.broks:
                     print("Brok receiver: %s" % brok)
