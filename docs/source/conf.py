@@ -50,8 +50,8 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-# The master toctree document.
-master_doc = 'index'
+# The main toctree document.
+main_doc = 'index'
 
 # General information about the project.
 project = u'Alignak Web Services'
@@ -230,7 +230,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'AlignakWebServices.tex', u'Alignak Web Services Documentation',
+  (main_doc, 'AlignakWebServices.tex', u'Alignak Web Services Documentation',
    u'Frédéric MOHIER', 'manual'),
 ]
 
@@ -260,7 +260,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'alignakwebservices', u'Alignak Web Services Documentation',
+    (main_doc, 'alignakwebservices', u'Alignak Web Services Documentation',
      [author], 1)
 ]
 
@@ -274,7 +274,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'AlignakWebServices', u'Alignak Web Services Documentation',
+  (main_doc, 'AlignakWebServices', u'Alignak Web Services Documentation',
    author, 'AlignakWebServices', 'One line description of project.',
    'Miscellaneous'),
 ]
